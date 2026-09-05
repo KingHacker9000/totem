@@ -200,6 +200,8 @@ function validateSource(
   source: unknown,
   issues: string[],
 ): source is EventSource {
+  const issueCountBefore = issues.length;
+
   if (!isRecord(source)) {
     issues.push("source must be an object");
     return false;
@@ -215,11 +217,15 @@ function validateSource(
   }
 
   const hasId = requireNonEmptyString(source.id, "source.id", issues);
-  if (kind === "extension" && hasId && !EXTENSION_ID_PATTERN.test(source.id as string)) {
+  if (
+    kind === "extension" &&
+    hasId &&
+    !EXTENSION_ID_PATTERN.test(source.id as string)
+  ) {
     issues.push("source.id must be a valid extension id for extension events");
   }
 
-  return issues.length === 0;
+  return issues.length === issueCountBefore;
 }
 
 export function isCoreNamespace(type: string): boolean {
@@ -306,7 +312,6 @@ export function validateTotemEvent<T = unknown>(input: unknown): TotemEvent<T> {
     "occurredAt",
     issues,
   );
-  const sourceIssueStart = issues.length;
   const hasSource = validateSource(input.source, issues);
 
   for (const field of [
@@ -328,29 +333,16 @@ export function validateTotemEvent<T = unknown>(input: unknown): TotemEvent<T> {
 
   if (
     hasOccurredAt &&
-    (!input.occurredAt.endsWith("Z") || !Number.isFinite(Date.parse(input.occurredAt)))
+    (!input.occurredAt.endsWith("Z") ||
+      !Number.isFinite(Date.parse(input.occurredAt)))
   ) {
     issues.push("occurredAt must be a valid UTC ISO-8601 timestamp ending in Z");
   }
 
-  if (hasType && hasSource && issues.length === sourceIssueStart) {
-    issues.push(...validateEventNamespace(input.type as string, input.source as EventSource));
-  } else if (hasType && isRecord(input.source)) {
-    const kind = input.source.kind;
-    const id = input.source.id;
-    if (
-      typeof kind === "string" &&
-      SOURCE_KINDS.has(kind as EventSourceKind) &&
-      typeof id === "string" &&
-      id.trim() !== ""
-    ) {
-      issues.push(
-        ...validateEventNamespace(input.type as string, {
-          kind: kind as EventSourceKind,
-          id,
-        }),
-      );
-    }
+  if (hasType && hasSource) {
+    issues.push(
+      ...validateEventNamespace(input.type as string, input.source as EventSource),
+    );
   }
 
   if (hasType && (input.type as string).startsWith("task.")) {
