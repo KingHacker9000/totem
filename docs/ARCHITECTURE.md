@@ -102,19 +102,28 @@ ThemeRuntime
 
 ## Task model
 
-Agentic work is represented as persistent tasks with IDs and lifecycle states such as:
+Agentic work is represented as persistent tasks owned by Totem core. Phase 1 uses the explicit lifecycle:
 
 ```text
-queued -> running -> waiting_for_input -> succeeded
-                       |                 -> failed
-                       -> cancelled
+queued
+  -> running
+      -> waiting_for_input -> running
+      -> cancelling -> cancelled
+      -> succeeded
+      -> failed
 ```
 
-A task survives navigation away from the display, dashboard disconnects, and recoverable service restarts. Conversation/session state may reference tasks, but must not own their lifetime.
+Terminal states are `succeeded`, `failed`, and `cancelled`; they cannot be resurrected. Cancellation is modeled as a request followed by confirmed termination, not an optimistic UI state change.
+
+A task survives navigation away from the display, dashboard disconnects, and recoverable service restarts. Conversation/provider sessions may reference tasks, but do not own their lifetime.
+
+The complete v0 transition, persistence, cancellation, history, and reconnect contract is defined in [PROTOCOL.md](PROTOCOL.md).
 
 ## Event model
 
-Components communicate through typed events. Example categories:
+Components communicate through normalized typed events using the `totem.event/v0` envelope defined in [PROTOCOL.md](PROTOCOL.md).
+
+Core-reserved event categories include:
 
 ```text
 input.*
@@ -129,7 +138,9 @@ system.*
 notification.*
 ```
 
-Extensions may publish namespaced events but cannot impersonate core event namespaces.
+Third-party extension-defined events use `ext.<extension-id>.*`; extensions cannot impersonate core namespaces. Raw Codex/Claude/provider-native event objects are adapter-private and must be normalized before entering the shared core protocol.
+
+Dashboard and display clients are observers/command clients. After reconnect they fetch authoritative state/history from core rather than treating browser memory as durable state.
 
 ## Display arbitration
 
