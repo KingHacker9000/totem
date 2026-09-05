@@ -1,4 +1,4 @@
-import type { JsonValue, NormalizedFailure } from "../../protocol/src/index.js";
+import type { JsonValue, NormalizedFailure } from "@totem/protocol";
 
 export const TASK_STATUSES = [
   "queued",
