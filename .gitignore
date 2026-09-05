@@ -1,0 +1,38 @@
+# Dependencies / build output
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+*.tsbuildinfo
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Totem local runtime state
+.totem/
+data/
+logs/
+*.sqlite
+*.sqlite3
+*.db
+
+# Python tooling used by auxiliary scripts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.log
