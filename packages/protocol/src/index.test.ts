@@ -50,9 +50,7 @@ describe("Totem event protocol", () => {
         kind: "extension",
         id: "weather",
       }),
-    ).toContain(
-      "extension 'weather' may only publish under 'ext.weather.*'",
-    );
+    ).toContain("extension 'weather' may only publish under 'ext.weather.*'");
   });
 
   it("prevents non-extension sources from impersonating extensions", () => {
