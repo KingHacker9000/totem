@@ -19,6 +19,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
+      - name: Upload generated lockfile
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24.18.0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: t106-pnpm-lock
+          path: pnpm-lock.yaml
       - run: pnpm check
       - run: pnpm build
