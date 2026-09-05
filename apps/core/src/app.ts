@@ -26,9 +26,7 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.get("/health", async () => ({ status: "ok" }));
 
-  app.get("/api/status", async () =>
-    createRuntimeStatus(config, startedAt),
-  );
+  app.get("/api/status", async () => createRuntimeStatus(config, startedAt));
 
   return app;
 }
