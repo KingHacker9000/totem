@@ -13,11 +13,11 @@ export interface RuntimeStatus {
   dataDir: string;
 }
 
-export async function ensureDataDirectories(config: TotemConfig): Promise<void> {
+export async function ensureDataDirectories(
+  config: TotemConfig,
+): Promise<void> {
   await Promise.all(
-    Object.values(config.paths).map((path) =>
-      mkdir(path, { recursive: true }),
-    ),
+    Object.values(config.paths).map((path) => mkdir(path, { recursive: true })),
   );
 }
 
