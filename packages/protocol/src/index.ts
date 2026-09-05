@@ -337,6 +337,7 @@ export function validateTotemEvent<T = unknown>(input: unknown): TotemEvent<T> {
 
   if (
     hasOccurredAt &&
+    typeof input.occurredAt === "string" &&
     (!input.occurredAt.endsWith("Z") ||
       !Number.isFinite(Date.parse(input.occurredAt)))
   ) {
