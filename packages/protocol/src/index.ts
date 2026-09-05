@@ -139,7 +139,8 @@ function rejectUnknownKeys(
   issues: string[],
 ): void {
   for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) issues.push(`${field} contains unknown field '${key}'`);
+    if (!allowed.has(key))
+      issues.push(`${field} contains unknown field '${key}'`);
   }
 }
 
@@ -158,7 +159,8 @@ function validateJsonValue(
   }
 
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) issues.push(`${path} must contain finite numbers`);
+    if (!Number.isFinite(value))
+      issues.push(`${path} must contain finite numbers`);
     return;
   }
 
@@ -255,7 +257,9 @@ export function validateEventNamespace(
   }
 
   if (type.startsWith("ext.")) {
-    issues.push("only extension sources may publish ext.<extension-id>.* events");
+    issues.push(
+      "only extension sources may publish ext.<extension-id>.* events",
+    );
     return issues;
   }
 
@@ -336,12 +340,17 @@ export function validateTotemEvent<T = unknown>(input: unknown): TotemEvent<T> {
     (!input.occurredAt.endsWith("Z") ||
       !Number.isFinite(Date.parse(input.occurredAt)))
   ) {
-    issues.push("occurredAt must be a valid UTC ISO-8601 timestamp ending in Z");
+    issues.push(
+      "occurredAt must be a valid UTC ISO-8601 timestamp ending in Z",
+    );
   }
 
   if (hasType && hasSource) {
     issues.push(
-      ...validateEventNamespace(input.type as string, input.source as EventSource),
+      ...validateEventNamespace(
+        input.type as string,
+        input.source as EventSource,
+      ),
     );
   }
 
@@ -361,12 +370,16 @@ export function serializeTotemEvent(event: unknown): string {
   return JSON.stringify(validateTotemEvent(event));
 }
 
-export function parseTotemEvent<T = unknown>(serialized: string): TotemEvent<T> {
+export function parseTotemEvent<T = unknown>(
+  serialized: string,
+): TotemEvent<T> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(serialized) as unknown;
   } catch {
-    throw new EventValidationError(["serialized event must contain valid JSON"]);
+    throw new EventValidationError([
+      "serialized event must contain valid JSON",
+    ]);
   }
   return validateTotemEvent<T>(parsed);
 }
