@@ -21,9 +21,17 @@ extension/
 
 The exact on-disk schema is owned by `totem-extension-sdk` and may evolve before v1.
 
+## Phase 1 discovery stub
+
+Phase 1 intentionally uses a much smaller local discovery contract before the full SDK exists. The normative stub contract is [DISCOVERY.md](DISCOVERY.md).
+
+For Phase 1 only, local candidates use `totem-extension.json` with schema id `totem.extension/v0`, stable identity/version fields, optional enablement/entrypoint metadata, and coarse capability declarations. These declarations are **not** blanket authorization and do not freeze the final permission vocabulary.
+
+The full manifest, public SDK compatibility policy, registry/install behavior, and granular requested/granted permission model remain deferred.
+
 ## Manifest concepts
 
-Every extension must declare, at minimum:
+Every extension must eventually declare, at minimum:
 
 - stable ID and version
 - compatible Totem/SDK versions
