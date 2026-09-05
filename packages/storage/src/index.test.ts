@@ -145,10 +145,14 @@ describe("TaskStore", () => {
       ),
     ).rejects.toThrow(/requires 'task.started'/);
 
-    expect(await store.getTask("task-atomic")).toMatchObject({ status: "queued" });
-    expect((await store.listTaskEvents("task-atomic")).map((item) => item.event.type)).toEqual([
-      "task.created",
-    ]);
+    expect(await store.getTask("task-atomic")).toMatchObject({
+      status: "queued",
+    });
+    expect(
+      (await store.listTaskEvents("task-atomic")).map(
+        (item) => item.event.type,
+      ),
+    ).toEqual(["task.created"]);
   });
 
   it("persists active cancellation and prevents resurrection of terminal tasks", async () => {
@@ -164,11 +168,7 @@ describe("TaskStore", () => {
     );
     await store.appendTaskEvent(
       "task-cancel",
-      event(
-        "task.cancel_requested",
-        "task-cancel",
-        "2026-09-05T23:52:02.000Z",
-      ),
+      event("task.cancel_requested", "task-cancel", "2026-09-05T23:52:02.000Z"),
     );
     await store.transitionTask(
       "task-cancel",

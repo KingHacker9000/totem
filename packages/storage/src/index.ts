@@ -98,7 +98,9 @@ export function openTotemDatabase(
   });
 }
 
-export async function migrateToLatest(db: Kysely<TotemDatabase>): Promise<void> {
+export async function migrateToLatest(
+  db: Kysely<TotemDatabase>,
+): Promise<void> {
   const migrator = new Migrator({
     db,
     provider: new TotemMigrationProvider(),
@@ -155,7 +157,8 @@ function requireNonEmpty(value: string, field: string): void {
 
 function serializeJsonField(value: JsonValue | NormalizedFailure): string {
   const serialized = JSON.stringify(value);
-  if (serialized === undefined) throw new Error("Value must be JSON-serializable");
+  if (serialized === undefined)
+    throw new Error("Value must be JSON-serializable");
   return serialized;
 }
 
@@ -178,9 +181,7 @@ function toTaskRecord(row: TasksTable): TaskRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(row.started_at === null ? {} : { startedAt: row.started_at }),
-    ...(row.completed_at === null
-      ? {}
-      : { completedAt: row.completed_at }),
+    ...(row.completed_at === null ? {} : { completedAt: row.completed_at }),
     ...(row.failure_json === null
       ? {}
       : { failure: parseJsonField<NormalizedFailure>(row.failure_json) }),
@@ -215,7 +216,10 @@ function assertTaskEvent(event: unknown, taskId: string): TotemEvent {
 export class TaskStore {
   constructor(readonly db: Kysely<TotemDatabase>) {}
 
-  async createTask(input: CreateTaskInput, event: unknown): Promise<TaskRecord> {
+  async createTask(
+    input: CreateTaskInput,
+    event: unknown,
+  ): Promise<TaskRecord> {
     requireNonEmpty(input.id, "task id");
     requireNonEmpty(input.kind, "task kind");
     const createdEvent = assertTaskEvent(event, input.id);
@@ -296,7 +300,9 @@ export class TaskStore {
         );
       }
       if (to === "failed" && !options.failure) {
-        throw new Error("A failed task transition requires a normalized failure");
+        throw new Error(
+          "A failed task transition requires a normalized failure",
+        );
       }
       if (to !== "failed" && options.failure) {
         throw new Error("failure is only valid for a failed task transition");
@@ -347,9 +353,9 @@ export class TaskStore {
       );
     }
 
-    return this.db.transaction().execute((trx) =>
-      this.insertEvent(trx, taskId, validated),
-    );
+    return this.db
+      .transaction()
+      .execute((trx) => this.insertEvent(trx, taskId, validated));
   }
 
   async listTaskEvents(taskId: string): Promise<StoredTaskEvent[]> {
@@ -445,7 +451,9 @@ export class TaskStore {
       if (existing.task_id === taskId && existing.envelope_json === envelope) {
         return existing.task_sequence;
       }
-      throw new Error(`Event id '${event.id}' is already used by another event`);
+      throw new Error(
+        `Event id '${event.id}' is already used by another event`,
+      );
     }
 
     const last = await db
