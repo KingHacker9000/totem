@@ -168,9 +168,9 @@ function validateJsonValue(
       return;
     }
     seen.add(value);
-    value.forEach((item, index) =>
-      validateJsonValue(item, `${path}[${index}]`, issues, seen),
-    );
+    for (const [index, item] of value.entries()) {
+      validateJsonValue(item, `${path}[${index}]`, issues, seen);
+    }
     seen.delete(value);
     return;
   }
