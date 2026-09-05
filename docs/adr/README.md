@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Accepted Phase 0 decisions:
+Accepted decisions:
 
 - [0001 — Generic platform; specific identities live in themes](0001-generic-platform-specific-themes.md)
 - [0002 — No on-device general-purpose LLM requirement](0002-no-on-device-general-purpose-llm.md)
@@ -11,5 +11,6 @@ Accepted Phase 0 decisions:
 - [0007 — Software-first, PC-first development](0007-software-first-pc-first.md)
 - [0008 — Persistent agent tasks are independent of UI sessions](0008-persistent-tasks.md)
 - [0009 — Privileged operations are brokered and auditable](0009-broker-privileged-operations.md)
+- [0010 — Phase 1 uses a TypeScript/Node/browser stack](0010-phase-1-typescript-node-web-stack.md)
 
-These decisions are intended to prevent later implementation work from accidentally collapsing Totem back into a character-specific Raspberry Pi script collection.
+These decisions are intended to prevent later implementation work from accidentally collapsing Totem back into a character-specific Raspberry Pi script collection and to give parallel implementers a stable set of constraints.
