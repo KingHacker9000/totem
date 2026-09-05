@@ -28,11 +28,11 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 ## Current status
 
-**Phase 0 — architecture and project bootstrap.** The contracts and architectural decisions are being frozen before implementation begins.
+**Phase 0 is complete.** The core architectural decisions, repository boundaries, security direction, software-first roadmap, and hardware/CAD handoff have been documented.
 
 Next: **Phase 1 — core software platform and PC simulator.**
 
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
 
 ## Documentation
 
@@ -48,8 +48,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md).
 - [Storage](docs/STORAGE.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Phase 0 completion](docs/PHASE0.md)
 - [Architecture decisions](docs/adr/README.md)
 
 ## Licensing
 
-Licensing is intentionally not finalized in Phase 0. The public repositories are intended to be open source, but the exact software/hardware licenses will be selected before the first public release. Proprietary or copyrighted character assets belong only in private/local themes and are not part of Totem's public distribution.
+Licensing is intentionally not finalized yet. The public repositories are intended to be open source, but the exact software/hardware licenses will be selected before the first public release. Proprietary or copyrighted character assets belong only in private/local themes and are not part of Totem's public distribution.
