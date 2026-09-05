@@ -38,7 +38,17 @@ theme/
 └── README.md
 ```
 
-The exact schema belongs to `totem-theme-sdk` and is not frozen during Phase 0.
+The exact schema belongs to `totem-theme-sdk` and is not frozen before v1.
+
+## Phase 1 discovery stub
+
+Phase 1 intentionally uses a minimal local discovery contract before the full theme SDK exists. The normative stub contract is [DISCOVERY.md](DISCOVERY.md).
+
+For Phase 1 only, local theme candidates use `totem-theme.json` with schema id `totem.theme/v0`, stable identity/version fields, optional enablement metadata, and presentation asset roots. Theme stubs are forbidden from requesting permissions/capabilities such as filesystem, network, shell, secrets, MCP, agent tools, or system access.
+
+Malformed or privilege-requesting theme candidates fail validation individually without taking down Totem. The runtime falls back to an enabled valid `default` theme when available, otherwise to a built-in generic fallback presentation.
+
+The full public theme manifest, compatibility policy, hot-switch transaction semantics, registry/install behavior, and richer presentation schema remain deferred.
 
 ## Voice references
 
@@ -46,7 +56,7 @@ A theme may point to a locally installed TTS model or voice pack. Large/private 
 
 ## Safe defaults
 
-If a theme is incomplete or fails validation, Totem should fall back to the default theme rather than fail to boot.
+If a theme is incomplete or fails validation, Totem should fall back to the default theme rather than fail to boot. The core also retains a built-in generic fallback presentation so recovery does not depend on any external package.
 
 ## Hot switching
 
