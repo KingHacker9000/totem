@@ -38,6 +38,7 @@ See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP
 
 - [Vision](docs/VISION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Protocol and durable-task contract v0](docs/PROTOCOL.md)
 - [Repository map](docs/REPOSITORIES.md)
 - [Extensions](docs/EXTENSIONS.md)
 - [Themes](docs/THEMES.md)
