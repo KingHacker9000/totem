@@ -32,7 +32,7 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 In progress: **Phase 1 — core software platform and PC simulator.**
 
-The initial workspace scaffold is runnable. See [development setup](docs/DEVELOPMENT.md#run-the-t102-scaffold) for installation, checks, and local startup.
+The workspace scaffold is runnable and the core now has the Phase 1 configuration/data-directory/health contract. See [development setup](docs/DEVELOPMENT.md#run-the-t102-scaffold) for installation and [core configuration](docs/CONFIGURATION.md) for startup/runtime settings.
 
 See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
 
@@ -41,6 +41,8 @@ See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP
 - [Vision](docs/VISION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Protocol and durable-task contract v0](docs/PROTOCOL.md)
+- [Core configuration and data layout](docs/CONFIGURATION.md)
+- [Extension/theme discovery contract v0](docs/DISCOVERY.md)
 - [Repository map](docs/REPOSITORIES.md)
 - [Extensions](docs/EXTENSIONS.md)
 - [Themes](docs/THEMES.md)
