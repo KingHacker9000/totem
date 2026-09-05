@@ -19,7 +19,9 @@ describe("task lifecycle", () => {
   });
 
   it("maps accepted transitions to normalized lifecycle events", () => {
-    expect(expectedLifecycleEventType("queued", "running")).toBe("task.started");
+    expect(expectedLifecycleEventType("queued", "running")).toBe(
+      "task.started",
+    );
     expect(expectedLifecycleEventType("waiting_for_input", "running")).toBe(
       "task.resumed",
     );
