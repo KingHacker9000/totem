@@ -53,11 +53,14 @@ class AsyncEventQueue<T> implements AsyncIterable<T> {
   }
 }
 
+export type MockAgentScenario = "success" | "failure" | "wait";
+
 interface MockSessionState<TEvent> {
   session: AgentSession;
   queue: AsyncEventQueue<TEvent>;
   pendingTaskId?: string;
   pendingCorrelationId?: string;
+  nextScenario?: MockAgentScenario;
 }
 
 export interface MockAgentProviderOptions<TEvent> {
@@ -150,6 +153,18 @@ export class MockAgentProvider<TEvent> implements AgentProvider<TEvent> {
     return cloneSession(state.session);
   }
 
+  scriptNext(sessionId: string, scenario: MockAgentScenario): void {
+    const state = this.#getState(sessionId);
+    if (state.session.status === "terminated") {
+      throw this.#error(
+        "session_terminated",
+        `Session '${sessionId}' has been terminated`,
+        sessionId,
+      );
+    }
+    state.nextScenario = scenario;
+  }
+
   async sendMessage(
     sessionId: string,
     request: AgentMessageRequest,
@@ -201,7 +216,8 @@ export class MockAgentProvider<TEvent> implements AgentProvider<TEvent> {
       context,
     );
 
-    const scenario = request.scenario ?? "success";
+    const scenario = state.nextScenario ?? "success";
+    state.nextScenario = undefined;
     if (scenario === "wait") {
       state.pendingTaskId = request.taskId;
       state.pendingCorrelationId = request.correlationId;
