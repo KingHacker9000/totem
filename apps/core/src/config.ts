@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 export const LOG_LEVELS = [
   "fatal",
@@ -119,9 +119,9 @@ function parseDataDir(
   const candidate = configured || defaultDataDir(env, platform, homeDir);
   if (candidate.includes("\0")) {
     issues.push("TOTEM_DATA_DIR must not contain NUL characters");
-    return defaultDataDir(env, platform, homeDir);
+    return resolve(defaultDataDir(env, platform, homeDir));
   }
-  return isAbsolute(candidate) ? resolve(candidate) : resolve(candidate);
+  return resolve(candidate);
 }
 
 export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
