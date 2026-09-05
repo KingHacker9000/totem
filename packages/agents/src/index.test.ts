@@ -81,8 +81,10 @@ describe("MockAgentProvider", () => {
       path: "C:/Dev/Totem/project",
       access: "read-only",
     });
+    await provider.interrupt(session.id);
 
     const resumed = await provider.resumeSession(session.id);
+    expect(resumed.status).toBe("active");
     expect(resumed.workspace).toEqual({
       path: "C:/Dev/Totem/project",
       access: "read-only",
@@ -128,10 +130,10 @@ describe("MockAgentProvider", () => {
     const session = await provider.startSession();
     const iterator = provider.streamEvents(session.id)[Symbol.asyncIterator]();
 
+    provider.scriptNext(session.id, "failure");
     await provider.sendMessage(session.id, {
       content: "fail please",
       taskId: "task-failure",
-      scenario: "failure",
     });
 
     const events = await take(iterator, 7);
@@ -160,11 +162,11 @@ describe("MockAgentProvider", () => {
     const session = await provider.startSession();
     const iterator = provider.streamEvents(session.id)[Symbol.asyncIterator]();
 
+    provider.scriptNext(session.id, "wait");
     await provider.sendMessage(session.id, {
       content: "wait",
       taskId: "task-wait",
       correlationId: "corr-wait",
-      scenario: "wait",
     });
     await provider.interrupt(session.id);
 
