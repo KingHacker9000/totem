@@ -30,7 +30,7 @@ If a change contradicts an accepted ADR, update/supersede the ADR explicitly rat
 
 During Phase 1, changes should be small enough to validate through the PC simulator and automated tests. Raspberry-Pi-only shortcuts should not leak into shared core logic.
 
-Implementation stack, formatting, test commands, and CI instructions will be added once the initial workspace is scaffolded.
+See [development setup](docs/DEVELOPMENT.md#run-the-t102-scaffold) for the pinned tools and local startup. Run `pnpm check` and `pnpm build` before submitting changes; CI runs the same gates on Windows and Linux.
 
 ## Issues and pull requests
 
