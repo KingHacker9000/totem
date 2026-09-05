@@ -1,13 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
+import { Kysely, SqliteDialect } from "kysely";
 import {
-  Kysely,
   Migrator,
-  SqliteDialect,
   type Migration,
   type MigrationProvider,
-} from "kysely";
+} from "kysely/migration";
 import {
   parseTotemEvent,
   serializeTotemEvent,
