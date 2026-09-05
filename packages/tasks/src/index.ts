@@ -41,15 +41,16 @@ export interface AgentSessionRecord {
   closedAt?: string;
 }
 
-const ALLOWED_TRANSITIONS: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
-  queued: ["running", "cancelled", "failed"],
-  running: ["waiting_for_input", "cancelling", "succeeded", "failed"],
-  waiting_for_input: ["running", "cancelling", "failed"],
-  cancelling: ["cancelled", "failed"],
-  succeeded: [],
-  failed: [],
-  cancelled: [],
-};
+const ALLOWED_TRANSITIONS: Readonly<Record<TaskStatus, readonly TaskStatus[]>> =
+  {
+    queued: ["running", "cancelled", "failed"],
+    running: ["waiting_for_input", "cancelling", "succeeded", "failed"],
+    waiting_for_input: ["running", "cancelling", "failed"],
+    cancelling: ["cancelled", "failed"],
+    succeeded: [],
+    failed: [],
+    cancelled: [],
+  };
 
 export class TaskTransitionError extends Error {
   readonly from: TaskStatus;
@@ -64,7 +65,9 @@ export class TaskTransitionError extends Error {
 }
 
 export function isTerminalTaskStatus(status: TaskStatus): boolean {
-  return status === "succeeded" || status === "failed" || status === "cancelled";
+  return (
+    status === "succeeded" || status === "failed" || status === "cancelled"
+  );
 }
 
 export function canTransitionTask(from: TaskStatus, to: TaskStatus): boolean {
