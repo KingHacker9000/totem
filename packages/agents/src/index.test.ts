@@ -27,7 +27,10 @@ function normalizedFactory() {
     });
 }
 
-async function take<T>(iterator: AsyncIterator<T>, count: number): Promise<T[]> {
+async function take<T>(
+  iterator: AsyncIterator<T>,
+  count: number,
+): Promise<T[]> {
   const values: T[] = [];
   for (let index = 0; index < count; index += 1) {
     const result = await iterator.next();
