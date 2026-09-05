@@ -30,7 +30,9 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 **Phase 0 is complete.** The core architectural decisions, repository boundaries, security direction, software-first roadmap, and hardware/CAD handoff have been documented.
 
-Next: **Phase 1 — core software platform and PC simulator.**
+In progress: **Phase 1 — core software platform and PC simulator.**
+
+The initial workspace scaffold is runnable. See [development setup](docs/DEVELOPMENT.md#run-the-t102-scaffold) for installation, checks, and local startup.
 
 See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
 

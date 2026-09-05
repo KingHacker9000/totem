@@ -2,6 +2,50 @@
 
 Totem is software-first and PC-first.
 
+## Run the T102 scaffold
+
+Install Node.js **24.18.0** (pinned in `.nvmrc` and `.node-version`) and
+pnpm **10.28.0**. Node **22.12.0 or newer** is supported; the minimum includes
+Vite's Node 22 requirement. With Corepack available, run `corepack enable`;
+otherwise install pnpm with `npm install --global pnpm@10.28.0`.
+
+From the repository root, in PowerShell, Command Prompt, or a Unix shell:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+pnpm build
+pnpm dev
+```
+
+The scaffold starts three independent development processes:
+
+| Surface | Local URL | Current behavior |
+| --- | --- | --- |
+| Core | http://127.0.0.1:3000/ | JSON scaffold identity response |
+| Dashboard | http://127.0.0.1:5173/ | React placeholder |
+| Display | http://127.0.0.1:5174/ | React placeholder |
+
+Use Ctrl+C to stop the development processes. Browser ports are strict so a
+port conflict fails visibly instead of silently moving a surface. Individual
+apps can run with `pnpm --filter @totem/core dev` (or `@totem/dashboard` /
+`@totem/display`). After building, `pnpm --filter @totem/core start` runs the
+compiled core. Each browser build is emitted to its app's `dist/` directory.
+
+This scaffold establishes tooling only: health/configuration, API/event
+contracts, persistence, simulator behavior, and provider integration belong
+to subsequent task-board issues. The browser placeholders do not yet connect
+to core. Shared `packages/*` are created by their owning tasks when real
+contracts exist. SQLite and other future runtime dependencies are deliberately
+not installed before their packages exist. Browser E2E tests and
+`pnpm test:e2e` are deferred until the browser integration task.
+
+CI runs frozen installation, `pnpm check`, and `pnpm build` on Windows and
+Linux with Node 22.12.0 and 24.18.0. `pnpm format` applies Biome formatting;
+`pnpm format:check` checks it without writes. Markdown remains source-preserved.
+When using WSL, use Linux Node and pnpm in WSL; do not share an installed
+`node_modules` tree with native Windows. No Docker or Pi hardware is needed.
+
 ## Primary development environment
 
 The first complete implementation runs on a normal development PC with:
