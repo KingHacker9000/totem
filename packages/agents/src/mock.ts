@@ -83,7 +83,9 @@ function cloneMcpServers(servers: AgentMcpServer[]): AgentMcpServer[] {
 function cloneSession(session: AgentSession): AgentSession {
   return {
     ...session,
-    ...(session.workspace ? { workspace: cloneWorkspace(session.workspace) } : {}),
+    ...(session.workspace
+      ? { workspace: cloneWorkspace(session.workspace) }
+      : {}),
     mcpServers: cloneMcpServers(session.mcpServers),
   };
 }
