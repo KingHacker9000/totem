@@ -40,7 +40,6 @@ export interface AgentMessageRequest {
   content: string;
   taskId: string;
   correlationId?: string;
-  scenario?: "success" | "failure" | "wait";
 }
 
 export interface AgentEventDraft {
@@ -126,4 +125,4 @@ export class AgentProviderRegistry<TEvent> {
   }
 }
 
-export { MockAgentProvider } from "./mock.js";
+export { MockAgentProvider, type MockAgentScenario } from "./mock.js";
