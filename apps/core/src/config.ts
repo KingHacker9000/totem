@@ -102,7 +102,9 @@ function parseEnvironment(
 function parseHost(raw: string | undefined, issues: string[]): string {
   const value = raw?.trim() || "127.0.0.1";
   if (value.length > 253 || /[\s/]/.test(value)) {
-    issues.push("TOTEM_HOST must be a hostname or IP address without whitespace or slashes");
+    issues.push(
+      "TOTEM_HOST must be a hostname or IP address without whitespace or slashes",
+    );
     return "127.0.0.1";
   }
   return value;
@@ -132,13 +134,7 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
 
   if (homeDir.trim() === "") issues.push("home directory must not be empty");
 
-  const root = parseDataDir(
-    env.TOTEM_DATA_DIR,
-    env,
-    platform,
-    homeDir,
-    issues,
-  );
+  const root = parseDataDir(env.TOTEM_DATA_DIR, env, platform, homeDir, issues);
 
   const config: TotemConfig = {
     host: parseHost(env.TOTEM_HOST, issues),
