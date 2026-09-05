@@ -34,7 +34,9 @@ describe("EventBus", () => {
     });
     expect(calls).toEqual(["first", "second"]);
 
-    expect(() => bus.publish({ type: "system.ready" })).toThrow("invalid event");
+    expect(() => bus.publish({ type: "system.ready" })).toThrow(
+      "invalid event",
+    );
     expect(calls).toEqual(["first", "second"]);
   });
 
