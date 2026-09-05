@@ -44,9 +44,15 @@ Registry metadata and validation rules for discoverable extensions/themes. It be
 
 Private personal theme repository. May contain locally used character-specific visual assets, sounds, persona configuration, wake-word settings, and TTS models. Nothing in public Totem should require this repository.
 
-### `totem-hardware-portal` (planned/private)
+### `KingHacker9000/totem-portal-hardware`
 
-Optional future private cosmetic hardware skin/overlays for the user's themed enclosure. Generic mechanical chassis and reusable engineering stay public in `totem-hardware`; franchise-specific cosmetic geometry stays private/local.
+Private personal cosmetic/mechanical overlay repository for the user's themed enclosure. Generic chassis engineering, reusable mounts, cooling, acoustics, electronics, and broadly redistributable CAD stay in `totem-hardware`; franchise-specific cosmetic geometry and themed physical details stay private/local. Nothing in public Totem requires this repository.
+
+## Temporary coordination infrastructure
+
+### `KingHacker9000/totem-taskboard`
+
+Disposable, non-product coordination repository used while the project is being built. Its issues coordinate parallel ChatGPT/Codex work, task claims, blockers, dependencies, and handoffs. It is **not** a runtime dependency, SDK dependency, registry source, or part of the shipped Totem product and may be deleted once project coordination no longer needs it.
 
 ## Later repositories
 
@@ -71,6 +77,9 @@ registry ----- metadata only ------------|
 
 hardware is mechanically coupled to deployment requirements,
 but not imported as a software dependency.
+
+private Portal repositories and totem-taskboard are not
+runtime or package dependencies of the public project.
 ```
 
 The SDK repositories define contracts; `totem` consumes them. Base packages are examples/first-party implementations of those contracts. Third-party packages must not need private core APIs.
