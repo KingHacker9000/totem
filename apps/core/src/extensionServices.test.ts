@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   InMemoryExtensionSecretProvider,
@@ -38,17 +38,11 @@ describe("extension runtime services", () => {
 
   it("fails closed when the durable settings file is malformed", async () => {
     const filename = await settingsFile();
-    await writeFile(filename, '{"version":99,"extensions":{}}', "utf8").catch(
-      async () => {
-        const directory = filename.slice(0, filename.lastIndexOf("/"));
-        const { mkdir } = await import("node:fs/promises");
-        await mkdir(directory, { recursive: true });
-        await writeFile(filename, '{"version":99,"extensions":{}}', "utf8");
-      },
-    );
-    await expect(new JsonExtensionSettingsStore(filename).get("weather")).rejects.toThrow(
-      "Invalid extension settings file",
-    );
+    await mkdir(dirname(filename), { recursive: true });
+    await writeFile(filename, '{"version":99,"extensions":{}}', "utf8");
+    await expect(
+      new JsonExtensionSettingsStore(filename).get("weather"),
+    ).rejects.toThrow("Invalid extension settings file");
   });
 
   it("keeps secret values process-local", async () => {
