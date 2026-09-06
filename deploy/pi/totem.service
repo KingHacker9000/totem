@@ -9,6 +9,7 @@ User=totem
 Group=totem
 WorkingDirectory=/opt/totem/current
 EnvironmentFile=-/etc/totem/totem.env
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/env pnpm --filter @totem/core start
 Restart=on-failure
 RestartSec=5
@@ -18,9 +19,8 @@ TimeoutStopSec=20
 KillSignal=SIGTERM
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
+ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/var/lib/totem /var/log/totem
 UMask=0027
 
 [Install]
