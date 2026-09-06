@@ -75,7 +75,10 @@ function secretRefs(value: unknown): Array<{ id: string; required: boolean }> {
 async function readPhase2Manifest(
   candidate: DiscoveredPackageV0,
 ): Promise<Record<string, unknown>> {
-  const raw = await readFile(resolve(candidate.path, "totem-extension.json"), "utf8");
+  const raw = await readFile(
+    resolve(candidate.path, "totem-extension.json"),
+    "utf8",
+  );
   const parsed: unknown = JSON.parse(raw);
   return isRecord(parsed) ? parsed : {};
 }
@@ -107,10 +110,13 @@ export class ExtensionRuntime {
         continue;
       }
       const manifest = (manifests[candidate.id] ??
-        candidate.manifest ?? {}) as unknown as Phase2Manifest;
+        candidate.manifest ??
+        {}) as unknown as Phase2Manifest;
       const requested = stringList(manifest.permissions);
       const granted = new Set(grants[candidate.id] ?? []);
-      const effective = requested.filter((permission) => granted.has(permission));
+      const effective = requested.filter((permission) =>
+        granted.has(permission),
+      );
       this.#records.set(candidate.id, {
         id: candidate.id,
         enabled: candidate.enabled,
@@ -125,7 +131,8 @@ export class ExtensionRuntime {
         mcp: records(manifest.mcp),
         diagnostics: [],
         manifest: (manifests[candidate.id] ??
-          candidate.manifest ?? {}) as unknown as Record<string, unknown>,
+          candidate.manifest ??
+          {}) as unknown as Record<string, unknown>,
       });
     }
   }
@@ -157,7 +164,8 @@ export class ExtensionRuntime {
     );
     const manifests: Record<string, Record<string, unknown>> = {};
     for (const source of sources) {
-      if (source?.candidate.id) manifests[source.candidate.id] = source.manifest;
+      if (source?.candidate.id)
+        manifests[source.candidate.id] = source.manifest;
     }
     return new ExtensionRuntime(packages, grants, manifests);
   }
@@ -180,7 +188,8 @@ export class ExtensionRuntime {
 
   markRunning(extensionId: string): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
-    if (!record.enabled) throw new Error(`Extension '${extensionId}' is disabled`);
+    if (!record.enabled)
+      throw new Error(`Extension '${extensionId}' is disabled`);
     record.state = "running";
     return this.#public(record);
   }
