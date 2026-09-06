@@ -7,8 +7,8 @@ import {
   ExtensionSettingsError,
 } from "./extensionRuntime.js";
 import {
-  InMemoryExtensionSecretProvider,
   type ExtensionSettingsStore,
+  InMemoryExtensionSecretProvider,
 } from "./extensionServices.js";
 
 function extension(
@@ -81,7 +81,12 @@ describe("ExtensionRuntime", () => {
     expect(runtime.setEnabled("timer", true).state).toBe("ready");
     expect(runtime.markFailed("timer", new Error("boom"))).toMatchObject({
       state: "failed",
-      diagnostics: [{ code: "extension_runtime_failed", message: "boom" }],
+      diagnostics: [
+        {
+          code: "extension_runtime_failed",
+          message: "Extension backend failed; error details withheld",
+        },
+      ],
     });
   });
 
