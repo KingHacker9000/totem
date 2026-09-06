@@ -129,6 +129,7 @@ export { MockAgentProvider, type MockAgentScenario } from "./mock.js";
 export {
   CliAgentProvider,
   nodeProcessRunner,
+  resolveExecutable,
   type CliSessionState,
   type ProcessRunner,
   type RunningProcess,

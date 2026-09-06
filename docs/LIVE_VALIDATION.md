@@ -17,7 +17,7 @@ Check the core/provider diagnostics first:
 curl -s http://127.0.0.1:3000/api/providers
 ```
 
-Unavailable CLIs are reported as `SKIP`; an available provider that fails its live task is `FAIL`.
+Unavailable CLIs are reported as `SKIP`; an available provider that fails its live task is `FAIL`. The exception is a task that reached the provider CLI but failed on account state — an exhausted usage/rate limit, an expired token, or a re-authentication prompt. Those are recorded as `SKIP` (the Totem integration path worked; the credential did not), not `FAIL`.
 
 ## Provider smoke
 
