@@ -29,6 +29,16 @@ A manifest requests capabilities; it never grants them. Core owns the effective 
 
 See [EXTENSION_MANIFEST_V0.md](EXTENSION_MANIFEST_V0.md) for the complete vocabulary, validation rules, valid/rejected examples, and the migration from Phase 1 `entrypoint`/`capabilities` fields.
 
+## Runtime security boundary
+
+Phase 2 introduces an explicit core extension runtime broker. The broker keeps requested permissions separate from effective grants and defaults to **deny** when no grant exists. Disabling an extension revokes brokered runtime authority even if its manifest still requests the permission.
+
+The runtime owns lifecycle state (`disabled`, `ready`, `running`, `failed`), runtime diagnostics, event-publication ownership checks, contribution/settings declarations, secret **references**, and MCP declarations. Secret values are deliberately not stored in normal extension runtime records and therefore are not exposed by ordinary management/status snapshots.
+
+`GET /api/extensions/runtime` exposes the auditable runtime view for management tooling. Its response includes requested versus granted permissions and a security summary; it never returns secret values. Until the Phase 1 discovery compatibility layer is removed, the runtime reloads the package-local `totem-extension.json` so Phase 2 declaration fields are not lost by the old normalized discovery shape.
+
+Every privileged implementation surface must call the runtime permission check rather than trusting manifest presence. A declaration such as an MCP entry or display contribution does not itself authorize registration/presentation.
+
 ## MCP
 
 MCP is a first-class extension mechanism. An extension can package or configure an MCP server and ask Totem's agent broker to expose it to compatible providers. Registration requires the manifest's `mcp.register` permission and remains subject to the dedicated contribution/settings/secrets/MCP contract.

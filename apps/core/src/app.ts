@@ -1,6 +1,12 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
+import type { ExtensionBackendHost } from "./extensionBackendHost.js";
+import {
+  ExtensionRuntime,
+  ExtensionSettingsError,
+  type ExtensionRuntimeServices,
+} from "./extensionRuntime.js";
 import type { RuntimeEventHub } from "./events.js";
 import { OrchestratorError, type TaskOrchestrator } from "./orchestrator.js";
 import { createRuntimeStatus } from "./runtime.js";
@@ -18,6 +24,10 @@ export interface CreateAppOptions {
   taskStore?: TaskDataSource;
   eventHub?: RuntimeEventHub;
   orchestrator?: TaskOrchestrator;
+  extensionGrants?: Readonly<Record<string, readonly string[]>>;
+  extensionServices?: ExtensionRuntimeServices;
+  extensionRuntime?: ExtensionRuntime;
+  extensionBackendHost?: ExtensionBackendHost;
   /**
    * Late-bound orchestrator accessor. The orchestrator needs the Fastify logger,
    * which only exists after {@link createApp} returns, so `main` wires it in
@@ -31,6 +41,14 @@ interface StartTaskBody {
   kind?: unknown;
   title?: unknown;
   scenario?: unknown;
+}
+
+interface ExtensionSettingBody {
+  value?: unknown;
+}
+
+interface ExtensionEnabledBody {
+  enabled?: unknown;
 }
 
 const MOCK_SCENARIOS = new Set(["success", "failure", "wait"]);
@@ -57,6 +75,16 @@ export function createApp(options: CreateAppOptions = {}) {
       themeRoots: config.discovery.themeRoots,
       activeThemeId: config.discovery.activeThemeId,
     });
+
+  const extensionRuntime = async () => {
+    if (options.extensionRuntime) return options.extensionRuntime;
+    const snapshot = await discover();
+    return ExtensionRuntime.fromDiscovery(
+      snapshot.extensions,
+      options.extensionGrants ?? config.extensionGrants ?? {},
+      options.extensionServices ?? {},
+    );
+  };
 
   app.get("/", async () => ({
     name: "Totem",
@@ -197,6 +225,93 @@ export function createApp(options: CreateAppOptions = {}) {
         (diagnostic) => diagnostic.type === "extension",
       ),
     };
+  });
+
+  app.get("/api/extensions/runtime", async () => {
+    const runtime = await extensionRuntime();
+    return {
+      extensions: runtime.publicSnapshot(),
+      backendDiagnostics: options.extensionBackendHost?.diagnostics() ?? [],
+      security: {
+        defaultGrantPolicy: "deny",
+        secretValuesExposed: false,
+      },
+    };
+  });
+
+  app.put<{
+    Params: { extensionId: string };
+    Body: ExtensionEnabledBody;
+  }>("/api/extensions/:extensionId/enabled", async (request, reply) => {
+    if (typeof request.body?.enabled !== "boolean") {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'enabled' is required and must be boolean.",
+      });
+    }
+
+    const runtime = await extensionRuntime();
+    if (options.extensionBackendHost) {
+      await options.extensionBackendHost.setEnabled(
+        request.params.extensionId,
+        request.body.enabled,
+      );
+    } else {
+      runtime.setEnabled(request.params.extensionId, request.body.enabled);
+    }
+    return { extension: runtime.get(request.params.extensionId) };
+  });
+
+  app.get<{ Params: { extensionId: string } }>(
+    "/api/extensions/:extensionId/settings",
+    async (request, reply) => {
+      try {
+        return {
+          extensionId: request.params.extensionId,
+          values: await (await extensionRuntime()).getSettings(
+            request.params.extensionId,
+          ),
+        };
+      } catch (error) {
+        if (error instanceof ExtensionSettingsError) {
+          return reply.code(400).send({
+            error: "extension_settings_invalid",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.put<{
+    Params: { extensionId: string; key: string };
+    Body: ExtensionSettingBody;
+  }>("/api/extensions/:extensionId/settings/:key", async (request, reply) => {
+    if (!("value" in (request.body ?? {}))) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'value' is required.",
+      });
+    }
+    try {
+      return {
+        extensionId: request.params.extensionId,
+        values: await (await extensionRuntime()).setSetting(
+          request.params.extensionId,
+          request.params.key,
+          request.body.value,
+        ),
+      };
+    } catch (error) {
+      if (error instanceof ExtensionSettingsError) {
+        return reply.code(400).send({
+          error: "extension_settings_invalid",
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   });
 
   app.get("/api/themes", async () => {

@@ -34,6 +34,8 @@ export interface TotemConfig {
   environment: "development" | "test" | "production";
   paths: TotemDataPaths;
   discovery: TotemDiscoveryConfig;
+  /** Effective extension permission grants. Omitted means deny all. */
+  extensionGrants?: Readonly<Record<string, readonly string[]>>;
 }
 
 export class ConfigError extends Error {
@@ -51,6 +53,8 @@ export interface LoadConfigOptions {
   platform?: NodeJS.Platform;
   homeDir?: string;
 }
+
+const PACKAGE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 function defaultDataDir(
   env: NodeJS.ProcessEnv,
@@ -164,11 +168,51 @@ function parseActiveThemeId(
 ): string | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
+  if (!PACKAGE_ID_PATTERN.test(value)) {
     issues.push("TOTEM_ACTIVE_THEME must be a valid package id");
     return undefined;
   }
   return value;
+}
+
+function parseExtensionGrants(
+  raw: string | undefined,
+  issues: string[],
+): Readonly<Record<string, readonly string[]>> | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    issues.push("TOTEM_EXTENSION_GRANTS must be a JSON object");
+    return undefined;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    issues.push("TOTEM_EXTENSION_GRANTS must be a JSON object");
+    return undefined;
+  }
+
+  const grants: Record<string, readonly string[]> = {};
+  for (const [extensionId, permissions] of Object.entries(parsed)) {
+    if (!PACKAGE_ID_PATTERN.test(extensionId)) {
+      issues.push(
+        `TOTEM_EXTENSION_GRANTS has invalid extension id '${extensionId}'`,
+      );
+      continue;
+    }
+    if (
+      !Array.isArray(permissions) ||
+      permissions.some((permission) => typeof permission !== "string")
+    ) {
+      issues.push(
+        `TOTEM_EXTENSION_GRANTS['${extensionId}'] must be a string array`,
+      );
+      continue;
+    }
+    grants[extensionId] = [...new Set(permissions)];
+  }
+  return grants;
 }
 
 export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
@@ -188,6 +232,10 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
     logs: join(root, "logs"),
   };
   const activeThemeId = parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues);
+  const extensionGrants = parseExtensionGrants(
+    env.TOTEM_EXTENSION_GRANTS,
+    issues,
+  );
 
   const config: TotemConfig = {
     host: parseHost(env.TOTEM_HOST, issues),
@@ -210,6 +258,7 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
       ),
       ...(activeThemeId === undefined ? {} : { activeThemeId }),
     },
+    ...(extensionGrants === undefined ? {} : { extensionGrants }),
   };
 
   if (issues.length > 0) throw new ConfigError(issues);
