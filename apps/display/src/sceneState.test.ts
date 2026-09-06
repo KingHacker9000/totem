@@ -43,7 +43,12 @@ describe("scene arbitration", () => {
 
   it("uses the newest request when priorities tie", () => {
     const arbiter = new SceneArbiter();
-    arbiter.request({ id: "first", sceneId: "one", priority: 10, requestedAt: 1 });
+    arbiter.request({
+      id: "first",
+      sceneId: "one",
+      priority: 10,
+      requestedAt: 1,
+    });
     const snapshot = arbiter.request({
       id: "second",
       sceneId: "two",
