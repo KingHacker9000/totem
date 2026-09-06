@@ -126,3 +126,13 @@ export class AgentProviderRegistry<TEvent> {
 }
 
 export { MockAgentProvider, type MockAgentScenario } from "./mock.js";
+export {
+  CliAgentProvider,
+  nodeProcessRunner,
+  type CliSessionState,
+  type ProcessRunner,
+  type RunningProcess,
+  type SpawnSpec,
+} from "./cli.js";
+export { CodexCliProvider } from "./codex.js";
+export { ClaudeCodeCliProvider } from "./claude.js";

@@ -8,6 +8,8 @@ import { ExtensionRuntime } from "./extensionRuntime.js";
 import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
 import { TaskOrchestrator } from "./orchestrator.js";
+import { registerProviderRoutes } from "./providerRoutes.js";
+import { RealProviderCoordinator } from "./realProviders.js";
 import { ensureDataDirectories } from "./runtime.js";
 import { registerThemeRoutes } from "./themeRoutes.js";
 import { ThemeRuntime } from "./themeRuntime.js";
@@ -81,6 +83,17 @@ try {
     getOrchestrator: () => orchestrator,
   });
   registerThemeRoutes(app, themeRuntime);
+
+  const realProviders = new RealProviderCoordinator({
+    taskStore,
+    hub: eventHub,
+    logger: {
+      error: (details: Record<string, unknown>, message: string) =>
+        app.log.error(details, message),
+    },
+  });
+  registerProviderRoutes(app, realProviders);
+
   orchestrator = new TaskOrchestrator({
     taskStore,
     hub: eventHub,
@@ -90,8 +103,12 @@ try {
     },
   });
   app.log.info(
-    { event: "system.orchestrator_ready", provider: orchestrator.providerId },
-    "Mock task orchestrator ready",
+    {
+      event: "system.orchestrator_ready",
+      mockProvider: orchestrator.providerId,
+      realProviders: realProviders.listProviderIds(),
+    },
+    "Agent provider coordinators ready",
   );
   let closing = false;
 
@@ -130,6 +147,7 @@ try {
         state: extension.state,
       })),
       activeTheme: activeTheme.activeThemeId,
+      realProviders: realProviders.listProviderIds(),
     },
     "Totem core ready",
   );
