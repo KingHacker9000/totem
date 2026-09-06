@@ -46,9 +46,12 @@
 .scene-stack {
   display: grid;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.scene-stack span {
+.scene-stack li {
   padding: 7px 9px;
   border: 1px solid #293440;
   border-radius: 7px;
