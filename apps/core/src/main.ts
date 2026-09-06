@@ -92,7 +92,9 @@ try {
 
   const registry = new RegistryManager({
     stateDir: config.paths.state,
-    trustedKeys: parseRegistryTrustedKeys(process.env.TOTEM_REGISTRY_TRUSTED_KEYS),
+    trustedKeys: parseRegistryTrustedKeys(
+      process.env.TOTEM_REGISTRY_TRUSTED_KEYS,
+    ),
   });
   const remoteNodes = new RemoteNodeManager();
   registerEcosystemRoutes(app, registry, remoteNodes);
