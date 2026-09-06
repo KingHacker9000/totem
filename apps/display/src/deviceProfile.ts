@@ -61,14 +61,23 @@ const positive = (value: unknown): value is number =>
 const nonNegative = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0;
 
-export function pointInVisibleRegion(region: VisibleRegion, x: number, y: number): boolean {
+export function pointInVisibleRegion(
+  region: VisibleRegion,
+  x: number,
+  y: number,
+): boolean {
   if (region.shape === "circle") {
     const dx = x - region.centerX;
     const dy = y - region.centerY;
     return dx * dx + dy * dy <= region.radius * region.radius;
   }
 
-  if (x < region.x || y < region.y || x > region.x + region.width || y > region.y + region.height) {
+  if (
+    x < region.x ||
+    y < region.y ||
+    x > region.x + region.width ||
+    y > region.y + region.height
+  ) {
     return false;
   }
 
@@ -79,7 +88,11 @@ export function pointInVisibleRegion(region: VisibleRegion, x: number, y: number
   const innerRight = region.x + region.width - radius;
   const innerTop = region.y + radius;
   const innerBottom = region.y + region.height - radius;
-  if ((x >= innerLeft && x <= innerRight) || (y >= innerTop && y <= innerBottom)) return true;
+  if (
+    (x >= innerLeft && x <= innerRight) ||
+    (y >= innerTop && y <= innerBottom)
+  )
+    return true;
 
   const cornerX = x < innerLeft ? innerLeft : innerRight;
   const cornerY = y < innerTop ? innerTop : innerBottom;
@@ -132,26 +145,32 @@ export function mapTouchPoint(
 }
 
 export function validateDeviceProfile(value: unknown): DeviceProfile {
-  if (!value || typeof value !== "object") throw new Error("Profile must be an object");
+  if (!value || typeof value !== "object")
+    throw new Error("Profile must be an object");
   const profile = value as DeviceProfile;
-  if (profile.schema !== "totem.device-profile/v0") throw new Error("Unsupported device profile schema");
-  if (!profile.id || !profile.name) throw new Error("Profile id and name are required");
+  if (profile.schema !== "totem.device-profile/v0")
+    throw new Error("Unsupported device profile schema");
+  if (!profile.id || !profile.name)
+    throw new Error("Profile id and name are required");
   if (!profile.display || !profile.touch || !profile.lighting) {
     throw new Error("Display, touch, and lighting capabilities are required");
   }
 
   if (profile.display.present) {
-    const { logicalSize, visibleRegion, contentSafeArea, panel } = profile.display;
+    const { logicalSize, visibleRegion, contentSafeArea, panel } =
+      profile.display;
     if (!positive(panel.nativeWidth) || !positive(panel.nativeHeight)) {
       throw new Error("Panel dimensions must be positive");
     }
     if (!positive(logicalSize.width) || !positive(logicalSize.height)) {
       throw new Error("Logical dimensions must be positive");
     }
-    if (profile.display.scaleMode !== "contain") throw new Error("Only contain scaling is supported in v0");
+    if (profile.display.scaleMode !== "contain")
+      throw new Error("Only contain scaling is supported in v0");
 
     if (visibleRegion.shape === "circle") {
-      if (!positive(visibleRegion.radius)) throw new Error("Circle radius must be positive");
+      if (!positive(visibleRegion.radius))
+        throw new Error("Circle radius must be positive");
       if (
         visibleRegion.centerX - visibleRegion.radius < 0 ||
         visibleRegion.centerY - visibleRegion.radius < 0 ||
@@ -177,7 +196,8 @@ export function validateDeviceProfile(value: unknown): DeviceProfile {
       if (
         visibleRegion.shape === "rounded_rectangle" &&
         (!nonNegative(visibleRegion.radius) ||
-          visibleRegion.radius > Math.min(visibleRegion.width, visibleRegion.height) / 2)
+          visibleRegion.radius >
+            Math.min(visibleRegion.width, visibleRegion.height) / 2)
       ) {
         throw new Error("Rounded rectangle radius is invalid");
       }
@@ -195,12 +215,17 @@ export function validateDeviceProfile(value: unknown): DeviceProfile {
       contentSafeArea.y + contentSafeArea.height > logicalSize.height ||
       !rectInsideVisible(visibleRegion, contentSafeArea)
     ) {
-      throw new Error("Content safe area must fit entirely inside the visible region");
+      throw new Error(
+        "Content safe area must fit entirely inside the visible region",
+      );
     }
   }
 
   if (profile.touch.present) {
-    if (!positive(profile.touch.sourceSize.width) || !positive(profile.touch.sourceSize.height)) {
+    if (
+      !positive(profile.touch.sourceSize.width) ||
+      !positive(profile.touch.sourceSize.height)
+    ) {
       throw new Error("Touch source dimensions must be positive");
     }
     if (![0, 90, 180, 270].includes(profile.touch.transform.rotation)) {
@@ -222,9 +247,13 @@ export function validateDeviceProfile(value: unknown): DeviceProfile {
 
   const ids = new Set<string>();
   for (const zone of profile.lighting.zones) {
-    if (!zone.id || ids.has(zone.id)) throw new Error("Lighting zone ids must be unique and non-empty");
+    if (!zone.id || ids.has(zone.id))
+      throw new Error("Lighting zone ids must be unique and non-empty");
     ids.add(zone.id);
-    if (zone.pixelCount !== undefined && (!Number.isInteger(zone.pixelCount) || zone.pixelCount <= 0)) {
+    if (
+      zone.pixelCount !== undefined &&
+      (!Number.isInteger(zone.pixelCount) || zone.pixelCount <= 0)
+    ) {
       throw new Error("Lighting pixelCount must be a positive integer");
     }
   }
@@ -232,7 +261,10 @@ export function validateDeviceProfile(value: unknown): DeviceProfile {
   return profile;
 }
 
-export function visibleRegionClipPath(region: VisibleRegion, logicalSize: Size): string {
+export function visibleRegionClipPath(
+  region: VisibleRegion,
+  logicalSize: Size,
+): string {
   if (region.shape === "circle") {
     return `circle(${region.radius}px at ${region.centerX}px ${region.centerY}px)`;
   }
@@ -240,5 +272,7 @@ export function visibleRegionClipPath(region: VisibleRegion, logicalSize: Size):
   const right = logicalSize.width - region.x - region.width;
   const bottom = logicalSize.height - region.y - region.height;
   const inset = `${region.y}px ${right}px ${bottom}px ${region.x}px`;
-  return region.shape === "rounded_rectangle" ? `inset(${inset} round ${region.radius}px)` : `inset(${inset})`;
+  return region.shape === "rounded_rectangle"
+    ? `inset(${inset} round ${region.radius}px)`
+    : `inset(${inset})`;
 }
