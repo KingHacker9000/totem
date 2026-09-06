@@ -3,10 +3,17 @@ import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
 import { createRuntimeStatus } from "./runtime.js";
 
+export interface TaskDataSource {
+  listTasks(): Promise<readonly unknown[]>;
+  getTask(taskId: string): Promise<unknown | undefined>;
+  listTaskEvents(taskId: string): Promise<readonly unknown[]>;
+}
+
 export interface CreateAppOptions {
   config?: TotemConfig;
   startedAt?: string;
   logger?: boolean;
+  taskStore?: TaskDataSource;
 }
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -35,6 +42,42 @@ export function createApp(options: CreateAppOptions = {}) {
   app.get("/health", async () => ({ status: "ok" }));
 
   app.get("/api/status", async () => createRuntimeStatus(config, startedAt));
+
+  app.get("/api/tasks", async (_request, reply) => {
+    if (!options.taskStore) {
+      return reply.code(503).send({
+        error: "task_store_unavailable",
+        message: "Durable task storage is not available in this core instance.",
+      });
+    }
+
+    return { tasks: await options.taskStore.listTasks() };
+  });
+
+  app.get<{ Params: { taskId: string } }>(
+    "/api/tasks/:taskId",
+    async (request, reply) => {
+      if (!options.taskStore) {
+        return reply.code(503).send({
+          error: "task_store_unavailable",
+          message: "Durable task storage is not available in this core instance.",
+        });
+      }
+
+      const task = await options.taskStore.getTask(request.params.taskId);
+      if (!task) {
+        return reply.code(404).send({
+          error: "task_not_found",
+          message: `Task '${request.params.taskId}' was not found.`,
+        });
+      }
+
+      return {
+        task,
+        events: await options.taskStore.listTaskEvents(request.params.taskId),
+      };
+    },
+  );
 
   app.get("/api/extensions", async () => {
     const snapshot = await discover();
