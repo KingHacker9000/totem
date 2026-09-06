@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { ThemeRuntime, ThemeRuntimeError } from "./themeRuntime.js";
+import { type ThemeRuntime, ThemeRuntimeError } from "./themeRuntime.js";
 
 interface ActivateBody {
   themeId?: unknown;
@@ -24,29 +24,32 @@ export function registerThemeRoutes(
     },
   }));
 
-  app.put<{ Body: ActivateBody }>("/api/themes/active", async (request, reply) => {
-    if (
-      typeof request.body?.themeId !== "string" ||
-      request.body.themeId.trim() === ""
-    ) {
-      return reply.code(400).send({
-        error: "invalid_request",
-        message: "'themeId' is required and must be a non-empty string.",
-      });
-    }
-
-    try {
-      return { theme: await themeRuntime.activate(request.body.themeId) };
-    } catch (error) {
-      if (error instanceof ThemeRuntimeError) {
-        return reply.code(statusFor(error)).send({
-          error: error.code,
-          message: error.message,
+  app.put<{ Body: ActivateBody }>(
+    "/api/themes/active",
+    async (request, reply) => {
+      if (
+        typeof request.body?.themeId !== "string" ||
+        request.body.themeId.trim() === ""
+      ) {
+        return reply.code(400).send({
+          error: "invalid_request",
+          message: "'themeId' is required and must be a non-empty string.",
         });
       }
-      throw error;
-    }
-  });
+
+      try {
+        return { theme: await themeRuntime.activate(request.body.themeId) };
+      } catch (error) {
+        if (error instanceof ThemeRuntimeError) {
+          return reply.code(statusFor(error)).send({
+            error: error.code,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.post("/api/themes/rollback", async (_request, reply) => {
     try {
