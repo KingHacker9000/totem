@@ -1,7 +1,11 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
-import { ExtensionRuntime } from "./extensionRuntime.js";
+import {
+  ExtensionRuntime,
+  ExtensionSettingsError,
+  type ExtensionRuntimeServices,
+} from "./extensionRuntime.js";
 import type { RuntimeEventHub } from "./events.js";
 import { OrchestratorError, type TaskOrchestrator } from "./orchestrator.js";
 import { createRuntimeStatus } from "./runtime.js";
@@ -20,6 +24,7 @@ export interface CreateAppOptions {
   eventHub?: RuntimeEventHub;
   orchestrator?: TaskOrchestrator;
   extensionGrants?: Readonly<Record<string, readonly string[]>>;
+  extensionServices?: ExtensionRuntimeServices;
   /**
    * Late-bound orchestrator accessor. The orchestrator needs the Fastify logger,
    * which only exists after {@link createApp} returns, so `main` wires it in
@@ -33,6 +38,10 @@ interface StartTaskBody {
   kind?: unknown;
   title?: unknown;
   scenario?: unknown;
+}
+
+interface ExtensionSettingBody {
+  value?: unknown;
 }
 
 const MOCK_SCENARIOS = new Set(["success", "failure", "wait"]);
@@ -59,6 +68,15 @@ export function createApp(options: CreateAppOptions = {}) {
       themeRoots: config.discovery.themeRoots,
       activeThemeId: config.discovery.activeThemeId,
     });
+
+  const extensionRuntime = async () => {
+    const snapshot = await discover();
+    return ExtensionRuntime.fromDiscovery(
+      snapshot.extensions,
+      options.extensionGrants ?? config.extensionGrants ?? {},
+      options.extensionServices ?? {},
+    );
+  };
 
   app.get("/", async () => ({
     name: "Totem",
@@ -202,11 +220,7 @@ export function createApp(options: CreateAppOptions = {}) {
   });
 
   app.get("/api/extensions/runtime", async () => {
-    const snapshot = await discover();
-    const runtime = await ExtensionRuntime.fromDiscovery(
-      snapshot.extensions,
-      options.extensionGrants ?? config.extensionGrants ?? {},
-    );
+    const runtime = await extensionRuntime();
     return {
       extensions: runtime.publicSnapshot(),
       security: {
@@ -215,6 +229,59 @@ export function createApp(options: CreateAppOptions = {}) {
       },
     };
   });
+
+  app.get<{ Params: { extensionId: string } }>(
+    "/api/extensions/:extensionId/settings",
+    async (request, reply) => {
+      try {
+        return {
+          extensionId: request.params.extensionId,
+          values: await (await extensionRuntime()).getSettings(
+            request.params.extensionId,
+          ),
+        };
+      } catch (error) {
+        if (error instanceof ExtensionSettingsError) {
+          return reply
+            .code(400)
+            .send({ error: "extension_settings_invalid", message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.put<{
+    Params: { extensionId: string; key: string };
+    Body: ExtensionSettingBody;
+  }>(
+    "/api/extensions/:extensionId/settings/:key",
+    async (request, reply) => {
+      if (!("value" in (request.body ?? {}))) {
+        return reply.code(400).send({
+          error: "invalid_request",
+          message: "'value' is required.",
+        });
+      }
+      try {
+        return {
+          extensionId: request.params.extensionId,
+          values: await (await extensionRuntime()).setSetting(
+            request.params.extensionId,
+            request.params.key,
+            request.body.value,
+          ),
+        };
+      } catch (error) {
+        if (error instanceof ExtensionSettingsError) {
+          return reply
+            .code(400)
+            .send({ error: "extension_settings_invalid", message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.get("/api/themes", async () => {
     const snapshot = await discover();
