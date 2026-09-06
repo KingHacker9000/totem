@@ -32,7 +32,7 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 In progress: **Phase 1 — core software platform and PC simulator.**
 
-The workspace scaffold is runnable and the core now has the Phase 1 configuration/data-directory/health contract. See [development setup](docs/DEVELOPMENT.md#run-the-t102-scaffold) for installation and [core configuration](docs/CONFIGURATION.md) for startup/runtime settings.
+The Phase 1 software stack is runnable on a normal PC. On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md); for architecture/tooling details see [development setup](docs/DEVELOPMENT.md), and for startup/runtime settings see [core configuration](docs/CONFIGURATION.md).
 
 See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
 
@@ -52,6 +52,7 @@ See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP
 - [Security model](docs/SECURITY.md)
 - [Storage](docs/STORAGE.md)
 - [Development](docs/DEVELOPMENT.md)
+- [Windows development bootstrap](docs/WINDOWS_DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Phase 0 completion](docs/PHASE0.md)
 - [Architecture decisions](docs/adr/README.md)
