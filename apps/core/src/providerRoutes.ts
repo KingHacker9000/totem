@@ -148,30 +148,27 @@ export function registerProviderRoutes(
   app.post<{
     Params: { taskId: string };
     Body: ResumeProviderTaskBody;
-  }>(
-    "/api/provider-tasks/:taskId/resume",
-    async (request, reply) => {
-      const body = request.body ?? {};
-      const invalid = validateTurnBody(body);
-      if (invalid) return reply.code(400).send(invalid);
+  }>("/api/provider-tasks/:taskId/resume", async (request, reply) => {
+    const body = request.body ?? {};
+    const invalid = validateTurnBody(body);
+    if (invalid) return reply.code(400).send(invalid);
 
-      try {
-        const resumed = await coordinator.resumeTask(request.params.taskId, {
-          prompt: body.prompt as string,
-          ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
-          ...(typeof body.title === "string" ? { title: body.title } : {}),
-        });
-        return reply.code(202).send(resumed);
-      } catch (error) {
-        if (error instanceof RealProviderError) {
-          return reply
-            .code(providerErrorStatus(error))
-            .send({ error: error.code, message: error.message });
-        }
-        throw error;
+    try {
+      const resumed = await coordinator.resumeTask(request.params.taskId, {
+        prompt: body.prompt as string,
+        ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
+        ...(typeof body.title === "string" ? { title: body.title } : {}),
+      });
+      return reply.code(202).send(resumed);
+    } catch (error) {
+      if (error instanceof RealProviderError) {
+        return reply
+          .code(providerErrorStatus(error))
+          .send({ error: error.code, message: error.message });
       }
-    },
-  );
+      throw error;
+    }
+  });
 
   app.post<{ Params: { taskId: string } }>(
     "/api/provider-tasks/:taskId/interrupt",
