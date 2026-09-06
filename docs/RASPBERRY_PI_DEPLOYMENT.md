@@ -72,6 +72,40 @@ TOTEM_LED_DRIVER=virtual
 
 The `@totem/device-drivers` package defines hardware-independent display/touch/audio/LED interfaces plus headless/none/virtual defaults. These are software seams, not frozen physical-driver implementations. Hardware-specific implementations must consume the same semantic contracts instead of introducing component-specific behavior into core.
 
+## Pi readiness self-test
+
+After installation, run the deterministic readiness harness from the current release:
+
+```bash
+sudo -u totem env \
+  TOTEM_STATE_DIR=/var/lib/totem \
+  node /opt/totem/current/deploy/pi/self-test.mjs
+```
+
+For a machine-readable report suitable for attaching to T907 or another validation record:
+
+```bash
+sudo -u totem env \
+  TOTEM_STATE_DIR=/var/lib/totem \
+  node /opt/totem/current/deploy/pi/self-test.mjs --json \
+  | tee /tmp/totem-pi-self-test.json
+```
+
+The report uses schema `totem.pi-self-test/v1` and records `PASS`, `SKIP`, or `FAIL` per capability. A normal run checks host/runtime metadata, Raspberry Pi identification when available, the configured state directory, actual writable-file creation, free disk capacity, the backing mount, the installed release path, systemd service state, core health/status, extension/theme/provider APIs, optional speech/display/security status APIs, and available thermal/throttling telemetry.
+
+`SKIP` is intentional for absent physical or optional capabilities. For example, running with the headless/no-audio defaults must not fail merely because a physical display, microphone, speaker, or Pi-only thermal command is unavailable. A failure is reserved for required readiness conditions such as an unwritable state directory, insufficient disk capacity, an inactive installed service, or an unavailable required core/runtime API.
+
+Useful options and environment controls:
+
+- `--json` emits only the JSON report;
+- `--offline` skips service/API checks and is used by host-independent CI verification;
+- `--strict` makes any `SKIP` produce a non-zero exit code and is intended only for deliberately complete environments;
+- `TOTEM_BASE_URL` overrides the local API base URL;
+- `TOTEM_MIN_FREE_BYTES` overrides the default 512 MiB minimum free-space threshold;
+- `TOTEM_STATE_DIR` (or `TOTEM_DATA_DIR`) selects the durable state directory that is actually tested.
+
+For an external HDD, the self-test's `storage` result proves read/write access under the service identity and `state_mount` records the mount resolved by `findmnt`. Before T907 is considered valid, verify that `state_dir` is the intended stable mount path rather than a transient `/dev/sdX`-derived location.
+
 ## Recovery and rollback
 
 A failed application release can be rolled back without touching durable state:
