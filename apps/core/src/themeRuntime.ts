@@ -88,7 +88,10 @@ function containsForbidden(value: unknown): boolean {
   );
 }
 
-function isThemeManifest(value: unknown, expectedId: string): value is ThemeManifestV0 {
+function isThemeManifest(
+  value: unknown,
+  expectedId: string,
+): value is ThemeManifestV0 {
   if (!isRecord(value) || containsForbidden(value)) return false;
   return (
     value.schema === "totem.theme/v0" &&
@@ -112,7 +115,9 @@ export class ThemeRuntime {
     }
 
     const configured = this.options.configuredThemeId
-      ? packages.find((candidate) => candidate.id === this.options.configuredThemeId)
+      ? packages.find(
+          (candidate) => candidate.id === this.options.configuredThemeId,
+        )
       : undefined;
     if (configured) return this.hydrate(configured, "configured");
 
@@ -126,7 +131,9 @@ export class ThemeRuntime {
     };
   }
 
-  async list(): Promise<Array<{ id: string; name: string; version: string; active: boolean }>> {
+  async list(): Promise<
+    Array<{ id: string; name: string; version: string; active: boolean }>
+  > {
     const current = await this.snapshot();
     const { packages } = await this.loadStateAndPackages();
     const result = [];
@@ -167,7 +174,9 @@ export class ThemeRuntime {
   async rollback(): Promise<ThemeRuntimeSnapshot> {
     const { packages, state } = await this.loadStateAndPackages();
     if (!state?.previousThemeId) return this.snapshot();
-    const target = packages.find((candidate) => candidate.id === state.previousThemeId);
+    const target = packages.find(
+      (candidate) => candidate.id === state.previousThemeId,
+    );
     if (!target) return this.snapshot();
     await this.readManifest(target);
     await this.writeState({
@@ -182,12 +191,16 @@ export class ThemeRuntime {
     state?: ThemeStateFile;
   }> {
     const [discovery, state] = await Promise.all([
-      discoverPackages({ extensionRoots: [], themeRoots: this.options.themeRoots }),
+      discoverPackages({
+        extensionRoots: [],
+        themeRoots: this.options.themeRoots,
+      }),
       this.readState(),
     ]);
     return {
       packages: discovery.themes.filter(
-        (candidate) => candidate.state !== "invalid" && candidate.id !== undefined,
+        (candidate) =>
+          candidate.state !== "invalid" && candidate.id !== undefined,
       ),
       ...(state ? { state } : {}),
     };
@@ -208,9 +221,14 @@ export class ThemeRuntime {
     };
   }
 
-  private async readManifest(candidate: DiscoveredPackageV0): Promise<ThemeManifestV0> {
+  private async readManifest(
+    candidate: DiscoveredPackageV0,
+  ): Promise<ThemeManifestV0> {
     if (!candidate.id) {
-      throw new ThemeRuntimeError("theme_invalid", "Theme candidate has no id.");
+      throw new ThemeRuntimeError(
+        "theme_invalid",
+        "Theme candidate has no id.",
+      );
     }
     let parsed: unknown;
     try {
@@ -234,11 +252,14 @@ export class ThemeRuntime {
 
   private async readState(): Promise<ThemeStateFile | undefined> {
     try {
-      const parsed: unknown = JSON.parse(await readFile(this.options.stateFile, "utf8"));
+      const parsed: unknown = JSON.parse(
+        await readFile(this.options.stateFile, "utf8"),
+      );
       if (
         !isRecord(parsed) ||
         typeof parsed.activeThemeId !== "string" ||
-        (parsed.previousThemeId !== undefined && typeof parsed.previousThemeId !== "string")
+        (parsed.previousThemeId !== undefined &&
+          typeof parsed.previousThemeId !== "string")
       ) {
         throw new Error("invalid theme state shape");
       }
