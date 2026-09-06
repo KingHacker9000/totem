@@ -29,6 +29,12 @@ export interface StartProviderTaskInput {
   mcpServers?: AgentMcpServer[];
 }
 
+export interface ResumeProviderTaskInput {
+  prompt: string;
+  kind?: string;
+  title?: string;
+}
+
 export interface ProviderSnapshot {
   id: string;
   status: AgentProviderStatus;
@@ -52,6 +58,11 @@ interface ActiveTask {
   durableSessionId: string;
 }
 
+interface RetainedSession {
+  provider: AgentProvider<AgentEventDraft>;
+  providerSessionId: string;
+}
+
 const TERMINAL_STATUSES = new Set<TaskStatus>([
   "succeeded",
   "failed",
@@ -67,6 +78,7 @@ export class RealProviderCoordinator {
   readonly #logger: RealProviderCoordinatorOptions["logger"];
   readonly #active = new Map<string, ActiveTask>();
   readonly #running = new Map<string, Promise<void>>();
+  readonly #sessions = new Map<string, RetainedSession>();
 
   constructor(options: RealProviderCoordinatorOptions) {
     this.#taskStore = options.taskStore;
@@ -107,14 +119,7 @@ export class RealProviderCoordinator {
     providerId: string;
     status: TaskStatus;
   }> {
-    const prompt = input.prompt.trim();
-    if (!prompt) {
-      throw new RealProviderError(
-        "prompt_required",
-        "prompt must not be empty",
-      );
-    }
-
+    const prompt = this.#requirePrompt(input.prompt);
     const provider = this.#providers.get(input.providerId);
     if (!provider) {
       throw new RealProviderError(
@@ -136,34 +141,155 @@ export class RealProviderCoordinator {
       ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
     });
     const durableSessionId = this.#newId("sess");
-    const taskId = this.#newId("task");
-    const correlationId = this.#newId("corr");
-    const timestamp = this.#timestamp();
-    const title =
-      input.title?.trim() ||
-      (prompt.length > 60 ? `${prompt.slice(0, 57)}...` : prompt);
-    const kind = input.kind?.trim() || "agent";
-
     await this.#taskStore.createSession({
       id: durableSessionId,
       providerId: provider.id,
       providerSessionRef: providerSession.id,
-      at: timestamp,
+      at: this.#timestamp(),
     });
+    this.#sessions.set(durableSessionId, {
+      provider,
+      providerSessionId: providerSession.id,
+    });
+
+    return this.#startTurn({
+      prompt,
+      provider,
+      providerSessionId: providerSession.id,
+      durableSessionId,
+      ...(input.kind ? { kind: input.kind } : {}),
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.workspace ? { workspace: input.workspace } : {}),
+      mcpServers: input.mcpServers ?? [],
+    });
+  }
+
+  async resumeTask(
+    priorTaskId: string,
+    input: ResumeProviderTaskInput,
+  ): Promise<{
+    taskId: string;
+    sessionId: string;
+    providerId: string;
+    status: TaskStatus;
+  }> {
+    const prompt = this.#requirePrompt(input.prompt);
+    const priorTask = await this.#taskStore.getTask(priorTaskId);
+    if (!priorTask) {
+      throw new RealProviderError(
+        "task_not_found",
+        `Task '${priorTaskId}' does not exist`,
+      );
+    }
+    if (priorTask.status !== "succeeded" || !priorTask.sessionId) {
+      throw new RealProviderError(
+        "task_not_resumable",
+        `Task '${priorTaskId}' must be a succeeded real-provider task with a session`,
+      );
+    }
+
+    const retained = this.#sessions.get(priorTask.sessionId);
+    if (!retained) {
+      throw new RealProviderError(
+        "resume_session_unavailable",
+        "The provider session is no longer resident in this core process; start a new task. Cross-core-restart resume is not yet supported.",
+      );
+    }
+    const capabilities = await retained.provider.probeCapabilities();
+    if (!capabilities.resume) {
+      throw new RealProviderError(
+        "resume_not_supported",
+        `Provider '${retained.provider.id}' does not support resume`,
+      );
+    }
+    if ([...this.#active.values()].some((active) => active.durableSessionId === priorTask.sessionId)) {
+      throw new RealProviderError(
+        "session_busy",
+        `Session '${priorTask.sessionId}' already has an active task`,
+      );
+    }
+
+    await retained.provider.resumeSession(retained.providerSessionId);
+    await this.#taskStore.updateSessionStatus(
+      priorTask.sessionId,
+      "active",
+      this.#timestamp(),
+    );
+
+    return this.#startTurn({
+      prompt,
+      provider: retained.provider,
+      providerSessionId: retained.providerSessionId,
+      durableSessionId: priorTask.sessionId,
+      ...(input.kind ? { kind: input.kind } : {}),
+      ...(input.title ? { title: input.title } : {}),
+      mcpServers: [],
+    });
+  }
+
+  async interruptTask(taskId: string): Promise<void> {
+    const active = this.#active.get(taskId);
+    if (!active) {
+      throw new RealProviderError(
+        "task_not_active",
+        `Task '${taskId}' has no active real provider session`,
+      );
+    }
+    await active.provider.interrupt(active.providerSessionId);
+  }
+
+  async waitForTask(taskId: string): Promise<void> {
+    await this.#running.get(taskId);
+  }
+
+  #requirePrompt(value: string): string {
+    const prompt = value.trim();
+    if (!prompt) {
+      throw new RealProviderError(
+        "prompt_required",
+        "prompt must not be empty",
+      );
+    }
+    return prompt;
+  }
+
+  async #startTurn(input: {
+    prompt: string;
+    provider: AgentProvider<AgentEventDraft>;
+    providerSessionId: string;
+    durableSessionId: string;
+    kind?: string;
+    title?: string;
+    workspace?: AgentWorkspace;
+    mcpServers: AgentMcpServer[];
+  }): Promise<{
+    taskId: string;
+    sessionId: string;
+    providerId: string;
+    status: TaskStatus;
+  }> {
+    const taskId = this.#newId("task");
+    const correlationId = this.#newId("corr");
+    const title =
+      input.title?.trim() ||
+      (input.prompt.length > 60
+        ? `${input.prompt.slice(0, 57)}...`
+        : input.prompt);
+    const kind = input.kind?.trim() || "agent";
 
     const created = this.#event({
       type: "task.created",
       taskId,
-      sessionId: durableSessionId,
+      sessionId: input.durableSessionId,
       correlationId,
       source: { kind: "core", id: "core" },
       payload: {
         kind,
         title,
-        prompt,
-        providerId: provider.id,
+        prompt: input.prompt,
+        providerId: input.provider.id,
         ...(input.workspace ? { workspace: input.workspace } : {}),
-        mcpServerIds: (input.mcpServers ?? []).map((server) => server.id),
+        mcpServerIds: input.mcpServers.map((server) => server.id),
       },
     });
     await this.#taskStore.createTask(
@@ -171,8 +297,8 @@ export class RealProviderCoordinator {
         id: taskId,
         kind,
         title,
-        sessionId: durableSessionId,
-        providerId: provider.id,
+        sessionId: input.durableSessionId,
+        providerId: input.provider.id,
         correlationId,
       },
       created,
@@ -182,26 +308,26 @@ export class RealProviderCoordinator {
     const started = this.#event({
       type: "task.started",
       taskId,
-      sessionId: durableSessionId,
+      sessionId: input.durableSessionId,
       correlationId,
       source: { kind: "core", id: "agent-orchestrator" },
-      payload: { providerId: provider.id },
+      payload: { providerId: input.provider.id },
     });
     await this.#taskStore.transitionTask(taskId, "running", started);
     this.#hub.publish(started);
 
     const active: ActiveTask = {
-      provider,
-      providerSessionId: providerSession.id,
-      durableSessionId,
+      provider: input.provider,
+      providerSessionId: input.providerSessionId,
+      durableSessionId: input.durableSessionId,
     };
     this.#active.set(taskId, active);
 
-    const iterator = provider
-      .streamEvents(providerSession.id)
+    const iterator = input.provider
+      .streamEvents(input.providerSessionId)
       [Symbol.asyncIterator]();
-    await provider.sendMessage(providerSession.id, {
-      content: prompt,
+    await input.provider.sendMessage(input.providerSessionId, {
+      content: input.prompt,
       taskId,
       correlationId,
     });
@@ -221,25 +347,10 @@ export class RealProviderCoordinator {
 
     return {
       taskId,
-      sessionId: durableSessionId,
-      providerId: provider.id,
+      sessionId: input.durableSessionId,
+      providerId: input.provider.id,
       status: "running",
     };
-  }
-
-  async interruptTask(taskId: string): Promise<void> {
-    const active = this.#active.get(taskId);
-    if (!active) {
-      throw new RealProviderError(
-        "task_not_active",
-        `Task '${taskId}' has no active real provider session`,
-      );
-    }
-    await active.provider.interrupt(active.providerSessionId);
-  }
-
-  async waitForTask(taskId: string): Promise<void> {
-    await this.#running.get(taskId);
   }
 
   #timestamp(): string {
@@ -293,6 +404,7 @@ export class RealProviderCoordinator {
     correlationId: string,
   ): Promise<void> {
     let lastText: string | undefined;
+    let keepSession = false;
     try {
       while (true) {
         const { done, value } = await iterator.next();
@@ -327,6 +439,7 @@ export class RealProviderCoordinator {
             correlationId,
             lastText,
           );
+          keepSession = true;
           break;
         }
         if (value.type === "agent.error") {
@@ -345,21 +458,34 @@ export class RealProviderCoordinator {
       }
     } finally {
       this.#active.delete(taskId);
-      try {
-        await active.provider.terminate(active.providerSessionId);
-      } catch {
-        // best effort
-      }
-      try {
-        const task = await this.#taskStore.getTask(taskId);
-        const status = task?.status === "failed" ? "failed" : "closed";
-        await this.#taskStore.updateSessionStatus(
-          active.durableSessionId,
-          status,
-          this.#timestamp(),
-        );
-      } catch {
-        // best effort
+      if (keepSession) {
+        try {
+          await this.#taskStore.updateSessionStatus(
+            active.durableSessionId,
+            "active",
+            this.#timestamp(),
+          );
+        } catch {
+          // best effort; task completion is already durable
+        }
+      } else {
+        this.#sessions.delete(active.durableSessionId);
+        try {
+          await active.provider.terminate(active.providerSessionId);
+        } catch {
+          // best effort
+        }
+        try {
+          const task = await this.#taskStore.getTask(taskId);
+          const status = task?.status === "failed" ? "failed" : "closed";
+          await this.#taskStore.updateSessionStatus(
+            active.durableSessionId,
+            status,
+            this.#timestamp(),
+          );
+        } catch {
+          // best effort
+        }
       }
     }
   }
