@@ -95,7 +95,9 @@ function secretRefs(value: unknown): Array<{ id: string; required: boolean }> {
   });
 }
 
-function settingDefinitions(value: unknown): Record<string, Record<string, unknown>> {
+function settingDefinitions(
+  value: unknown,
+): Record<string, Record<string, unknown>> {
   if (!isRecord(value)) return {};
   const definitions: Record<string, Record<string, unknown>> = {};
   for (const [key, definition] of Object.entries(value)) {
@@ -174,7 +176,9 @@ export class ExtensionRuntime {
         {}) as unknown as Phase2Manifest;
       const requested = stringList(manifest.permissions);
       const granted = new Set(grants[candidate.id] ?? []);
-      const effective = requested.filter((permission) => granted.has(permission));
+      const effective = requested.filter((permission) =>
+        granted.has(permission),
+      );
       this.#records.set(candidate.id, {
         id: candidate.id,
         enabled: candidate.enabled,
@@ -244,9 +248,20 @@ export class ExtensionRuntime {
     return this.#public(record);
   }
 
+  markReady(extensionId: string): ExtensionRuntimeRecord {
+    const record = this.#require(extensionId);
+    if (!record.enabled) {
+      throw new Error(`Extension '${extensionId}' is disabled`);
+    }
+    record.state = "ready";
+    return this.#public(record);
+  }
+
   markRunning(extensionId: string): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
-    if (!record.enabled) throw new Error(`Extension '${extensionId}' is disabled`);
+    if (!record.enabled) {
+      throw new Error(`Extension '${extensionId}' is disabled`);
+    }
     record.state = "running";
     return this.#public(record);
   }
@@ -341,7 +356,9 @@ export class ExtensionRuntime {
   displayContributions(extensionId: string): Array<Record<string, unknown>> {
     this.assertPermission(extensionId, "display.present");
     const record = this.#require(extensionId);
-    return records(record.contributions.display).map((entry) => structuredClone(entry));
+    return records(record.contributions.display).map((entry) =>
+      structuredClone(entry),
+    );
   }
 
   mcpRegistrations(extensionId: string): Array<Record<string, unknown>> {
