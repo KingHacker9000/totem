@@ -82,7 +82,10 @@ async function requestJson(url, options = {}) {
     body = { text };
   }
   if (!response.ok) {
-    const message = body?.message ?? body?.error ?? `${response.status} ${response.statusText}`;
+    const message =
+      body?.message ??
+      body?.error ??
+      `${response.status} ${response.statusText}`;
     throw new Error(String(message));
   }
   return body;
@@ -91,12 +94,16 @@ async function requestJson(url, options = {}) {
 async function pollTask(baseUrl, taskId, timeoutMs, pollMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const snapshot = await requestJson(`${baseUrl}/api/tasks/${encodeURIComponent(taskId)}`);
+    const snapshot = await requestJson(
+      `${baseUrl}/api/tasks/${encodeURIComponent(taskId)}`,
+    );
     const task = snapshot.task ?? snapshot;
     if (TERMINAL.has(task.status)) return snapshot;
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
-  throw new Error(`task ${taskId} did not reach a terminal state within ${timeoutMs}ms`);
+  throw new Error(
+    `task ${taskId} did not reach a terminal state within ${timeoutMs}ms`,
+  );
 }
 
 function result(capability, status, detail, extra = {}) {
@@ -175,7 +182,11 @@ async function providerLifecycle(baseUrl, provider, options) {
     );
   } else {
     results.push(
-      result(`provider:${providerId}:resume-contract`, "SKIP", "resume not advertised"),
+      result(
+        `provider:${providerId}:resume-contract`,
+        "SKIP",
+        "resume not advertised",
+      ),
     );
   }
 
@@ -192,7 +203,11 @@ async function providerLifecycle(baseUrl, provider, options) {
 
   if (!provider.capabilities?.interrupt) {
     results.push(
-      result(`provider:${providerId}:interrupt`, "SKIP", "interrupt not advertised"),
+      result(
+        `provider:${providerId}:interrupt`,
+        "SKIP",
+        "interrupt not advertised",
+      ),
     );
     return results;
   }
@@ -274,7 +289,13 @@ export async function runLiveValidation(options) {
   let providersPayload;
   try {
     providersPayload = await requestJson(`${baseUrl}/api/providers`);
-    results.push(result("core:providers-api", "PASS", `${baseUrl}/api/providers reachable`));
+    results.push(
+      result(
+        "core:providers-api",
+        "PASS",
+        `${baseUrl}/api/providers reachable`,
+      ),
+    );
   } catch (error) {
     results.push(
       result(
@@ -289,10 +310,17 @@ export async function runLiveValidation(options) {
   const selected = (providersPayload.providers ?? []).filter(
     (provider) =>
       provider.id !== "mock" &&
-      (options.providers.length === 0 || options.providers.includes(provider.id)),
+      (options.providers.length === 0 ||
+        options.providers.includes(provider.id)),
   );
   if (selected.length === 0) {
-    results.push(result("providers:selected", "SKIP", "no matching real providers registered"));
+    results.push(
+      result(
+        "providers:selected",
+        "SKIP",
+        "no matching real providers registered",
+      ),
+    );
   }
   for (const provider of selected) {
     results.push(...(await providerLifecycle(baseUrl, provider, options)));
