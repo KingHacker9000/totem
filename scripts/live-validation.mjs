@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 const TERMINAL = new Set(["succeeded", "failed", "cancelled"]);
 
@@ -110,6 +111,33 @@ function result(capability, status, detail, extra = {}) {
   return { capability, status, detail, ...extra };
 }
 
+// A provider turn that fails because the account is out of quota or its
+// credentials expired is an environment gap, not a Totem integration defect.
+// The burn-in must record these as SKIP ("credentials not available") rather
+// than FAIL so the integration signal is not lost.
+const CREDENTIAL_FAILURE_PATTERN =
+  /usage limit|rate.?limit|quota|out of credit|purchase more credits|re-?authenticate|authenticate\b|unauthorized|forbidden|\b401\b|\b403\b|token (?:has )?expired|expired|login (?:again|required)|not logged in/i;
+
+export function credentialFailureReason(snapshot) {
+  const events = snapshot?.events ?? [];
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]?.event ?? events[index];
+    const type = event?.type ?? "";
+    if (type !== "agent.error" && type !== "task.failed") continue;
+    const payload = event?.payload ?? {};
+    const text = [
+      payload.text,
+      payload.message,
+      payload.failure?.message,
+      payload.error?.message,
+    ]
+      .filter((value) => typeof value === "string")
+      .join(" ");
+    if (text && CREDENTIAL_FAILURE_PATTERN.test(text)) return text.trim();
+  }
+  return undefined;
+}
+
 async function providerLifecycle(baseUrl, provider, options) {
   const results = [];
   const providerId = provider.id;
@@ -157,11 +185,16 @@ async function providerLifecycle(baseUrl, provider, options) {
     );
     const task = terminal.task ?? terminal;
     firstSucceeded = task.status === "succeeded";
+    const credentialReason = firstSucceeded
+      ? undefined
+      : credentialFailureReason(terminal);
     results.push(
       result(
         `provider:${providerId}:task`,
-        firstSucceeded ? "PASS" : "FAIL",
-        `durable task ${started.taskId} finished as ${task.status}`,
+        firstSucceeded ? "PASS" : credentialReason ? "SKIP" : "FAIL",
+        credentialReason
+          ? `provider integration reached the CLI but the live turn was blocked by account state: ${credentialReason}`
+          : `durable task ${started.taskId} finished as ${task.status}`,
         { taskId: started.taskId, sessionId: started.sessionId },
       ),
     );
@@ -381,7 +414,10 @@ function help() {
   return `Totem live validation harness\n\nUsage:\n  pnpm validate:live -- [options]\n\nOptions:\n  --base-url URL             Core URL (default TOTEM_BASE_URL or http://127.0.0.1:3000)\n  --provider ID              Limit to one provider; may be repeated\n  --workspace PATH           Read-only workspace for provider smoke tasks\n  --service ID|URL|TOKEN_ENV Opt-in service probe; TOKEN_ENV is read at runtime and never printed\n  --exercise-interrupt       Run an actual interruption smoke task\n  --timeout-ms N             Per-task timeout (default 120000)\n  --poll-ms N                Poll interval (default 1000)\n`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const invokedDirectly =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
   try {
     const options = parseArgs(process.argv.slice(2));
     if (options.help) {

@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import type { Readable } from "node:stream";
 import type {
   AgentEventDraft,
@@ -46,11 +48,81 @@ async function* lines(stream: Readable): AsyncIterable<string> {
   if (pending) yield pending;
 }
 
+/**
+ * Resolve a bare command name against PATH (+ PATHEXT on Windows). Returns the
+ * absolute path of the first match, or `undefined` if nothing is found. A value
+ * that already contains a path separator is returned as-is when it exists.
+ */
+export function resolveExecutable(
+  command: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  if (command.includes("/") || command.includes("\\")) {
+    return existsSync(command) ? command : undefined;
+  }
+  const dirs = (env.PATH ?? env.Path ?? "").split(delimiter).filter(Boolean);
+  const extensions =
+    process.platform === "win32"
+      ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+          .split(";")
+          .filter(Boolean)
+          .map((ext) => (ext.startsWith(".") ? ext : `.${ext}`))
+      : [""];
+  for (const dir of dirs) {
+    for (const ext of extensions) {
+      const candidate = join(dir, `${command}${ext}`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return undefined;
+}
+
+// cmd.exe + CommandLineToArgvW double-parse a command line, so an argument that
+// reaches a `.cmd`/`.bat` shim must be quoted for the C runtime AND have cmd
+// metacharacters caret-escaped. Algorithm from https://qntm.org/cmd (the same
+// one `cross-spawn` uses). Without this, prompt text passed to a CLI provider
+// could inject shell commands on Windows.
+function quoteForCmd(arg: string): string {
+  let value = String(arg);
+  value = value.replace(/(\\*)"/g, '$1$1\\"');
+  value = value.replace(/(\\*)$/, "$1$1");
+  value = `"${value}"`;
+  value = value.replace(/[()%!^"<>&|]/g, "^$&");
+  return value;
+}
+
+interface ResolvedSpawn {
+  command: string;
+  args: string[];
+  verbatim: boolean;
+}
+
+function resolveSpawn(spec: SpawnSpec): ResolvedSpawn {
+  if (process.platform !== "win32") {
+    return { command: spec.command, args: spec.args, verbatim: false };
+  }
+  const resolved = resolveExecutable(spec.command, spec.env ?? process.env);
+  if (!resolved) {
+    return { command: spec.command, args: spec.args, verbatim: false };
+  }
+  if (/\.(cmd|bat)$/i.test(resolved)) {
+    const line = [resolved, ...spec.args].map(quoteForCmd).join(" ");
+    return {
+      command: process.env.ComSpec ?? "cmd.exe",
+      args: ["/d", "/s", "/c", `"${line}"`],
+      verbatim: true,
+    };
+  }
+  return { command: resolved, args: spec.args, verbatim: false };
+}
+
 export const nodeProcessRunner: ProcessRunner = (spec) => {
-  const child = spawn(spec.command, spec.args, {
+  const resolved = resolveSpawn(spec);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: spec.cwd,
     env: spec.env ?? process.env,
     stdio: ["ignore", "pipe", "pipe"],
+    ...(resolved.verbatim ? { windowsVerbatimArguments: true } : {}),
   });
   return {
     stdout: lines(child.stdout),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseArgs, parseServiceSpec, summarize } from "./live-validation.mjs";
+import {
+  credentialFailureReason,
+  parseArgs,
+  parseServiceSpec,
+  summarize,
+} from "./live-validation.mjs";
 
 describe("live validation helpers", () => {
   it("parses providers, workspace and destructive interrupt opt-in", () => {
@@ -55,5 +60,46 @@ describe("live validation helpers", () => {
     ]);
     expect(summary.ok).toBe(true);
     expect(summary.counts).toEqual({ PASS: 1, SKIP: 1, FAIL: 0 });
+  });
+
+  it("recognizes account-state failures so they can be skipped, not failed", () => {
+    const usageLimit = credentialFailureReason({
+      events: [
+        { event: { type: "agent.progress", payload: { text: "working" } } },
+        {
+          event: {
+            type: "agent.error",
+            payload: { text: "You've hit your usage limit. Upgrade to Pro." },
+          },
+        },
+      ],
+    });
+    expect(usageLimit).toMatch(/usage limit/i);
+
+    const expiredToken = credentialFailureReason({
+      events: [
+        {
+          event: {
+            type: "task.failed",
+            payload: {
+              failure: { message: "401 OAuth access token has expired." },
+            },
+          },
+        },
+      ],
+    });
+    expect(expiredToken).toMatch(/expired/i);
+
+    const realFailure = credentialFailureReason({
+      events: [
+        {
+          event: {
+            type: "agent.error",
+            payload: { text: "TypeError: cannot read property of undefined" },
+          },
+        },
+      ],
+    });
+    expect(realFailure).toBeUndefined();
   });
 });
