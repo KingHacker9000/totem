@@ -4,20 +4,52 @@
   "name": "PC Simulator — 800x480 Rectangle",
   "display": {
     "present": true,
-    "panel": { "nativeWidth": 800, "nativeHeight": 480 },
-    "logicalSize": { "width": 800, "height": 480 },
-    "visibleRegion": { "shape": "rectangle", "x": 0, "y": 0, "width": 800, "height": 480 },
-    "contentSafeArea": { "x": 32, "y": 32, "width": 736, "height": 416 },
+    "panel": {
+      "nativeWidth": 800,
+      "nativeHeight": 480
+    },
+    "logicalSize": {
+      "width": 800,
+      "height": 480
+    },
+    "visibleRegion": {
+      "shape": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 800,
+      "height": 480
+    },
+    "contentSafeArea": {
+      "x": 32,
+      "y": 32,
+      "width": 736,
+      "height": 416
+    },
     "scaleMode": "contain"
   },
   "touch": {
     "present": true,
-    "sourceSize": { "width": 800, "height": 480 },
-    "transform": { "rotation": 0, "mirrorX": false, "mirrorY": false },
+    "sourceSize": {
+      "width": 800,
+      "height": 480
+    },
+    "transform": {
+      "rotation": 0,
+      "mirrorX": false,
+      "mirrorY": false
+    },
     "rejectOutsideVisibleRegion": true
   },
   "lighting": {
     "mode": "virtual",
-    "zones": [{ "id": "primary", "kind": "ring", "pixelCount": 24, "supportsRgb": true, "supportsBrightness": true }]
+    "zones": [
+      {
+        "id": "primary",
+        "kind": "ring",
+        "pixelCount": 24,
+        "supportsRgb": true,
+        "supportsBrightness": true
+      }
+    ]
   }
 }
