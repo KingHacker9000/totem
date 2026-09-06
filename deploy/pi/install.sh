@@ -53,7 +53,14 @@ tar \
   --exclude='*/node_modules' \
   --exclude=dist \
   --exclude='*/dist' \
-  -C "$SOURCE_DIR" -cf - . | tar -C "$release" -xf -
+  -C "$SOURCE_DIR" -cf - . | tar --no-same-owner -C "$release" -xf -
+
+# Source checkouts may live in private/sandboxed workspaces with restrictive
+# ownership and modes (for example 0700). Releases are immutable application
+# code and must be traversable/readable by the unprivileged service account.
+# Preserve executable bits while normalizing ownership and read/traverse access.
+chown -R root:root "$release"
+chmod -R a+rX "$release"
 
 cd "$release"
 pnpm install --frozen-lockfile
