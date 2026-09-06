@@ -12,7 +12,11 @@ async function writeManifest(
 ): Promise<string> {
   const packagePath = join(root, directory);
   await mkdir(packagePath, { recursive: true });
-  await writeFile(join(packagePath, filename), JSON.stringify(manifest), "utf8");
+  await writeFile(
+    join(packagePath, filename),
+    JSON.stringify(manifest),
+    "utf8",
+  );
   return packagePath;
 }
 
@@ -98,7 +102,10 @@ describe("discoverPackages", () => {
       activeThemeId: "unsafe",
     });
 
-    expect(snapshot.themes[0]).toMatchObject({ state: "invalid", enabled: false });
+    expect(snapshot.themes[0]).toMatchObject({
+      state: "invalid",
+      enabled: false,
+    });
     expect(snapshot.themes[0]?.errors).toContainEqual(
       expect.objectContaining({ code: "theme_privilege_field_forbidden" }),
     );
