@@ -28,7 +28,8 @@ function labelFor(key: string): string {
 function renderValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "string") return value;
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "—";
+  if (typeof value === "number")
+    return Number.isFinite(value) ? String(value) : "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) {
     if (value.length === 0) return "None";
@@ -49,7 +50,9 @@ function renderValue(value: unknown): string {
 
 function ContributionCard({ view }: { view: ContributionView }) {
   const fields =
-    typeof view.data === "object" && view.data !== null && !Array.isArray(view.data)
+    typeof view.data === "object" &&
+    view.data !== null &&
+    !Array.isArray(view.data)
       ? Object.entries(view.data as Record<string, unknown>)
       : [["value", view.data] as const];
 
@@ -120,7 +123,11 @@ export function ContributionConsole() {
           <a className="connection-pill" href="/operator">
             Operator
           </a>{" "}
-          <button className="connection-pill" type="button" onClick={() => void refresh()}>
+          <button
+            className="connection-pill"
+            type="button"
+            onClick={() => void refresh()}
+          >
             Refresh
           </button>
         </div>
@@ -170,8 +177,9 @@ export function ContributionConsole() {
           <h3>Fail-closed presentation grants</h3>
         </div>
         <p>
-          Display contributions appear only with an effective <code>display.present</code>{" "}
-          grant. The simulator consumes the same API and safe-area contract.
+          Display contributions appear only with an effective{" "}
+          <code>display.present</code> grant. The simulator consumes the same API
+          and safe-area contract.
         </p>
       </section>
     </main>
