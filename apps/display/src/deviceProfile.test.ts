@@ -17,7 +17,14 @@ describe("device profile geometry", () => {
   });
 
   it("rejects points outside rounded corners", () => {
-    const region = { shape: "rounded_rectangle" as const, x: 0, y: 0, width: 100, height: 100, radius: 20 };
+    const region = {
+      shape: "rounded_rectangle" as const,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      radius: 20,
+    };
     expect(pointInVisibleRegion(region, 2, 2)).toBe(false);
     expect(pointInVisibleRegion(region, 20, 20)).toBe(true);
   });
