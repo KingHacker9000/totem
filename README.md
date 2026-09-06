@@ -28,13 +28,15 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 ## Current status
 
-**Phase 0 is complete.** The core architectural decisions, repository boundaries, security direction, software-first roadmap, and hardware/CAD handoff have been documented.
+**Phase 0 and Phase 1 are complete.** Phase 1 proved the core software platform and PC simulator from a fresh checkout: the core, dashboard, and display start together; durable SQLite task state survives restart; deterministic mock tasks stream through the same provider/task/event boundaries intended for real providers; extension/theme fixtures are discovered; and dashboard/display clients reconnect to authoritative core state.
 
-In progress: **Phase 1 — core software platform and PC simulator.**
+The validated Phase 1 baseline is `main` at `f5bd841` (PR #21), with hosted Windows/Linux CI green and the clean-checkout regression record captured in [docs/PHASE1.md](docs/PHASE1.md).
 
-The Phase 1 software stack is runnable on a normal PC. On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md); for architecture/tooling details see [development setup](docs/DEVELOPMENT.md), and for startup/runtime settings see [core configuration](docs/CONFIGURATION.md).
+Active work now moves to **Phase 2 — extension platform**. Raspberry Pi deployment and hardware/CAD remain later roadmap phases and are intentionally not started yet.
 
-See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
+On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md); for architecture/tooling details see [development setup](docs/DEVELOPMENT.md), and for startup/runtime settings see [core configuration](docs/CONFIGURATION.md).
+
+See [docs/PHASE0.md](docs/PHASE0.md), [docs/PHASE1.md](docs/PHASE1.md), and [docs/ROADMAP.md](docs/ROADMAP.md) for completion records and the implementation plan.
 
 ## Documentation
 
@@ -55,6 +57,7 @@ See [docs/PHASE0.md](docs/PHASE0.md) for the completion record and [docs/ROADMAP
 - [Windows development bootstrap](docs/WINDOWS_DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Phase 0 completion](docs/PHASE0.md)
+- [Phase 1 completion](docs/PHASE1.md)
 - [Architecture decisions](docs/adr/README.md)
 
 ## Licensing
