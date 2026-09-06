@@ -3,6 +3,7 @@ import { migrateToLatest, openTotemDatabase, TaskStore } from "@totem/storage";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { RuntimeEventHub } from "./events.js";
+import { JsonExtensionSettingsStore } from "./extensionServices.js";
 import { TaskOrchestrator } from "./orchestrator.js";
 import { ensureDataDirectories } from "./runtime.js";
 
@@ -36,6 +37,9 @@ try {
   await migrateToLatest(database);
   const taskStore = new TaskStore(database);
   const eventHub = new RuntimeEventHub();
+  const extensionSettings = new JsonExtensionSettingsStore(
+    join(config.paths.state, "extension-settings.json"),
+  );
 
   const startedAt = new Date().toISOString();
   let orchestrator: TaskOrchestrator | undefined;
@@ -44,6 +48,7 @@ try {
     startedAt,
     taskStore,
     eventHub,
+    extensionServices: { settings: extensionSettings },
     getOrchestrator: () => orchestrator,
   });
   orchestrator = new TaskOrchestrator({
