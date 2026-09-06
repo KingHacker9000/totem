@@ -1,0 +1,28 @@
+name: T904 format artifact
+
+on:
+  push:
+    branches:
+      - chatgpt/t904-live-resume
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome format --write apps/core/src/realProviders.ts scripts/live-validation.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: t904-formatted-files
+          path: |
+            apps/core/src/realProviders.ts
+            scripts/live-validation.mjs
