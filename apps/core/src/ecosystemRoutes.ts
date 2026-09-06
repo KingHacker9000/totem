@@ -98,10 +98,7 @@ function assertPackage(
   if (typeof pkg.source !== "string" || pkg.source.trim() === "") {
     throw new Error("registry package source is required");
   }
-  if (
-    typeof pkg.sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/i.test(pkg.sha256)
-  ) {
+  if (typeof pkg.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(pkg.sha256)) {
     throw new Error("registry package sha256 must be 64 hex characters");
   }
   if (
