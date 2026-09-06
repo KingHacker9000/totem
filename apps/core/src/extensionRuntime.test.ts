@@ -3,7 +3,13 @@ import type { DiscoveredPackageV0 } from "./discovery.js";
 import {
   ExtensionPermissionError,
   ExtensionRuntime,
+  ExtensionSecretError,
+  ExtensionSettingsError,
 } from "./extensionRuntime.js";
+import {
+  InMemoryExtensionSecretProvider,
+  type ExtensionSettingsStore,
+} from "./extensionServices.js";
 
 function extension(
   manifest: Record<string, unknown>,
@@ -18,6 +24,20 @@ function extension(
     manifest: manifest as unknown as DiscoveredPackageV0["manifest"],
     errors: [],
   };
+}
+
+class MemorySettingsStore implements ExtensionSettingsStore {
+  readonly values = new Map<string, Record<string, unknown>>();
+
+  async get(extensionId: string): Promise<Record<string, unknown>> {
+    return structuredClone(this.values.get(extensionId) ?? {});
+  }
+
+  async set(extensionId: string, key: string, value: unknown): Promise<void> {
+    const current = structuredClone(this.values.get(extensionId) ?? {});
+    current[key] = structuredClone(value);
+    this.values.set(extensionId, current);
+  }
 }
 
 describe("ExtensionRuntime", () => {
@@ -84,6 +104,89 @@ describe("ExtensionRuntime", () => {
     );
   });
 
+  it("persists validated settings and applies declared defaults", async () => {
+    const settings = new MemorySettingsStore();
+    const runtime = new ExtensionRuntime(
+      [
+        extension({
+          id: "weather",
+          settings: {
+            units: { type: "string", default: "metric", enum: ["metric", "imperial"] },
+            offline: { type: "boolean", default: false },
+          },
+        }),
+      ],
+      {},
+      {},
+      { settings },
+    );
+
+    await expect(runtime.getSettings("weather")).resolves.toEqual({
+      units: "metric",
+      offline: false,
+    });
+    await expect(runtime.setSetting("weather", "units", "imperial")).resolves.toEqual({
+      units: "imperial",
+      offline: false,
+    });
+    await expect(runtime.setSetting("weather", "units", "kelvin")).rejects.toThrow(
+      ExtensionSettingsError,
+    );
+    await expect(runtime.setSetting("weather", "missing", true)).rejects.toThrow(
+      ExtensionSettingsError,
+    );
+  });
+
+  it("resolves only declared and granted secrets without exposing them in snapshots", async () => {
+    const runtime = new ExtensionRuntime(
+      [
+        extension({
+          id: "github",
+          permissions: ["secrets.read:github-token"],
+          secrets: [{ id: "github-token", required: true }],
+        }),
+      ],
+      { github: ["secrets.read:github-token"] },
+      {},
+      {
+        secrets: new InMemoryExtensionSecretProvider({
+          github: { "github-token": "top-secret-token" },
+        }),
+      },
+    );
+
+    await expect(runtime.resolveSecret("github", "github-token")).resolves.toBe(
+      "top-secret-token",
+    );
+    await expect(runtime.resolveSecret("github", "other-token")).rejects.toThrow(
+      ExtensionSecretError,
+    );
+    expect(JSON.stringify(runtime.publicSnapshot())).not.toContain("top-secret-token");
+  });
+
+  it("permission-gates display contributions and MCP registrations", () => {
+    const candidate = extension({
+      id: "tools",
+      permissions: ["display.present", "mcp.register"],
+      contributions: { display: [{ id: "panel" }] },
+      mcp: [{ id: "tools-mcp" }],
+    });
+    const allowed = new ExtensionRuntime(
+      [candidate],
+      { tools: ["display.present", "mcp.register"] },
+    );
+    expect(allowed.displayContributions("tools")).toEqual([{ id: "panel" }]);
+    expect(allowed.mcpRegistrations("tools")).toEqual([{ id: "tools-mcp" }]);
+
+    const denied = new ExtensionRuntime([candidate]);
+    expect(() => denied.displayContributions("tools")).toThrow(
+      ExtensionPermissionError,
+    );
+    expect(() => denied.mcpRegistrations("tools")).toThrow(
+      ExtensionPermissionError,
+    );
+  });
+
   it("exposes declaration metadata but never secret values", () => {
     const runtime = new ExtensionRuntime([
       extension({
@@ -101,6 +204,7 @@ describe("ExtensionRuntime", () => {
       secretRefs: [{ id: "github-token", required: true }],
       mcp: [{ id: "github-mcp", command: "example" }],
     });
-    expect(JSON.stringify(snapshot)).not.toContain("secretValue");
+    expect(snapshot).not.toHaveProperty("secretValue");
+    expect(snapshot).not.toHaveProperty("secretValues");
   });
 });
