@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { ContributionConsole } from "./ContributionConsole";
 import { OperatorConsole } from "./OperatorConsole";
 import { ProviderConsole } from "./ProviderConsole";
 import "./style.css";
@@ -14,6 +15,8 @@ const surface =
     <ProviderConsole />
   ) : pathname === "/operator" ? (
     <OperatorConsole />
+  ) : pathname === "/contributions" ? (
+    <ContributionConsole />
   ) : (
     <App />
   );
