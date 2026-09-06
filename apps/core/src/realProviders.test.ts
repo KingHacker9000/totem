@@ -32,12 +32,13 @@ function processFor(spec: SpawnSpec): RunningProcess {
     };
   }
 
+  const resumed = spec.args.includes("resume");
   return {
     stdout: (async function* () {
       yield JSON.stringify({
         type: "message",
         thread_id: "codex-native-42",
-        message: "Provider response",
+        message: resumed ? "Provider resumed response" : "Provider response",
       });
     })(),
     stderr: (async function* () {})(),
@@ -59,7 +60,7 @@ afterEach(async () => {
 });
 
 describe("RealProviderCoordinator", () => {
-  it("runs a provider-selected task and persists the native session reference", async () => {
+  it("runs and resumes provider-selected durable tasks on one native session", async () => {
     let tick = Date.parse("2026-09-06T11:00:00.000Z");
     const now = () => {
       tick += 1000;
@@ -90,7 +91,22 @@ describe("RealProviderCoordinator", () => {
     expect(session).toMatchObject({
       providerId: "codex",
       providerSessionRef: "codex-native-42",
-      status: "closed",
+      status: "active",
+    });
+
+    const resumed = await coordinator.resumeTask(started.taskId, {
+      prompt: "Continue the same task",
+    });
+    expect(resumed.sessionId).toBe(started.sessionId);
+    expect(resumed.taskId).not.toBe(started.taskId);
+    await coordinator.waitForTask(resumed.taskId);
+    expect((await taskStore.getTask(resumed.taskId))?.status).toBe("succeeded");
+    expect((await taskStore.getTask(resumed.taskId))?.result).toEqual({
+      text: "Provider resumed response",
+    });
+    expect(await taskStore.getSession(started.sessionId)).toMatchObject({
+      providerSessionRef: "codex-native-42",
+      status: "active",
     });
 
     const events = await taskStore.listTaskEvents(started.taskId);
@@ -102,6 +118,19 @@ describe("RealProviderCoordinator", () => {
       "agent.completed",
       "task.succeeded",
     ]);
+  });
+
+  it("rejects resume when a prior task is not a successful retained session", async () => {
+    const coordinator = new RealProviderCoordinator({
+      taskStore,
+      hub,
+      providers: [new CodexCliProvider(processFor)],
+      newId: deterministicIds(),
+    });
+
+    await expect(
+      coordinator.resumeTask("missing", { prompt: "continue" }),
+    ).rejects.toMatchObject({ code: "task_not_found" });
   });
 
   it("reports deterministic capability and availability snapshots", async () => {
