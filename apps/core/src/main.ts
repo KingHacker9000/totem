@@ -1,3 +1,9 @@
+import { join } from "node:path";
+import {
+  migrateToLatest,
+  openTotemDatabase,
+  TaskStore,
+} from "@totem/storage";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { ensureDataDirectories } from "./runtime.js";
@@ -20,12 +26,20 @@ function writeStartupFailure(error: unknown): void {
   console.error(JSON.stringify(payload));
 }
 
+let database: ReturnType<typeof openTotemDatabase> | undefined;
+
 try {
   const config = loadConfig();
   await ensureDataDirectories(config);
 
+  database = openTotemDatabase({
+    filename: join(config.paths.state, "totem.sqlite3"),
+  });
+  await migrateToLatest(database);
+  const taskStore = new TaskStore(database);
+
   const startedAt = new Date().toISOString();
-  const app = createApp({ config, startedAt });
+  const app = createApp({ config, startedAt, taskStore });
   let closing = false;
 
   const shutdown = async (signal: NodeJS.Signals) => {
@@ -33,6 +47,8 @@ try {
     closing = true;
     app.log.info({ event: "system.stopping", signal }, "Totem core stopping");
     await app.close();
+    await database?.destroy();
+    database = undefined;
   };
 
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -58,6 +74,8 @@ try {
     "Totem core ready",
   );
 } catch (error) {
+  await database?.destroy();
+  database = undefined;
   writeStartupFailure(error);
   process.exitCode = 1;
 }
