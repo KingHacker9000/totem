@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type DeviceProfile,
+  mapTouchPoint,
   pointInVisibleRegion,
   validateDeviceProfile,
   visibleRegionClipPath,
@@ -35,6 +36,7 @@ export function App() {
   useEffect(() => {
     if (!profileName) return;
     setError(null);
+    setPointer(null);
     fetch(`/profiles/${profileName}`)
       .then((response) => {
         if (!response.ok) throw new Error(`Profile load failed: ${response.status}`);
@@ -75,15 +77,19 @@ export function App() {
 
   const maskStyle = useMemo(() => {
     if (!display) return undefined;
-    return { clipPath: visibleRegionClipPath(display.visibleRegion) } as React.CSSProperties;
+    return {
+      clipPath: visibleRegionClipPath(display.visibleRegion, display.logicalSize),
+    } as React.CSSProperties;
   }, [display]);
 
   function handlePointer(event: React.PointerEvent<HTMLDivElement>) {
     if (!display || !profile?.touch.present || !panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * display.logicalSize.width;
-    const y = ((event.clientY - rect.top) / rect.height) * display.logicalSize.height;
-    const accepted = !profile.touch.rejectOutsideVisibleRegion || pointInVisibleRegion(display.visibleRegion, x, y);
+    const sourceX = ((event.clientX - rect.left) / rect.width) * profile.touch.sourceSize.width;
+    const sourceY = ((event.clientY - rect.top) / rect.height) * profile.touch.sourceSize.height;
+    const { x, y } = mapTouchPoint(sourceX, sourceY, profile.touch, display.logicalSize);
+    const accepted =
+      !profile.touch.rejectOutsideVisibleRegion || pointInVisibleRegion(display.visibleRegion, x, y);
     setPointer({ x, y, accepted });
   }
 
@@ -98,30 +104,62 @@ export function App() {
           Device profile
           <select value={profileName} onChange={(event) => setProfileName(event.target.value)}>
             {profileNames.map((name) => (
-              <option key={name} value={name}>{name.replace(/\.json$/, "")}</option>
+              <option key={name} value={name}>
+                {name.replace(/\.json$/, "")}
+              </option>
             ))}
           </select>
         </label>
-        <label className="toggle"><input type="checkbox" checked={showMask} onChange={(event) => setShowMask(event.target.checked)} /> Mask hidden pixels</label>
-        <label className="toggle"><input type="checkbox" checked={showSafeArea} onChange={(event) => setShowSafeArea(event.target.checked)} /> Safe area</label>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={showMask}
+            onChange={(event) => setShowMask(event.target.checked)}
+          />{" "}
+          Mask hidden pixels
+        </label>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={showSafeArea}
+            onChange={(event) => setShowSafeArea(event.target.checked)}
+          />{" "}
+          Safe area
+        </label>
       </header>
 
-      {error && <div className="error-panel" role="alert">{error}</div>}
+      {error && (
+        <div className="error-panel" role="alert">
+          {error}
+        </div>
+      )}
 
       {profile && !profile.display.present && (
         <section className="headless-card">
           <p className="eyebrow">{profile.id}</p>
           <h2>{profile.name}</h2>
-          <p>This profile is intentionally headless. Display rendering is disabled while developer tooling remains available.</p>
+          <p>
+            This profile is intentionally headless. Display rendering is disabled while developer tooling remains
+            available.
+          </p>
         </section>
       )}
 
       {profile && display && (
         <div className="workspace">
           <section className="stage">
-            <div className="panel-frame" ref={panelRef} style={panelStyle} onPointerMove={handlePointer} onPointerDown={handlePointer}>
+            <div
+              className="panel-frame"
+              ref={panelRef}
+              style={panelStyle}
+              onPointerMove={handlePointer}
+              onPointerDown={handlePointer}
+            >
               <div className="logical-panel" style={logicalStyle}>
-                <div className={`product-output ${showMask ? "masked" : ""}`} style={showMask ? maskStyle : undefined}>
+                <div
+                  className={`product-output ${showMask ? "masked" : ""}`}
+                  style={showMask ? maskStyle : undefined}
+                >
                   <div className="ambient-scene">
                     <div className="orb" />
                     <p className="eyebrow">Ambient</p>
@@ -144,7 +182,10 @@ export function App() {
                 )}
                 {!showMask && <div className="visible-outline" style={maskStyle} />}
                 {pointer && (
-                  <div className={`pointer-dot ${pointer.accepted ? "accepted" : "rejected"}`} style={{ left: `${pointer.x}px`, top: `${pointer.y}px` }} />
+                  <div
+                    className={`pointer-dot ${pointer.accepted ? "accepted" : "rejected"}`}
+                    style={{ left: `${pointer.x}px`, top: `${pointer.y}px` }}
+                  />
                 )}
               </div>
             </div>
@@ -154,20 +195,48 @@ export function App() {
             <p className="eyebrow">Profile</p>
             <h2>{profile.name}</h2>
             <dl>
-              <div><dt>Logical</dt><dd>{display.logicalSize.width} × {display.logicalSize.height}</dd></div>
-              <div><dt>Panel</dt><dd>{display.panel.nativeWidth} × {display.panel.nativeHeight}</dd></div>
-              <div><dt>Visible</dt><dd>{display.visibleRegion.shape}</dd></div>
-              <div><dt>Touch</dt><dd>{profile.touch.present ? "enabled" : "disabled"}</dd></div>
+              <div>
+                <dt>Logical</dt>
+                <dd>
+                  {display.logicalSize.width} × {display.logicalSize.height}
+                </dd>
+              </div>
+              <div>
+                <dt>Panel</dt>
+                <dd>
+                  {display.panel.nativeWidth} × {display.panel.nativeHeight}
+                </dd>
+              </div>
+              <div>
+                <dt>Visible</dt>
+                <dd>{display.visibleRegion.shape}</dd>
+              </div>
+              <div>
+                <dt>Touch</dt>
+                <dd>{profile.touch.present ? "enabled" : "disabled"}</dd>
+              </div>
             </dl>
             <div className="touch-readout">
               <strong>Pointer as touch</strong>
-              <span>{pointer ? `${pointer.x.toFixed(0)}, ${pointer.y.toFixed(0)} · ${pointer.accepted ? "accepted" : "rejected"}` : profile.touch.present ? "Move over the panel" : "Touch disabled"}</span>
+              <span>
+                {pointer
+                  ? `${pointer.x.toFixed(0)}, ${pointer.y.toFixed(0)} · ${pointer.accepted ? "accepted" : "rejected"}`
+                  : profile.touch.present
+                    ? "Move over the panel"
+                    : "Touch disabled"}
+              </span>
             </div>
             <div>
               <p className="eyebrow">Virtual lighting</p>
-              {profile.lighting.zones.length === 0 ? <p className="muted">No lighting zones</p> : (
+              {profile.lighting.zones.length === 0 ? (
+                <p className="muted">No lighting zones</p>
+              ) : (
                 <div className="lighting-zones">
-                  {profile.lighting.zones.map((zone) => <span key={zone.id}>{zone.id} · {zone.kind}</span>)}
+                  {profile.lighting.zones.map((zone) => (
+                    <span key={zone.id}>
+                      {zone.id} · {zone.kind}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
