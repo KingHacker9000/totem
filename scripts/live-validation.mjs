@@ -142,8 +142,10 @@ async function providerLifecycle(baseUrl, provider, options) {
       : {}),
   };
 
+  let started;
+  let firstSucceeded = false;
   try {
-    const started = await requestJson(`${baseUrl}/api/provider-tasks`, {
+    started = await requestJson(`${baseUrl}/api/provider-tasks`, {
       method: "POST",
       body: JSON.stringify(startBody),
     });
@@ -154,10 +156,11 @@ async function providerLifecycle(baseUrl, provider, options) {
       options.pollMs,
     );
     const task = terminal.task ?? terminal;
+    firstSucceeded = task.status === "succeeded";
     results.push(
       result(
         `provider:${providerId}:task`,
-        task.status === "succeeded" ? "PASS" : "FAIL",
+        firstSucceeded ? "PASS" : "FAIL",
         `durable task ${started.taskId} finished as ${task.status}`,
         { taskId: started.taskId, sessionId: started.sessionId },
       ),
@@ -172,22 +175,61 @@ async function providerLifecycle(baseUrl, provider, options) {
     );
   }
 
-  if (provider.capabilities?.resume) {
+  if (!provider.capabilities?.resume) {
+    results.push(
+      result(`provider:${providerId}:resume`, "SKIP", "resume not advertised"),
+    );
+  } else if (!started || !firstSucceeded) {
     results.push(
       result(
-        `provider:${providerId}:resume-contract`,
-        "PASS",
-        "provider advertises resume capability; live cross-turn resume remains part of consolidated T905 burn-in",
+        `provider:${providerId}:resume`,
+        "SKIP",
+        "initial live task did not succeed, so resume was not attempted",
       ),
     );
   } else {
-    results.push(
-      result(
-        `provider:${providerId}:resume-contract`,
-        "SKIP",
-        "resume not advertised",
-      ),
-    );
+    try {
+      const resumed = await requestJson(
+        `${baseUrl}/api/provider-tasks/${encodeURIComponent(started.taskId)}/resume`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            prompt:
+              "Reply with exactly TOTEM_LIVE_RESUME_OK and no other text.",
+            kind: "live-validation",
+            title: `Live resume validation: ${providerId}`,
+          }),
+        },
+      );
+      const terminal = await pollTask(
+        baseUrl,
+        resumed.taskId,
+        options.timeoutMs,
+        options.pollMs,
+      );
+      const task = terminal.task ?? terminal;
+      const sameSession = resumed.sessionId === started.sessionId;
+      results.push(
+        result(
+          `provider:${providerId}:resume`,
+          task.status === "succeeded" && sameSession ? "PASS" : "FAIL",
+          `resumed task ${resumed.taskId} finished as ${task.status}; same durable session=${sameSession}`,
+          {
+            taskId: resumed.taskId,
+            sessionId: resumed.sessionId,
+            resumedFromTaskId: started.taskId,
+          },
+        ),
+      );
+    } catch (error) {
+      results.push(
+        result(
+          `provider:${providerId}:resume`,
+          "FAIL",
+          error instanceof Error ? error.message : String(error),
+        ),
+      );
+    }
   }
 
   if (!options.exerciseInterrupt) {
@@ -213,23 +255,26 @@ async function providerLifecycle(baseUrl, provider, options) {
   }
 
   try {
-    const started = await requestJson(`${baseUrl}/api/provider-tasks`, {
-      method: "POST",
-      body: JSON.stringify({
-        ...startBody,
-        prompt:
-          "Perform a deliberate multi-step reasoning task. Do not finish immediately; emit progress before the final answer.",
-        title: `Live interrupt validation: ${providerId}`,
-      }),
-    });
+    const interruptStarted = await requestJson(
+      `${baseUrl}/api/provider-tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...startBody,
+          prompt:
+            "Perform a deliberate multi-step reasoning task. Do not finish immediately; emit progress before the final answer.",
+          title: `Live interrupt validation: ${providerId}`,
+        }),
+      },
+    );
     await new Promise((resolve) => setTimeout(resolve, 1_500));
     await requestJson(
-      `${baseUrl}/api/provider-tasks/${encodeURIComponent(started.taskId)}/interrupt`,
+      `${baseUrl}/api/provider-tasks/${encodeURIComponent(interruptStarted.taskId)}/interrupt`,
       { method: "POST" },
     );
     const terminal = await pollTask(
       baseUrl,
-      started.taskId,
+      interruptStarted.taskId,
       options.timeoutMs,
       options.pollMs,
     );
@@ -238,8 +283,8 @@ async function providerLifecycle(baseUrl, provider, options) {
       result(
         `provider:${providerId}:interrupt`,
         task.status === "cancelled" ? "PASS" : "FAIL",
-        `interrupted task ${started.taskId} finished as ${task.status}`,
-        { taskId: started.taskId },
+        `interrupted task ${interruptStarted.taskId} finished as ${task.status}`,
+        { taskId: interruptStarted.taskId },
       ),
     );
   } catch (error) {
