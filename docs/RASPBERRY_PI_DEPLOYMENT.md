@@ -18,14 +18,14 @@ The default service binds core to localhost. A reverse proxy or remote-node laye
 From a checked-out release:
 
 ```bash
-sudo deploy/pi/install.sh
+sudo bash deploy/pi/install.sh
 ```
 
 The installer:
 
-1. verifies systemd, Node, and pnpm;
+1. verifies systemd, Node, pnpm, tar, and the supported Node version floor;
 2. creates a locked-down `totem` service account when needed;
-3. copies the checkout into `/opt/totem/releases/<timestamp>`;
+3. stages a clean source snapshot into `/opt/totem/releases/<timestamp>` without `.git`, `node_modules`, or previous `dist` output;
 4. runs `pnpm install --frozen-lockfile` and `pnpm build`;
 5. atomically points `/opt/totem/current` at the new release;
 6. creates `/etc/totem/totem.env` on first install;
@@ -41,7 +41,7 @@ The installer accepts environment overrides:
 sudo env \
   TOTEM_PREFIX=/opt/totem \
   TOTEM_STATE_DIR=/srv/totem-data \
-  deploy/pi/install.sh
+  bash deploy/pi/install.sh
 ```
 
 `TOTEM_STATE_DIR` controls the directory the installer creates and owns. Set the matching `TOTEM_DATA_DIR` in `/etc/totem/totem.env` when using a non-default state location.
@@ -70,14 +70,14 @@ TOTEM_AUDIO_DRIVER=none
 TOTEM_LED_DRIVER=virtual
 ```
 
-These names are deployment-facing configuration seams, not frozen physical-driver implementations. Until real parts are selected, deployment and CI must remain useful with headless/mock adapters. Hardware-specific implementations must consume the same device/profile and semantic LED/audio/display contracts already used by the PC simulator.
+The `@totem/device-drivers` package defines hardware-independent display/touch/audio/LED interfaces plus headless/none/virtual defaults. These are software seams, not frozen physical-driver implementations. Hardware-specific implementations must consume the same semantic contracts instead of introducing component-specific behavior into core.
 
 ## Recovery and rollback
 
 A failed application release can be rolled back without touching durable state:
 
 ```bash
-sudo deploy/pi/rollback.sh
+sudo bash deploy/pi/rollback.sh
 ```
 
 The helper points `/opt/totem/current` to the most recent previous release and restarts the service.
@@ -87,7 +87,7 @@ If the service enters a restart loop:
 ```bash
 sudo systemctl stop totem
 sudo journalctl -u totem -n 200 --no-pager
-sudo deploy/pi/diagnose.sh
+sudo bash deploy/pi/diagnose.sh
 ```
 
 Then either repair `/etc/totem/totem.env`, roll back the application release, or temporarily run core manually with safe/headless driver configuration. Do not delete `TOTEM_DATA_DIR` as a generic recovery step because it contains durable task/session state.
@@ -97,7 +97,7 @@ Then either repair `/etc/totem/totem.env`, roll back the application release, or
 Run:
 
 ```bash
-sudo deploy/pi/diagnose.sh
+sudo bash deploy/pi/diagnose.sh
 ```
 
 It reports service status, core health, filesystem capacity, memory, recent logs, and available CPU temperature/throttling telemetry (`vcgencmd` when installed, otherwise Linux thermal sysfs).
