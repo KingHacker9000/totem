@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   format:
-    if: github.event.head_commit.message != 'style: apply Biome formatting for T904'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +30,3 @@ jobs:
           git add apps/core/src/realProviders.ts scripts/live-validation.mjs
           git commit -m "style: apply Biome formatting for T904"
           git push origin HEAD:chatgpt/t904-live-resume
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: t904-formatted-files
-          path: |
-            apps/core/src/realProviders.ts
-            scripts/live-validation.mjs
