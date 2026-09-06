@@ -2,12 +2,20 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ThemeRuntime, ThemeRuntimeError } from "./themeRuntime.js";
+import { ThemeRuntime, type ThemeRuntimeError } from "./themeRuntime.js";
 
-async function writeTheme(root: string, id: string, manifest: unknown): Promise<void> {
+async function writeTheme(
+  root: string,
+  id: string,
+  manifest: unknown,
+): Promise<void> {
   const path = join(root, id);
   await mkdir(path, { recursive: true });
-  await writeFile(join(path, "totem-theme.json"), JSON.stringify(manifest), "utf8");
+  await writeFile(
+    join(path, "totem-theme.json"),
+    JSON.stringify(manifest),
+    "utf8",
+  );
 }
 
 function manifest(id: string, extra: Record<string, unknown> = {}) {
@@ -77,18 +85,26 @@ describe("ThemeRuntime", () => {
     const root = await mkdtemp(join(tmpdir(), "totem-theme-privilege-"));
     const themes = join(root, "themes");
     await mkdir(themes);
-    await writeTheme(themes, "default", manifest("default", { enabledByDefault: true }));
+    await writeTheme(
+      themes,
+      "default",
+      manifest("default", { enabledByDefault: true }),
+    );
     await writeTheme(
       themes,
       "unsafe",
-      manifest("unsafe", { presentation: { tokens: { nested: { network: true } } } }),
+      manifest("unsafe", {
+        presentation: { tokens: { nested: { network: true } } },
+      }),
     );
 
     const runtime = new ThemeRuntime({
       themeRoots: [themes],
       stateFile: join(root, "theme-state.json"),
     });
-    await expect(runtime.activate("unsafe")).rejects.toMatchObject<ThemeRuntimeError>({
+    await expect(
+      runtime.activate("unsafe"),
+    ).rejects.toMatchObject<ThemeRuntimeError>({
       code: "theme_invalid",
     });
   });
@@ -98,9 +114,17 @@ describe("ThemeRuntime", () => {
     const themes = join(root, "themes");
     const stateFile = join(root, "state", "theme-state.json");
     await mkdir(themes);
-    await writeTheme(themes, "default", manifest("default", { enabledByDefault: true }));
+    await writeTheme(
+      themes,
+      "default",
+      manifest("default", { enabledByDefault: true }),
+    );
     await mkdir(join(root, "state"), { recursive: true });
-    await writeFile(stateFile, JSON.stringify({ activeThemeId: "missing" }), "utf8");
+    await writeFile(
+      stateFile,
+      JSON.stringify({ activeThemeId: "missing" }),
+      "utf8",
+    );
 
     const runtime = new ThemeRuntime({
       themeRoots: [themes],
