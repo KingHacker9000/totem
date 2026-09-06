@@ -3,6 +3,12 @@ import { migrateToLatest, openTotemDatabase, TaskStore } from "@totem/storage";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
+import {
+  parseRegistryTrustedKeys,
+  registerEcosystemRoutes,
+  RegistryManager,
+  RemoteNodeManager,
+} from "./ecosystemRoutes.js";
 import { ExtensionBackendHost } from "./extensionBackendHost.js";
 import { ExtensionRuntime } from "./extensionRuntime.js";
 import { RuntimeEventHub } from "./events.js";
@@ -83,6 +89,13 @@ try {
     getOrchestrator: () => orchestrator,
   });
   registerThemeRoutes(app, themeRuntime);
+
+  const registry = new RegistryManager({
+    stateDir: config.paths.state,
+    trustedKeys: parseRegistryTrustedKeys(process.env.TOTEM_REGISTRY_TRUSTED_KEYS),
+  });
+  const remoteNodes = new RemoteNodeManager();
+  registerEcosystemRoutes(app, registry, remoteNodes);
 
   const realProviders = new RealProviderCoordinator({
     taskStore,
