@@ -2,6 +2,9 @@ import { join } from "node:path";
 import { migrateToLatest, openTotemDatabase, TaskStore } from "@totem/storage";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
+import { discoverPackages } from "./discovery.js";
+import { ExtensionBackendHost } from "./extensionBackendHost.js";
+import { ExtensionRuntime } from "./extensionRuntime.js";
 import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
 import { TaskOrchestrator } from "./orchestrator.js";
@@ -40,6 +43,21 @@ try {
   const extensionSettings = new JsonExtensionSettingsStore(
     join(config.paths.state, "extension-settings.json"),
   );
+  const packageSnapshot = await discoverPackages({
+    extensionRoots: config.discovery.extensionRoots,
+    themeRoots: config.discovery.themeRoots,
+    activeThemeId: config.discovery.activeThemeId,
+  });
+  const extensionRuntime = await ExtensionRuntime.fromDiscovery(
+    packageSnapshot.extensions,
+    config.extensionGrants ?? {},
+    { settings: extensionSettings },
+  );
+  const extensionBackendHost = new ExtensionBackendHost(
+    extensionRuntime,
+    packageSnapshot.extensions,
+  );
+  await extensionBackendHost.startEnabled();
 
   const startedAt = new Date().toISOString();
   let orchestrator: TaskOrchestrator | undefined;
@@ -48,7 +66,8 @@ try {
     startedAt,
     taskStore,
     eventHub,
-    extensionServices: { settings: extensionSettings },
+    extensionRuntime,
+    extensionBackendHost,
     getOrchestrator: () => orchestrator,
   });
   orchestrator = new TaskOrchestrator({
@@ -69,6 +88,7 @@ try {
     if (closing) return;
     closing = true;
     app.log.info({ event: "system.stopping", signal }, "Totem core stopping");
+    await extensionBackendHost.stopAll();
     await app.close();
     await database?.destroy();
     database = undefined;
@@ -93,6 +113,10 @@ try {
       address,
       environment: config.environment,
       dataDir: config.paths.root,
+      extensions: extensionRuntime.publicSnapshot().map((extension) => ({
+        id: extension.id,
+        state: extension.state,
+      })),
     },
     "Totem core ready",
   );
