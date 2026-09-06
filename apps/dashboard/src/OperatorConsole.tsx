@@ -46,6 +46,34 @@ type ThemeSnapshot = {
   activeTheme?: { id?: string } | null;
 };
 
+type ThemeRuntimeSnapshot = {
+  theme: {
+    activeThemeId: string | null;
+    previousThemeId?: string;
+    source: string;
+    packagePath: string | null;
+    manifest: {
+      id: string;
+      name: string;
+      version: string;
+      voice?: {
+        provider?: string;
+        model?: string;
+        voice?: string;
+        rate?: number;
+        pitch?: number;
+      };
+    } | null;
+  };
+  installed: Array<{
+    id: string;
+    name: string;
+    version: string;
+    active: boolean;
+  }>;
+  security: { privilegeBearing: boolean; secretValuesExposed: boolean };
+};
+
 type ProviderSnapshot = {
   id: string;
   status: { available: boolean; detail?: string };
@@ -53,9 +81,13 @@ type ProviderSnapshot = {
 };
 
 type ProviderList = { providers: ProviderSnapshot[] };
-type TaskList = {
-  tasks: Array<{ id: string; status: string; providerId?: string }>;
+type TaskRecord = {
+  id: string;
+  status: string;
+  providerId?: string;
+  prompt?: string;
 };
+type TaskList = { tasks: TaskRecord[] };
 
 type OperatorSection =
   | "System"
@@ -99,6 +131,20 @@ async function probe<T>(path: string): Promise<EndpointState<T>> {
   }
 }
 
+async function mutate(path: string, init: RequestInit): Promise<void> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      ...init.headers,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`${path} returned HTTP ${response.status}`);
+  }
+}
+
 function Availability({
   label,
   value,
@@ -125,6 +171,24 @@ function Availability({
   );
 }
 
+function UnavailableCapability({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <section className="phase-card muted-card">
+      <div>
+        <p className="eyebrow">Not exposed by core</p>
+        <h3>{title}</h3>
+      </div>
+      <p>{detail}</p>
+    </section>
+  );
+}
+
 export function OperatorConsole() {
   const [section, setSection] = useState<OperatorSection>("System");
   const [runtime, setRuntime] = useState<EndpointState<RuntimeStatus>>({
@@ -136,27 +200,38 @@ export function OperatorConsole() {
   const [themes, setThemes] = useState<EndpointState<ThemeSnapshot>>({
     state: "loading",
   });
+  const [themeRuntime, setThemeRuntime] = useState<
+    EndpointState<ThemeRuntimeSnapshot>
+  >({ state: "loading" });
   const [providers, setProviders] = useState<EndpointState<ProviderList>>({
     state: "loading",
   });
   const [tasks, setTasks] = useState<EndpointState<TaskList>>({
     state: "loading",
   });
-  const [busyExtension, setBusyExtension] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const [nextRuntime, nextExtensions, nextThemes, nextProviders, nextTasks] =
-      await Promise.all([
-        probe<RuntimeStatus>("/api/status"),
-        probe<ExtensionRuntimeSnapshot>("/api/extensions/runtime"),
-        probe<ThemeSnapshot>("/api/themes"),
-        probe<ProviderList>("/api/providers"),
-        probe<TaskList>("/api/tasks"),
-      ]);
+    const [
+      nextRuntime,
+      nextExtensions,
+      nextThemes,
+      nextThemeRuntime,
+      nextProviders,
+      nextTasks,
+    ] = await Promise.all([
+      probe<RuntimeStatus>("/api/status"),
+      probe<ExtensionRuntimeSnapshot>("/api/extensions/runtime"),
+      probe<ThemeSnapshot>("/api/themes"),
+      probe<ThemeRuntimeSnapshot>("/api/themes/runtime"),
+      probe<ProviderList>("/api/providers"),
+      probe<TaskList>("/api/tasks"),
+    ]);
     setRuntime(nextRuntime);
     setExtensions(nextExtensions);
     setThemes(nextThemes);
+    setThemeRuntime(nextThemeRuntime);
     setProviders(nextProviders);
     setTasks(nextTasks);
   }, []);
@@ -165,32 +240,87 @@ export function OperatorConsole() {
     void refresh();
   }, [refresh]);
 
-  const toggleExtension = async (extension: ExtensionRecord) => {
-    setBusyExtension(extension.id);
+  const runMutation = async (
+    key: string,
+    success: string,
+    action: () => Promise<void>,
+  ) => {
+    setBusyKey(key);
+    setMessage(null);
     try {
-      const response = await fetch(
-        `/api/extensions/${encodeURIComponent(extension.id)}/enabled`,
-        {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ enabled: !extension.enabled }),
-        },
-      );
-      if (!response.ok)
-        throw new Error(`Extension update failed (${response.status})`);
-      setMessage(
-        `${extension.id} ${extension.enabled ? "disabled" : "enabled"}`,
-      );
-      setExtensions(
-        await probe<ExtensionRuntimeSnapshot>("/api/extensions/runtime"),
-      );
+      await action();
+      setMessage(success);
+      await refresh();
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Extension update failed",
-      );
+      setMessage(error instanceof Error ? error.message : "Operation failed");
     } finally {
-      setBusyExtension(null);
+      setBusyKey(null);
     }
+  };
+
+  const toggleExtension = async (extension: ExtensionRecord) => {
+    await runMutation(
+      `extension:${extension.id}`,
+      `${extension.id} ${extension.enabled ? "disabled" : "enabled"}`,
+      () =>
+        mutate(`/api/extensions/${encodeURIComponent(extension.id)}/enabled`, {
+          method: "PUT",
+          body: JSON.stringify({ enabled: !extension.enabled }),
+        }),
+    );
+  };
+
+  const editSetting = async (
+    extension: ExtensionRecord,
+    key: string,
+    currentValue: unknown,
+  ) => {
+    const next = window.prompt(
+      `Set ${extension.id}.${key} as JSON or plain text`,
+      JSON.stringify(currentValue),
+    );
+    if (next === null) return;
+    let value: unknown = next;
+    try {
+      value = JSON.parse(next) as unknown;
+    } catch {
+      value = next;
+    }
+    await runMutation(
+      `setting:${extension.id}:${key}`,
+      `${extension.id}.${key} updated`,
+      () =>
+        mutate(
+          `/api/extensions/${encodeURIComponent(extension.id)}/settings/${encodeURIComponent(key)}`,
+          { method: "PUT", body: JSON.stringify({ value }) },
+        ),
+    );
+  };
+
+  const activateTheme = async (themeId: string) => {
+    await runMutation(`theme:${themeId}`, `${themeId} activated`, () =>
+      mutate("/api/themes/active", {
+        method: "PUT",
+        body: JSON.stringify({ themeId }),
+      }),
+    );
+  };
+
+  const rollbackTheme = async () => {
+    await runMutation("theme:rollback", "Theme rolled back", () =>
+      mutate("/api/themes/rollback", { method: "POST" }),
+    );
+  };
+
+  const interruptTask = async (taskId: string) => {
+    await runMutation(
+      `task:${taskId}`,
+      `Interrupt requested for ${taskId}`,
+      () =>
+        mutate(`/api/tasks/${encodeURIComponent(taskId)}/interrupt`, {
+          method: "POST",
+        }),
+    );
   };
 
   const enabledExtensions = useMemo(
@@ -208,6 +338,18 @@ export function OperatorConsole() {
             .length
         : 0,
     [providers],
+  );
+
+  const activeTasks = useMemo(
+    () =>
+      tasks.state === "available"
+        ? tasks.data.tasks.filter((item) =>
+            ["queued", "running", "waiting", "cancelling"].includes(
+              item.status,
+            ),
+          )
+        : [],
+    [tasks],
   );
 
   return (
@@ -271,21 +413,24 @@ export function OperatorConsole() {
           <div className="overview-grid">
             <Availability label="Core" value={runtime} />
             <Availability label="Extension runtime" value={extensions} />
-            <Availability label="Theme discovery" value={themes} />
+            <Availability label="Theme runtime" value={themeRuntime} />
             <Availability label="Agent providers" value={providers} />
             <section className="hero-card">
               <div>
                 <p className="eyebrow">Operator summary</p>
                 <h2>One surface, feature-detected from core</h2>
                 <p>
-                  The console never invents browser-owned service state. Each
-                  panel probes a real core endpoint and stays explicitly
-                  unavailable until its subsystem lands.
+                  Management state is always re-read from core. Unsupported
+                  subsystems remain explicit instead of being simulated in the
+                  browser.
                 </p>
               </div>
               <div className="hero-status">
                 <strong>{enabledExtensions} extensions</strong>
-                <small>{availableProviders} providers available</small>
+                <small>
+                  {availableProviders} providers · {activeTasks.length} active
+                  tasks
+                </small>
               </div>
             </section>
           </div>
@@ -302,11 +447,34 @@ export function OperatorConsole() {
                   </div>
                   <p>
                     {extension.grantedPermissions.length}/
-                    {extension.requestedPermissions.length} requested
-                    permissions granted · {extension.mcp.length} MCP
-                    registrations · {extension.secretRefs.length} secret
-                    references
+                    {extension.requestedPermissions.length} permissions granted
+                    · {extension.mcp.length} MCP registrations ·{" "}
+                    {extension.secretRefs.length} secret references
                   </p>
+                  {Object.keys(extension.settings).length > 0 ? (
+                    <div>
+                      {Object.entries(extension.settings).map(
+                        ([key, value]) => (
+                          <p key={key}>
+                            <strong>{key}:</strong> {JSON.stringify(value)}{" "}
+                            <button
+                              disabled={
+                                busyKey === `setting:${extension.id}:${key}`
+                              }
+                              onClick={() =>
+                                void editSetting(extension, key, value)
+                              }
+                              type="button"
+                            >
+                              Edit
+                            </button>
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  ) : (
+                    <p>No extension settings are currently declared.</p>
+                  )}
                   {extension.diagnostics.length > 0 ? (
                     <p>
                       {extension.diagnostics
@@ -315,11 +483,11 @@ export function OperatorConsole() {
                     </p>
                   ) : null}
                   <button
-                    disabled={busyExtension === extension.id}
+                    disabled={busyKey === `extension:${extension.id}`}
                     type="button"
                     onClick={() => void toggleExtension(extension)}
                   >
-                    {busyExtension === extension.id
+                    {busyKey === `extension:${extension.id}`
                       ? "Updating…"
                       : extension.enabled
                         ? "Disable"
@@ -328,21 +496,66 @@ export function OperatorConsole() {
                 </section>
               ))
             ) : (
-              <section className="placeholder-card">
-                <h2>Extension runtime unavailable</h2>
-                <p>
-                  {extensions.state === "unavailable"
+              <UnavailableCapability
+                title="Extension runtime"
+                detail={
+                  extensions.state === "unavailable"
                     ? extensions.detail
-                    : "Checking core…"}
-                </p>
-              </section>
+                    : "Checking core…"
+                }
+              />
             )}
           </div>
         ) : null}
 
         {section === "Themes" ? (
           <div className="overview-grid">
-            {themes.state === "available" ? (
+            {themeRuntime.state === "available" ? (
+              <>
+                <section className="hero-card">
+                  <div>
+                    <p className="eyebrow">Active theme</p>
+                    <h2>
+                      {themeRuntime.data.theme.activeThemeId ?? "Fallback"}
+                    </h2>
+                    <p>
+                      Source: {themeRuntime.data.theme.source} · previous:{" "}
+                      {themeRuntime.data.theme.previousThemeId ?? "none"}
+                    </p>
+                  </div>
+                  <button
+                    disabled={
+                      !themeRuntime.data.theme.previousThemeId ||
+                      busyKey === "theme:rollback"
+                    }
+                    onClick={() => void rollbackTheme()}
+                    type="button"
+                  >
+                    Roll back
+                  </button>
+                </section>
+                {themeRuntime.data.installed.map((theme) => (
+                  <section className="phase-card" key={theme.id}>
+                    <div>
+                      <p className="eyebrow">
+                        {theme.active ? "active" : "installed"}
+                      </p>
+                      <h3>{theme.name}</h3>
+                    </div>
+                    <p>
+                      {theme.id} · version {theme.version}
+                    </p>
+                    <button
+                      disabled={theme.active || busyKey === `theme:${theme.id}`}
+                      onClick={() => void activateTheme(theme.id)}
+                      type="button"
+                    >
+                      {theme.active ? "Active" : "Activate"}
+                    </button>
+                  </section>
+                ))}
+              </>
+            ) : themes.state === "available" ? (
               themes.data.packages.map((theme, index) => (
                 <section
                   className="phase-card"
@@ -352,21 +565,18 @@ export function OperatorConsole() {
                     <p className="eyebrow">{theme.state}</p>
                     <h3>{theme.id ?? "Invalid theme"}</h3>
                   </div>
-                  <p>
-                    Version {theme.version ?? "—"} ·{" "}
-                    {theme.enabled ? "enabled" : "disabled"}
-                  </p>
+                  <p>Runtime management endpoint is unavailable.</p>
                 </section>
               ))
             ) : (
-              <section className="placeholder-card">
-                <h2>Theme service unavailable</h2>
-                <p>
-                  {themes.state === "unavailable"
-                    ? themes.detail
-                    : "Checking core…"}
-                </p>
-              </section>
+              <UnavailableCapability
+                title="Theme management"
+                detail={
+                  themeRuntime.state === "unavailable"
+                    ? themeRuntime.detail
+                    : "Checking core…"
+                }
+              />
             )}
           </div>
         ) : null}
@@ -393,15 +603,46 @@ export function OperatorConsole() {
                 </section>
               ))
             ) : (
-              <section className="placeholder-card">
-                <h2>Provider service unavailable</h2>
-                <p>
-                  {providers.state === "unavailable"
+              <UnavailableCapability
+                title="Agent provider service"
+                detail={
+                  providers.state === "unavailable"
                     ? providers.detail
-                    : "Checking core…"}
-                </p>
-              </section>
+                    : "Checking core…"
+                }
+              />
             )}
+            {tasks.state === "available" ? (
+              activeTasks.length > 0 ? (
+                activeTasks.map((task) => (
+                  <section className="phase-card" key={task.id}>
+                    <div>
+                      <p className="eyebrow">{task.status}</p>
+                      <h3>{task.id}</h3>
+                    </div>
+                    <p>Provider: {task.providerId ?? "default/mock"}</p>
+                    <button
+                      disabled={
+                        task.status === "cancelling" ||
+                        busyKey === `task:${task.id}`
+                      }
+                      onClick={() => void interruptTask(task.id)}
+                      type="button"
+                    >
+                      Interrupt
+                    </button>
+                  </section>
+                ))
+              ) : (
+                <section className="phase-card muted-card">
+                  <div>
+                    <p className="eyebrow">Task activity</p>
+                    <h3>No active tasks</h3>
+                  </div>
+                  <p>Task state is read from durable core storage.</p>
+                </section>
+              )
+            ) : null}
             {extensions.state === "available" ? (
               <section className="phase-card muted-card">
                 <div>
@@ -414,8 +655,8 @@ export function OperatorConsole() {
                   </h3>
                 </div>
                 <p>
-                  Registrations are reported by the permission-gated extension
-                  runtime. Secret values are never returned here.
+                  Registrations come from the permission-gated runtime. Secret
+                  values are never returned here.
                 </p>
               </section>
             ) : null}
@@ -436,9 +677,7 @@ export function OperatorConsole() {
                   <strong>
                     {String(extensions.data.security.secretValuesExposed)}
                   </strong>
-                  <small>
-                    Normal runtime snapshots never include secret values
-                  </small>
+                  <small>Normal runtime snapshots never include values</small>
                 </section>
                 {extensions.data.extensions.map((extension) => (
                   <section className="phase-card" key={extension.id}>
@@ -458,14 +697,14 @@ export function OperatorConsole() {
                 ))}
               </>
             ) : (
-              <section className="placeholder-card">
-                <h2>Security runtime unavailable</h2>
-                <p>
-                  {extensions.state === "unavailable"
+              <UnavailableCapability
+                title="Security runtime"
+                detail={
+                  extensions.state === "unavailable"
                     ? extensions.detail
-                    : "Checking core…"}
-                </p>
-              </section>
+                    : "Checking core…"
+                }
+              />
             )}
           </div>
         ) : null}
@@ -478,10 +717,7 @@ export function OperatorConsole() {
                   <div>
                     <p className="eyebrow">Durable data root</p>
                     <h2 className="path-value">{runtime.data.dataDir}</h2>
-                    <p>
-                      Core owns storage. The dashboard only reports the
-                      configured durable location.
-                    </p>
+                    <p>Core owns storage; this path is reported live.</p>
                   </div>
                 </section>
                 <Availability label="Durable task store" value={tasks} />
@@ -494,40 +730,58 @@ export function OperatorConsole() {
                   </strong>
                   <small>Read from core, not browser memory</small>
                 </section>
+                <UnavailableCapability
+                  title="Backup and restore"
+                  detail="No backup management API is exposed by core yet; the console does not fabricate backup state."
+                />
+                <UnavailableCapability
+                  title="Structured logs"
+                  detail="No operator log-query endpoint is exposed by core yet. Runtime diagnostics remain available through subsystem snapshots."
+                />
               </>
             ) : (
-              <section className="placeholder-card">
-                <h2>Storage status unavailable</h2>
-                <p>Core status is unavailable.</p>
-              </section>
+              <UnavailableCapability
+                title="Storage status"
+                detail="Core status is unavailable."
+              />
             )}
           </div>
         ) : null}
 
         {section === "Speech & Display" ? (
           <div className="overview-grid">
+            {themeRuntime.state === "available" &&
+            themeRuntime.data.theme.manifest?.voice ? (
+              <section className="phase-card">
+                <div>
+                  <p className="eyebrow">Theme voice configuration</p>
+                  <h3>
+                    {themeRuntime.data.theme.manifest.voice.voice ??
+                      "Theme-selected voice"}
+                  </h3>
+                </div>
+                <p>
+                  Provider{" "}
+                  {themeRuntime.data.theme.manifest.voice.provider ?? "—"}
+                  {" · "}model{" "}
+                  {themeRuntime.data.theme.manifest.voice.model ?? "—"}
+                </p>
+              </section>
+            ) : null}
+            <UnavailableCapability
+              title="Speech runtime controls"
+              detail="No microphone, VAD, STT, TTS, playback, or model-management API is exposed by core yet."
+            />
             <section className="phase-card">
               <div>
                 <p className="eyebrow">Display</p>
-                <h3>Simulator is a separate live surface</h3>
+                <h3>Simulator surface</h3>
               </div>
               <p>
-                Display state continues to arrive through normalized core
-                events. Dedicated management endpoints will light up here when
-                exposed.
+                Display state arrives through normalized core events. Dedicated
+                display settings remain unavailable until core exposes them.
               </p>
               <a href="http://127.0.0.1:5174">Open display simulator</a>
-            </section>
-            <section className="phase-card muted-card">
-              <div>
-                <p className="eyebrow">Speech</p>
-                <h3>Capability not yet exposed by core</h3>
-              </div>
-              <p>
-                No fake microphone, STT, TTS, or model state is shown. This
-                remains honestly unavailable until the speech runtime publishes
-                a management API.
-              </p>
             </section>
           </div>
         ) : null}
@@ -556,9 +810,9 @@ export function OperatorConsole() {
                 <h3>Live endpoint matrix</h3>
               </div>
               <p>
-                Core: {runtime.state} · Extensions: {extensions.state} · Themes:{" "}
-                {themes.state} · Providers: {providers.state} · Tasks:{" "}
-                {tasks.state}
+                Core: {runtime.state} · Extensions: {extensions.state} · Theme
+                discovery: {themes.state} · Theme runtime: {themeRuntime.state}{" "}
+                · Providers: {providers.state} · Tasks: {tasks.state}
               </p>
             </section>
           </div>
