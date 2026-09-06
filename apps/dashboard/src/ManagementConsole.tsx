@@ -64,9 +64,9 @@ export function ManagementConsole() {
   const [logs, setLogs] = useState<EndpointState<{ logs: OperatorLog[] }>>({
     state: "loading",
   });
-  const [backups, setBackups] = useState<
-    EndpointState<{ backups: Backup[] }>
-  >({ state: "loading" });
+  const [backups, setBackups] = useState<EndpointState<{ backups: Backup[] }>>({
+    state: "loading",
+  });
   const [speech, setSpeech] = useState<EndpointState<SpeechStatus>>({
     state: "loading",
   });
@@ -125,7 +125,9 @@ export function ManagementConsole() {
       };
       setMessage(payload.plan.steps.join(" → "));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Restore plan failed");
+      setMessage(
+        error instanceof Error ? error.message : "Restore plan failed",
+      );
     } finally {
       setBusy(false);
     }
@@ -218,7 +220,8 @@ export function ManagementConsole() {
                   reverse-access layer.
                 </p>
                 <p>
-                  Declared edge: {capabilities.data.security.externalAccessLayer ?? "none"}
+                  Declared edge:{" "}
+                  {capabilities.data.security.externalAccessLayer ?? "none"}
                 </p>
               </section>
             </>

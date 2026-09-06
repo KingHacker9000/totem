@@ -1,10 +1,4 @@
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,9 +9,7 @@ const tempDirs: string[] = [];
 
 afterEach(async () => {
   await Promise.all(
-    tempDirs
-      .splice(0)
-      .map((dir) => rm(dir, { recursive: true, force: true })),
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
   );
 });
 

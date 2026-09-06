@@ -1,8 +1,8 @@
 import {
   cp,
   mkdir,
-  readFile,
   readdir,
+  readFile,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -91,7 +91,8 @@ export class OperatorManager {
 
   capabilitySnapshot() {
     const loopbackOnly = isLoopbackHost(this.config.host);
-    const externalAccessLayer = this.env.TOTEM_REMOTE_ACCESS_LAYER?.trim() || null;
+    const externalAccessLayer =
+      this.env.TOTEM_REMOTE_ACCESS_LAYER?.trim() || null;
     return {
       speech: {
         statusEndpoint: "/api/speech/status",
@@ -129,8 +130,7 @@ export class OperatorManager {
     const manifests = await Promise.all(
       entries
         .filter(
-          (entry) =>
-            entry.isDirectory() && BACKUP_ID_PATTERN.test(entry.name),
+          (entry) => entry.isDirectory() && BACKUP_ID_PATTERN.test(entry.name),
         )
         .map((entry) => readManifest(join(root, entry.name, "manifest.json"))),
     );
