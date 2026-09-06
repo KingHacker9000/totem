@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ConnectionState = "connecting" | "live" | "reconnecting" | "offline";
 
@@ -18,6 +18,46 @@ type CoreStatusEvent = {
   type: "core.status";
   occurredAt: string;
   data: RuntimeStatus;
+};
+
+type TaskStatus =
+  | "queued"
+  | "running"
+  | "waiting_for_input"
+  | "cancelling"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+type TaskRecord = {
+  id: string;
+  kind: string;
+  status: TaskStatus;
+  title?: string;
+  sessionId?: string;
+  providerId?: string;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  failure?: { code: string; message: string; retryable: boolean };
+  result?: unknown;
+};
+
+type StoredTaskEvent = {
+  taskSequence: number;
+  event: {
+    id: string;
+    type: string;
+    source: string;
+    occurredAt: string;
+    data: unknown;
+  };
+};
+
+type TaskDetail = {
+  task: TaskRecord;
+  events: StoredTaskEvent[];
 };
 
 const sections = [
@@ -57,12 +97,31 @@ function statusLabel(state: ConnectionState) {
   }
 }
 
+function formatTimestamp(value: string | undefined) {
+  return value ? new Date(value).toLocaleString() : "—";
+}
+
+function formatEventData(data: unknown) {
+  if (data === null || data === undefined) return "—";
+  if (typeof data === "string") return data;
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
+}
+
 export function App() {
   const [section, setSection] = useState<Section>("Overview");
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskDetail, setTaskDetail] = useState<TaskDetail | null>(null);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [taskError, setTaskError] = useState<string | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -130,6 +189,66 @@ export function App() {
     };
   }, []);
 
+  const loadTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      const response = await fetch("/api/tasks", {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Task list request failed (${response.status})`);
+      }
+      const payload = (await response.json()) as { tasks: TaskRecord[] };
+      setTasks(payload.tasks);
+      setSelectedTaskId((current) => {
+        if (current && payload.tasks.some((task) => task.id === current)) {
+          return current;
+        }
+        return payload.tasks[0]?.id ?? null;
+      });
+      setTaskError(null);
+    } catch (cause) {
+      setTaskError(
+        cause instanceof Error ? cause.message : "Unable to load durable tasks",
+      );
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
+
+  const loadTaskDetail = useCallback(async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`Task detail request failed (${response.status})`);
+      }
+      setTaskDetail((await response.json()) as TaskDetail);
+      setTaskError(null);
+    } catch (cause) {
+      setTaskDetail(null);
+      setTaskError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to load durable task history",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (section !== "Tasks") return;
+    void loadTasks();
+  }, [section, loadTasks]);
+
+  useEffect(() => {
+    if (section !== "Tasks" || !selectedTaskId) {
+      setTaskDetail(null);
+      return;
+    }
+    void loadTaskDetail(selectedTaskId);
+  }, [section, selectedTaskId, loadTaskDetail]);
+
   const started = useMemo(
     () => (runtime ? new Date(runtime.startedAt).toLocaleString() : "—"),
     [runtime],
@@ -194,8 +313,7 @@ export function App() {
                 </h2>
                 <p>
                   This dashboard observes the local core process. Runtime state
-                  comes from
-                  <code> /api/status</code> and the reconnecting{" "}
+                  comes from <code>/api/status</code> and the reconnecting{" "}
                   <code>/api/events</code> stream.
                 </p>
               </div>
@@ -238,21 +356,138 @@ export function App() {
               <ul>
                 <li>Health and runtime status</li>
                 <li>Automatic SSE reconnect</li>
-                <li>Responsive desktop navigation shell</li>
+                <li>Durable task list and history inspection</li>
               </ul>
             </section>
 
             <section className="phase-card muted-card">
               <div>
                 <p className="eyebrow">Owned by later tasks</p>
-                <h3>Management surfaces</h3>
+                <h3>Remaining management surfaces</h3>
               </div>
               <p>
-                Task history, extension/theme management, agent controls,
-                display tooling, speech, security, storage, and developer logs
-                stay as placeholders until their owning Phase 1 or later tasks
-                land.
+                Extension/theme management, agent controls, display tooling,
+                speech, security, storage, and developer logs remain honest
+                placeholders until their owning tasks land.
               </p>
+            </section>
+          </div>
+        ) : section === "Tasks" ? (
+          <div className="tasks-layout">
+            {taskError ? <div className="notice">{taskError}</div> : null}
+
+            <section className="task-list-card">
+              <div className="task-section-heading">
+                <div>
+                  <p className="eyebrow">Durable core state</p>
+                  <h2>Task history</h2>
+                </div>
+                <button type="button" onClick={() => void loadTasks()}>
+                  {tasksLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {tasks.length === 0 ? (
+                <p className="empty-state">
+                  {tasksLoading
+                    ? "Loading durable tasks…"
+                    : "No persisted tasks yet. Mock-provider tasks will appear here once created by core."}
+                </p>
+              ) : (
+                <div className="task-list">
+                  {tasks.map((task) => (
+                    <button
+                      className={
+                        task.id === selectedTaskId
+                          ? "task-row selected"
+                          : "task-row"
+                      }
+                      key={task.id}
+                      onClick={() => setSelectedTaskId(task.id)}
+                      type="button"
+                    >
+                      <div>
+                        <strong>{task.title ?? task.id}</strong>
+                        <span>{task.kind}</span>
+                      </div>
+                      <div className="task-row-meta">
+                        <span className={`task-status ${task.status}`}>
+                          {task.status.replaceAll("_", " ")}
+                        </span>
+                        <small>{formatTimestamp(task.updatedAt)}</small>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="task-detail-card">
+              {taskDetail ? (
+                <>
+                  <div className="task-detail-heading">
+                    <div>
+                      <p className="eyebrow">{taskDetail.task.kind}</p>
+                      <h2>{taskDetail.task.title ?? taskDetail.task.id}</h2>
+                    </div>
+                    <span className={`task-status ${taskDetail.task.status}`}>
+                      {taskDetail.task.status.replaceAll("_", " ")}
+                    </span>
+                  </div>
+
+                  <dl className="task-facts">
+                    <div>
+                      <dt>Task ID</dt>
+                      <dd>{taskDetail.task.id}</dd>
+                    </div>
+                    <div>
+                      <dt>Provider</dt>
+                      <dd>{taskDetail.task.providerId ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Created</dt>
+                      <dd>{formatTimestamp(taskDetail.task.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Completed</dt>
+                      <dd>{formatTimestamp(taskDetail.task.completedAt)}</dd>
+                    </div>
+                  </dl>
+
+                  {taskDetail.task.failure ? (
+                    <div className="task-failure">
+                      <strong>{taskDetail.task.failure.code}</strong>
+                      <span className="task-failure-message">
+                        {taskDetail.task.failure.message}
+                      </span>
+                    </div>
+                  ) : null}
+
+                  <div className="task-history-heading">
+                    <p className="eyebrow">Persisted event log</p>
+                    <strong>{taskDetail.events.length} events</strong>
+                  </div>
+                  <ol className="task-history">
+                    {taskDetail.events.map((entry) => (
+                      <li key={`${entry.taskSequence}-${entry.event.id}`}>
+                        <span className="event-sequence">
+                          #{entry.taskSequence}
+                        </span>
+                        <div>
+                          <strong>{entry.event.type}</strong>
+                          <span>{formatTimestamp(entry.event.occurredAt)}</span>
+                          <code>{formatEventData(entry.event.data)}</code>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              ) : (
+                <p className="empty-state">
+                  Select a persisted task to inspect its snapshot and
+                  append-only event history.
+                </p>
+              )}
             </section>
           </div>
         ) : (
