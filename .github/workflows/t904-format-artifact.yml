@@ -6,10 +6,11 @@ on:
       - chatgpt/t904-live-resume
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
+    if: github.event.head_commit.message != 'style: apply Biome formatting for T904'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +21,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec biome format --write apps/core/src/realProviders.ts scripts/live-validation.mjs
+      - name: Commit formatter output
+        run: |
+          if git diff --quiet -- apps/core/src/realProviders.ts scripts/live-validation.mjs; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/core/src/realProviders.ts scripts/live-validation.mjs
+          git commit -m "style: apply Biome formatting for T904"
+          git push origin HEAD:chatgpt/t904-live-resume
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: t904-formatted-files
           path: |
