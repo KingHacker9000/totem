@@ -205,7 +205,7 @@ export function createApp(options: CreateAppOptions = {}) {
     const snapshot = await discover();
     const runtime = await ExtensionRuntime.fromDiscovery(
       snapshot.extensions,
-      options.extensionGrants ?? {},
+      options.extensionGrants ?? config.extensionGrants ?? {},
     );
     return {
       extensions: runtime.publicSnapshot(),
