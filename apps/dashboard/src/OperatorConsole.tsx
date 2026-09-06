@@ -313,10 +313,13 @@ export function OperatorConsole() {
   };
 
   const interruptTask = async (taskId: string) => {
-    await runMutation(`task:${taskId}`, `Interrupt requested for ${taskId}`, () =>
-      mutate(`/api/tasks/${encodeURIComponent(taskId)}/interrupt`, {
-        method: "POST",
-      }),
+    await runMutation(
+      `task:${taskId}`,
+      `Interrupt requested for ${taskId}`,
+      () =>
+        mutate(`/api/tasks/${encodeURIComponent(taskId)}/interrupt`, {
+          method: "POST",
+        }),
     );
   };
 
@@ -450,20 +453,24 @@ export function OperatorConsole() {
                   </p>
                   {Object.keys(extension.settings).length > 0 ? (
                     <div>
-                      {Object.entries(extension.settings).map(([key, value]) => (
-                        <p key={key}>
-                          <strong>{key}:</strong> {JSON.stringify(value)}{" "}
-                          <button
-                            disabled={busyKey === `setting:${extension.id}:${key}`}
-                            onClick={() =>
-                              void editSetting(extension, key, value)
-                            }
-                            type="button"
-                          >
-                            Edit
-                          </button>
-                        </p>
-                      ))}
+                      {Object.entries(extension.settings).map(
+                        ([key, value]) => (
+                          <p key={key}>
+                            <strong>{key}:</strong> {JSON.stringify(value)}{" "}
+                            <button
+                              disabled={
+                                busyKey === `setting:${extension.id}:${key}`
+                              }
+                              onClick={() =>
+                                void editSetting(extension, key, value)
+                              }
+                              type="button"
+                            >
+                              Edit
+                            </button>
+                          </p>
+                        ),
+                      )}
                     </div>
                   ) : (
                     <p>No extension settings are currently declared.</p>
@@ -508,7 +515,9 @@ export function OperatorConsole() {
                 <section className="hero-card">
                   <div>
                     <p className="eyebrow">Active theme</p>
-                    <h2>{themeRuntime.data.theme.activeThemeId ?? "Fallback"}</h2>
+                    <h2>
+                      {themeRuntime.data.theme.activeThemeId ?? "Fallback"}
+                    </h2>
                     <p>
                       Source: {themeRuntime.data.theme.source} · previous:{" "}
                       {themeRuntime.data.theme.previousThemeId ?? "none"}
@@ -715,7 +724,9 @@ export function OperatorConsole() {
                 <section className="metric-card">
                   <span>Persisted tasks</span>
                   <strong>
-                    {tasks.state === "available" ? tasks.data.tasks.length : "—"}
+                    {tasks.state === "available"
+                      ? tasks.data.tasks.length
+                      : "—"}
                   </strong>
                   <small>Read from core, not browser memory</small>
                 </section>
@@ -750,8 +761,10 @@ export function OperatorConsole() {
                   </h3>
                 </div>
                 <p>
-                  Provider {themeRuntime.data.theme.manifest.voice.provider ?? "—"}
-                  {" · "}model {themeRuntime.data.theme.manifest.voice.model ?? "—"}
+                  Provider{" "}
+                  {themeRuntime.data.theme.manifest.voice.provider ?? "—"}
+                  {" · "}model{" "}
+                  {themeRuntime.data.theme.manifest.voice.model ?? "—"}
                 </p>
               </section>
             ) : null}
@@ -798,8 +811,8 @@ export function OperatorConsole() {
               </div>
               <p>
                 Core: {runtime.state} · Extensions: {extensions.state} · Theme
-                discovery: {themes.state} · Theme runtime: {themeRuntime.state} ·
-                Providers: {providers.state} · Tasks: {tasks.state}
+                discovery: {themes.state} · Theme runtime: {themeRuntime.state}{" "}
+                · Providers: {providers.state} · Tasks: {tasks.state}
               </p>
             </section>
           </div>
