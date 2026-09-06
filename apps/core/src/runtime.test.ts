@@ -22,6 +22,12 @@ function configFor(root: string): TotemConfig {
       extensionRoots: [join(root, "extensions")],
       themeRoots: [join(root, "themes")],
     },
+    speech: {
+      stt: { provider: "none" },
+      tts: { provider: "none" },
+      agentProviderId: "mock",
+      vadThreshold: 0.015,
+    },
   };
 }
 

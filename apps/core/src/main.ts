@@ -19,6 +19,8 @@ import { TaskOrchestrator } from "./orchestrator.js";
 import { registerProviderRoutes } from "./providerRoutes.js";
 import { RealProviderCoordinator } from "./realProviders.js";
 import { ensureDataDirectories } from "./runtime.js";
+import { ConfiguredSpeechService, registerSpeechRoutes } from "./speechApi.js";
+import type { SpeechTaskGateway } from "./speechRuntime.js";
 import { registerThemeRoutes } from "./themeRoutes.js";
 import { ThemeRuntime } from "./themeRuntime.js";
 
@@ -117,7 +119,7 @@ try {
   });
   registerProviderRoutes(app, realProviders);
 
-  orchestrator = new TaskOrchestrator({
+  const mockOrchestrator = new TaskOrchestrator({
     taskStore,
     hub: eventHub,
     logger: {
@@ -125,11 +127,48 @@ try {
         app.log.error(details, message),
     },
   });
+  orchestrator = mockOrchestrator;
+
+  const speechTasks: SpeechTaskGateway = {
+    startTask: async (input) => {
+      if (config.speech.agentProviderId === "mock") {
+        return await mockOrchestrator.startMockTask(input);
+      }
+      return await realProviders.startTask({
+        prompt: input.prompt,
+        providerId: config.speech.agentProviderId,
+        ...(input.kind ? { kind: input.kind } : {}),
+        ...(input.title ? { title: input.title } : {}),
+      });
+    },
+    interruptTask: async (taskId) => {
+      if (config.speech.agentProviderId === "mock") {
+        await mockOrchestrator.interruptTask(taskId);
+        return;
+      }
+      await realProviders.interruptTask(taskId);
+    },
+  };
+  const speechService = new ConfiguredSpeechService({
+    config: config.speech,
+    tasks: speechTasks,
+    resolveVoice: async () => {
+      const voice = (await themeRuntime.snapshot()).manifest?.voice;
+      if (!voice) return undefined;
+      return {
+        ...(voice.voice ? { voiceId: voice.voice } : {}),
+        ...(voice.model ? { modelPath: voice.model } : {}),
+      };
+    },
+  });
+  registerSpeechRoutes(app, speechService);
+
   app.log.info(
     {
       event: "system.orchestrator_ready",
-      mockProvider: orchestrator.providerId,
+      mockProvider: mockOrchestrator.providerId,
       realProviders: realProviders.listProviderIds(),
+      speechProvider: config.speech.agentProviderId,
     },
     "Agent provider coordinators ready",
   );
@@ -158,7 +197,10 @@ try {
   }
 
   const address = await app.listen({ host: config.host, port: config.port });
-  const activeTheme = await themeRuntime.snapshot();
+  const [activeTheme, speechStatus] = await Promise.all([
+    themeRuntime.snapshot(),
+    speechService.snapshot(),
+  ]);
   app.log.info(
     {
       event: "system.ready",
@@ -171,6 +213,11 @@ try {
       })),
       activeTheme: activeTheme.activeThemeId,
       realProviders: realProviders.listProviderIds(),
+      speech: {
+        taskProviderId: speechStatus.taskProviderId,
+        stt: speechStatus.runtime.stt,
+        tts: speechStatus.runtime.tts,
+      },
     },
     "Totem core ready",
   );
