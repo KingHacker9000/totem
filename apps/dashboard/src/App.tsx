@@ -69,7 +69,9 @@ export function App() {
 
     const loadInitialStatus = async () => {
       try {
-        const response = await fetch("/api/status", { headers: { accept: "application/json" } });
+        const response = await fetch("/api/status", {
+          headers: { accept: "application/json" },
+        });
         if (!response.ok) {
           throw new Error(`Core status request failed (${response.status})`);
         }
@@ -81,7 +83,11 @@ export function App() {
       } catch (cause) {
         if (!disposed) {
           setConnection("offline");
-          setError(cause instanceof Error ? cause.message : "Unable to reach Totem core");
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Unable to reach Totem core",
+          );
         }
       }
     };
@@ -98,7 +104,9 @@ export function App() {
     source.addEventListener("core.status", (message) => {
       if (disposed) return;
       try {
-        const event = JSON.parse((message as MessageEvent<string>).data) as CoreStatusEvent;
+        const event = JSON.parse(
+          (message as MessageEvent<string>).data,
+        ) as CoreStatusEvent;
         setRuntime(event.data);
         setLastEventAt(event.occurredAt);
         setConnection("live");
@@ -109,7 +117,9 @@ export function App() {
     });
     source.onerror = () => {
       if (!disposed) {
-        setConnection((current) => (current === "live" ? "reconnecting" : "offline"));
+        setConnection((current) =>
+          current === "live" ? "reconnecting" : "offline",
+        );
         setError("Live event stream interrupted; retrying automatically.");
       }
     };
@@ -177,22 +187,34 @@ export function App() {
             <section className="hero-card">
               <div>
                 <p className="eyebrow">Core runtime</p>
-                <h2>{runtime ? `${runtime.name} is ${runtime.status}` : "Connecting to Totem core"}</h2>
+                <h2>
+                  {runtime
+                    ? `${runtime.name} is ${runtime.status}`
+                    : "Connecting to Totem core"}
+                </h2>
                 <p>
-                  This dashboard observes the local core process. Runtime state comes from
-                  <code> /api/status</code> and the reconnecting <code>/api/events</code> stream.
+                  This dashboard observes the local core process. Runtime state
+                  comes from
+                  <code> /api/status</code> and the reconnecting{" "}
+                  <code>/api/events</code> stream.
                 </p>
               </div>
               <div className="hero-status">
                 <span className={`pulse ${connection}`} />
                 <strong>{runtime?.stage ?? "phase-1"}</strong>
-                <small>{lastEventAt ? `Last event ${new Date(lastEventAt).toLocaleTimeString()}` : "Awaiting event"}</small>
+                <small>
+                  {lastEventAt
+                    ? `Last event ${new Date(lastEventAt).toLocaleTimeString()}`
+                    : "Awaiting event"}
+                </small>
               </div>
             </section>
 
             <section className="metric-card">
               <span>Uptime</span>
-              <strong>{runtime ? formatUptime(runtime.uptimeSeconds) : "--:--:--"}</strong>
+              <strong>
+                {runtime ? formatUptime(runtime.uptimeSeconds) : "--:--:--"}
+              </strong>
               <small>Started {started}</small>
             </section>
             <section className="metric-card">
@@ -202,7 +224,9 @@ export function App() {
             </section>
             <section className="metric-card wide">
               <span>Data directory</span>
-              <strong className="path-value">{runtime?.dataDir ?? "Waiting for core status…"}</strong>
+              <strong className="path-value">
+                {runtime?.dataDir ?? "Waiting for core status…"}
+              </strong>
               <small>Portable local storage root</small>
             </section>
 
@@ -224,9 +248,10 @@ export function App() {
                 <h3>Management surfaces</h3>
               </div>
               <p>
-                Task history, extension/theme management, agent controls, display tooling,
-                speech, security, storage, and developer logs stay as placeholders until
-                their owning Phase 1 or later tasks land.
+                Task history, extension/theme management, agent controls,
+                display tooling, speech, security, storage, and developer logs
+                stay as placeholders until their owning Phase 1 or later tasks
+                land.
               </p>
             </section>
           </div>
@@ -235,10 +260,13 @@ export function App() {
             <p className="eyebrow">Navigation contract ready</p>
             <h2>{section}</h2>
             <p>
-              This section intentionally has no simulated management data. Its functionality
-              belongs to a later task; the Phase 1 shell provides the route and layout only.
+              This section intentionally has no simulated management data. Its
+              functionality belongs to a later task; the Phase 1 shell provides
+              the route and layout only.
             </p>
-            <button type="button" onClick={() => setSection("Overview")}>Return to Overview</button>
+            <button type="button" onClick={() => setSection("Overview")}>
+              Return to Overview
+            </button>
           </section>
         )}
       </main>
