@@ -9,7 +9,7 @@ Totem deliberately separates **what the assistant can do** from **what the assis
 - **Themes** change visual identity, animations, sounds, persona instructions, wake-word presentation, LED behavior, and TTS configuration without granting new capabilities.
 - **Agent providers** bridge Totem to external agent runtimes such as Codex CLI and Claude Code CLI. Totem does not require a general-purpose LLM to run on the device.
 
-The initial development target is a Windows PC running a complete device simulator. Raspberry Pi 5 deployment and physical hardware integration come later, after the software contracts are stable.
+The project remains software-first, but the software platform has now advanced beyond the original PC-simulator milestone into real provider adapters, extension/theme runtimes, management tooling, registry/remote-node infrastructure, speech orchestration, and a software-only Raspberry Pi deployment layer.
 
 ## Project principles
 
@@ -28,15 +28,41 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 ## Current status
 
-**Phase 0 and Phase 1 are complete.** Phase 1 proved the core software platform and PC simulator from a fresh checkout: the core, dashboard, and display start together; durable SQLite task state survives restart; deterministic mock tasks stream through the same provider/task/event boundaries intended for real providers; extension/theme fixtures are discovered; and dashboard/display clients reconnect to authoritative core state.
+The **core software platform is substantially implemented**, but the physical Totem device is not finished.
 
-The validated Phase 1 baseline is `main` at `f5bd841` (PR #21), with hosted Windows/Linux CI green and the clean-checkout regression record captured in [docs/PHASE1.md](docs/PHASE1.md).
+Completed/integrated work includes:
 
-Active work now moves to **Phase 2 — extension platform**. Raspberry Pi deployment and hardware/CAD remain later roadmap phases and are intentionally not started yet.
+- **Phase 0** — architecture and repository bootstrap;
+- **Phase 1** — core + PC simulator + clean-checkout mocked-task validation;
+- **Phase 2** — extension manifest/SDK/runtime, permissions, lifecycle, settings/secrets/MCP, first-party extension pack, and cross-repository integration validation;
+- **Phase 3** — full theme platform, hot switching/rollback, public reference themes, and private Portal theme through the same generic contract;
+- **Phase 4** — real Codex CLI and Claude Code CLI adapters, durable provider sessions, streaming, cancellation/resume, workspace policy, and provider dashboard flow;
+- **Phase 5 software framework** — provider-neutral speech orchestration, VAD, STT/TTS adapter seams, streaming playback, barge-in, and theme voice selection;
+- **Phase 6** — capability-aware management/operator console with real core-owned state and honest unavailable states for unfinished subsystems;
+- **Phases 7/11 software** — registry signing/install/rollback primitives, ecosystem integration fixtures, remote-node transport, and Totem management APIs;
+- **Phase 8 software-only deployment** — systemd service, installer, rollback, diagnostics, relocatable external-HDD state path, and hardware-agnostic device-driver interfaces.
 
-On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md); for architecture/tooling details see [development setup](docs/DEVELOPMENT.md), and for startup/runtime settings see [core configuration](docs/CONFIGURATION.md).
+The latest Phase 2 integration gate is `main` at `503b99a3b0156f47126d56d49e4a26e3e8f7dedf` (PR #32). That gate passed clean frozen install/check/build across Windows and Linux on Node 22.20/24.18 and exercised the public extension SDK/runtime/base-extension path. See `PHASE2_INTEGRATION.md` for the reproduction details and boundaries.
 
-See [docs/PHASE0.md](docs/PHASE0.md), [docs/PHASE1.md](docs/PHASE1.md), and [docs/ROADMAP.md](docs/ROADMAP.md) for completion records and the implementation plan.
+### What is still not complete
+
+The next milestone is **real-world validation and physical-product integration**, not another architecture phase. Remaining work includes:
+
+- concrete production local STT/TTS + real PC microphone/speaker adapters;
+- actual rendering of extension display/dashboard contributions through the generic extension contract;
+- remaining speech/display/log/backup/security operator APIs;
+- one consolidated real-PC burn-in using installed/authenticated agent CLIs and optional live services;
+- deployment and performance/recovery validation on the user's real Raspberry Pi 5;
+- physical component selection and measured BOM;
+- real caliper measurements and parametric CAD from those measurements;
+- printed/assembled prototype, audio/thermal/touch/LED validation, and final daily-use testing;
+- public software/hardware license selection before the first release.
+
+The task-board next wave intentionally reserves Codex for only high-value local/agentic gates: the consolidated real-PC integration burn-in and measured parametric CAD generation. Routine implementation stays with ChatGPT/direct tooling where practical.
+
+On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md). For architecture/tooling details see [development setup](docs/DEVELOPMENT.md), for startup/runtime settings see [core configuration](docs/CONFIGURATION.md), and for Pi deployment see [Raspberry Pi deployment](docs/RASPBERRY_PI_DEPLOYMENT.md).
+
+See [docs/PHASE0.md](docs/PHASE0.md), [docs/PHASE1.md](docs/PHASE1.md), and [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan and completion records.
 
 ## Documentation
 
@@ -55,6 +81,7 @@ See [docs/PHASE0.md](docs/PHASE0.md), [docs/PHASE1.md](docs/PHASE1.md), and [doc
 - [Storage](docs/STORAGE.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Windows development bootstrap](docs/WINDOWS_DEVELOPMENT.md)
+- [Raspberry Pi deployment](docs/RASPBERRY_PI_DEPLOYMENT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Phase 0 completion](docs/PHASE0.md)
 - [Phase 1 completion](docs/PHASE1.md)
@@ -62,4 +89,4 @@ See [docs/PHASE0.md](docs/PHASE0.md), [docs/PHASE1.md](docs/PHASE1.md), and [doc
 
 ## Licensing
 
-Licensing is intentionally not finalized yet. The public repositories are intended to be open source, but the exact software/hardware licenses will be selected before the first public release. Proprietary or copyrighted character assets belong only in private/local themes and are not part of Totem's public distribution.
+Licensing is intentionally not finalized yet. The public repositories are intended to be open source, but the exact software/hardware licenses will be selected before the first public release. Proprietary or copyrighted character assets belong only in private/local themes and hardware skins and are not part of Totem's public distribution.
