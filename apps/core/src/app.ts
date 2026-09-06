@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
+import { discoverPackages } from "./discovery.js";
 import { createRuntimeStatus } from "./runtime.js";
 
 export interface CreateAppOptions {
@@ -18,6 +19,13 @@ export function createApp(options: CreateAppOptions = {}) {
 
   const app = Fastify({ logger });
 
+  const discover = () =>
+    discoverPackages({
+      extensionRoots: config.discovery.extensionRoots,
+      themeRoots: config.discovery.themeRoots,
+      activeThemeId: config.discovery.activeThemeId,
+    });
+
   app.get("/", async () => ({
     name: "Totem",
     stage: "phase-1",
@@ -27,6 +35,27 @@ export function createApp(options: CreateAppOptions = {}) {
   app.get("/health", async () => ({ status: "ok" }));
 
   app.get("/api/status", async () => createRuntimeStatus(config, startedAt));
+
+  app.get("/api/extensions", async () => {
+    const snapshot = await discover();
+    return {
+      packages: snapshot.extensions,
+      rootDiagnostics: snapshot.rootDiagnostics.filter(
+        (diagnostic) => diagnostic.type === "extension",
+      ),
+    };
+  });
+
+  app.get("/api/themes", async () => {
+    const snapshot = await discover();
+    return {
+      packages: snapshot.themes,
+      rootDiagnostics: snapshot.rootDiagnostics.filter(
+        (diagnostic) => diagnostic.type === "theme",
+      ),
+      activeTheme: snapshot.activeTheme,
+    };
+  });
 
   app.get("/api/events", async (request, reply) => {
     reply.hijack();
