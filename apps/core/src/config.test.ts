@@ -29,9 +29,10 @@ describe("loadConfig", () => {
         TOTEM_LOG_LEVEL: "debug",
         TOTEM_ENV: "test",
         TOTEM_DATA_DIR: "./var/totem-test",
-        TOTEM_EXTENSION_ROOTS: ["./fixtures/extensions", "./vendor/extensions"].join(
-          delimiter,
-        ),
+        TOTEM_EXTENSION_ROOTS: [
+          "./fixtures/extensions",
+          "./vendor/extensions",
+        ].join(delimiter),
         TOTEM_THEME_ROOTS: "./fixtures/themes",
         TOTEM_ACTIVE_THEME: "minimal",
       },
