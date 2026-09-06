@@ -181,7 +181,10 @@ async function validateExtension(
   let capabilities: string[] | undefined;
 
   if (value.entrypoint !== undefined) {
-    if (typeof value.entrypoint !== "string" || value.entrypoint.trim() === "") {
+    if (
+      typeof value.entrypoint !== "string" ||
+      value.entrypoint.trim() === ""
+    ) {
       errors.push({
         code: "entrypoint_invalid",
         field: "entrypoint",
@@ -255,7 +258,10 @@ function validateTheme(
   }
 
   if (value.assetsRoot !== undefined) {
-    if (typeof value.assetsRoot !== "string" || value.assetsRoot.trim() === "") {
+    if (
+      typeof value.assetsRoot !== "string" ||
+      value.assetsRoot.trim() === ""
+    ) {
       errors.push({
         code: "assetsRoot_invalid",
         field: "assetsRoot",
@@ -307,7 +313,13 @@ async function scanCandidate(
           ? `Missing ${filename}`
           : `Unable to read ${filename}: ${(error as Error).message}`,
     });
-    return { type, path: packagePath, state: "invalid", enabled: false, errors };
+    return {
+      type,
+      path: packagePath,
+      state: "invalid",
+      enabled: false,
+      errors,
+    };
   }
 
   let parsed: unknown;
@@ -318,7 +330,13 @@ async function scanCandidate(
       code: "manifest_json_invalid",
       message: `Invalid JSON in ${filename}: ${(error as Error).message}`,
     });
-    return { type, path: packagePath, state: "invalid", enabled: false, errors };
+    return {
+      type,
+      path: packagePath,
+      state: "invalid",
+      enabled: false,
+      errors,
+    };
   }
 
   if (!isRecord(parsed)) {
@@ -326,7 +344,13 @@ async function scanCandidate(
       code: "manifest_invalid",
       message: `${filename} must contain a JSON object`,
     });
-    return { type, path: packagePath, state: "invalid", enabled: false, errors };
+    return {
+      type,
+      path: packagePath,
+      state: "invalid",
+      enabled: false,
+      errors,
+    };
   }
 
   const id = typeof parsed.id === "string" ? parsed.id : undefined;
@@ -336,7 +360,14 @@ async function scanCandidate(
       : validateTheme(parsed, errors);
 
   if (manifest === undefined || errors.length > 0) {
-    return { type, id, path: packagePath, state: "invalid", enabled: false, errors };
+    return {
+      type,
+      id,
+      path: packagePath,
+      state: "invalid",
+      enabled: false,
+      errors,
+    };
   }
 
   const explicitEnabled = enablement[packageKey(type, manifest.id)];
@@ -356,9 +387,7 @@ async function scanCandidate(
     enabled,
     manifest,
     errors,
-    ...(unsupportedCapabilities?.length
-      ? { unsupportedCapabilities }
-      : {}),
+    ...(unsupportedCapabilities?.length ? { unsupportedCapabilities } : {}),
   };
 }
 
@@ -469,10 +498,7 @@ export async function discoverPackages(
   return {
     extensions: extensions.packages,
     themes: themes.packages,
-    rootDiagnostics: [
-      ...extensions.rootDiagnostics,
-      ...themes.rootDiagnostics,
-    ],
+    rootDiagnostics: [...extensions.rootDiagnostics, ...themes.rootDiagnostics],
     activeTheme: selectTheme(themes.packages, options.activeThemeId),
   };
 }
