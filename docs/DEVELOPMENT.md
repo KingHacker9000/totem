@@ -2,15 +2,9 @@
 
 Totem is software-first and PC-first.
 
-## Run the T102 scaffold
+## Run the Phase 1 stack
 
-Install Node.js **24.18.0** (pinned in `.nvmrc` and `.node-version`) and
-pnpm **10.28.0**. Node **22.20.0 or newer** is supported. The original scaffold
-used the Vite minimum of Node 22.12.0, but Phase 1 durable SQLite validation
-showed that older Node 22 patch releases are not a safe runtime floor for the
-current native `better-sqlite3` dependency. With Corepack available, run
-`corepack enable`; otherwise install pnpm with
-`npm install --global pnpm@10.28.0`.
+Install Node.js **24.18.0** (pinned in `.nvmrc` and `.node-version`) and pnpm **10.28.0**. Node **22.20.0 or newer** is supported. With Corepack available, run `corepack enable`; otherwise install pnpm with `npm install --global pnpm@10.28.0`.
 
 From the repository root, in PowerShell, Command Prompt, or a Unix shell:
 
@@ -21,33 +15,23 @@ pnpm build
 pnpm dev
 ```
 
-The scaffold starts three independent development processes:
+For the default development fixture set, clone `totem-base-extensions` and `totem-base-themes` as sibling directories before running `pnpm dev`; the normal configurable discovery path will find them. The Windows-specific clean-checkout path is documented in [WINDOWS_DEVELOPMENT.md](WINDOWS_DEVELOPMENT.md).
 
-| Surface | Local URL | Current behavior |
+The launcher starts three development processes:
+
+| Surface | Local URL | Phase 1 behavior |
 | --- | --- | --- |
-| Core | http://127.0.0.1:3000/ | JSON scaffold identity response |
-| Dashboard | http://127.0.0.1:5173/ | React placeholder |
-| Display | http://127.0.0.1:5174/ | React placeholder |
+| Core | http://127.0.0.1:3000/ | authoritative API, SSE stream, discovery, durable tasks, mock provider |
+| Dashboard | http://127.0.0.1:5173/ | live status, task submission/history/detail, interruption and reconnect |
+| Display | http://127.0.0.1:5174/ | browser device simulator, safe-area/device profiles, virtual LED/touch, core-driven task state |
 
-Use Ctrl+C to stop the development processes. Browser ports are strict so a
-port conflict fails visibly instead of silently moving a surface. Individual
-apps can run with `pnpm --filter @totem/core dev` (or `@totem/dashboard` /
-`@totem/display`). After building, `pnpm --filter @totem/core start` runs the
-compiled core. Each browser build is emitted to its app's `dist/` directory.
+Use Ctrl+C to stop the managed development processes. Browser ports are strict so a conflict fails visibly rather than silently moving a surface. Individual apps can run with `pnpm --filter @totem/core dev` (or `@totem/dashboard` / `@totem/display`). After building, `pnpm --filter @totem/core start` runs the compiled core.
 
-This scaffold establishes tooling only: health/configuration, API/event
-contracts, persistence, simulator behavior, and provider integration belong
-to subsequent task-board issues. The browser placeholders do not yet connect
-to core. Shared `packages/*` are created by their owning tasks when real
-contracts exist. SQLite and other future runtime dependencies are deliberately
-not installed before their packages exist. Browser E2E tests and
-`pnpm test:e2e` are deferred until the browser integration task.
+Phase 1 is complete. A fresh-clone regression pass validated install, check, build, startup, extension/theme discovery, successful/failed/interrupted mock task flows, dashboard/display live updates, and durable task history across repeated core restarts. See [PHASE1.md](PHASE1.md) for the completion record.
 
-CI runs frozen installation, `pnpm check`, and `pnpm build` on Windows and
-Linux with Node 22.20.0 and 24.18.0. `pnpm format` applies Biome formatting;
-`pnpm format:check` checks it without writes. Markdown remains source-preserved.
-When using WSL, use Linux Node and pnpm in WSL; do not share an installed
-`node_modules` tree with native Windows. No Docker or Pi hardware is needed.
+`pnpm install` may report `Ignored build scripts: better-sqlite3`. This is expected for the pinned dependency because the supported platforms use its shipped prebuilt binary; the validated install/check/dev flow does not require allowing that install script.
+
+CI runs frozen installation, `pnpm check`, and `pnpm build` on Windows and Linux with Node 22.20.0 and 24.18.0. `pnpm format` applies Biome formatting; `pnpm format:check` checks it without writes. Markdown remains source-preserved. When using WSL, use Linux Node and pnpm in WSL; do not share an installed `node_modules` tree with native Windows. No Docker or Pi hardware is needed.
 
 ## Primary development environment
 
@@ -56,14 +40,13 @@ The first complete implementation runs on a normal development PC with:
 - display client in browser-based simulator mode
 - mouse acting as touch input
 - virtual LEDs
-- keyboard input
-- real PC microphone/speakers when speech work begins
-- local STT/TTS
-- Codex CLI and Claude Code CLI provider adapters
-- real extension/theme loading
+- keyboard/dashboard task input
 - dashboard on localhost
+- durable embedded state
+- deterministic mock provider and provider-neutral task/event contracts
+- extension/theme discovery fixtures
 
-The Raspberry Pi is a later deployment target, not the primary development machine.
+Real PC microphone/speakers, local STT/TTS, and Codex/Claude provider adapters are later roadmap phases. The Raspberry Pi is also a later deployment target, not the primary development machine.
 
 ## Implementation rule
 
@@ -99,7 +82,7 @@ Exact package versions are pinned by the implementation scaffold and lockfile ra
 
 ## Workspace layout
 
-The initial `totem` repository is a pnpm workspace with these intended boundaries:
+The `totem` repository is a pnpm workspace with these boundaries:
 
 ```text
 apps/
@@ -120,13 +103,13 @@ packages/
   testkit/            shared deterministic fixtures when justified
 ```
 
-Empty packages do not need to be created prematurely. A package should appear when its owning task has a real contract to implement. Browser apps may consume public shared packages but must not import private `apps/core` implementation modules.
+Packages should appear when their owning phase has a real contract to implement. Browser apps may consume public shared packages but must not import private `apps/core` implementation modules.
 
 The real Codex/Claude adapters live in `totem-agent-providers`. First-party extensions and themes remain in `totem-base-extensions` and `totem-base-themes`.
 
 ## Root developer commands
 
-The Phase 1 scaffold must expose a stable root command surface:
+The root command surface is:
 
 ```bash
 pnpm install
@@ -141,13 +124,11 @@ pnpm test:e2e
 pnpm check
 ```
 
-`pnpm test:e2e` may initially be a documented no-op/absent until browser E2E tests are introduced; once Playwright tests exist it becomes part of the normal validation path.
-
-`pnpm check` is the local/CI aggregate quality gate and should cover formatting check, lint, type checking, and automated tests. It must not require Raspberry Pi hardware.
+`pnpm check` is the local/CI aggregate quality gate and covers formatting check, lint, type checking, and automated tests. It must not require Raspberry Pi hardware.
 
 ## Local process model
 
-During Phase 1 development, the system may run several local processes, but the architectural source of truth remains the core service:
+The architectural source of truth is the core service:
 
 ```text
 browser dashboard ----\
@@ -178,9 +159,9 @@ Before merging core architectural changes:
 - unit/integration tests pass
 - extension/theme manifest fixtures validate when those contracts exist
 - protocol compatibility tests pass when implemented
-- simulator smoke/E2E tests pass once the simulator exists
+- simulator smoke/E2E tests pass once automated browser coverage is introduced
 
-CI is added as implementation begins and should execute the same root commands used locally.
+CI should execute the same root commands used locally.
 
 ## Compatibility
 
