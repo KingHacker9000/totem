@@ -52,7 +52,7 @@ This is the durable basis for browser reconnect, task-detail history, and mocked
 
 ### Native dependency note
 
-`better-sqlite3` contains native code and is explicitly allowed in the pnpm workspace build policy. CI verifies it on the supported Windows/Linux and Node 22/24 matrix. Raspberry Pi ARM64/native-toolchain verification remains a Pi-deployment concern rather than a PC Phase 1 assumption.
+`better-sqlite3` contains native code. The pinned v13 package ships platform prebuilds, so Totem does not opt it into pnpm install-time source builds on ordinary supported desktops; CI verifies the bundled runtime on the supported Windows/Linux and Node 22/24 matrix. Raspberry Pi ARM64/native-toolchain verification remains a Pi-deployment concern rather than a PC Phase 1 assumption.
 
 ## Raspberry Pi target
 
