@@ -10,10 +10,12 @@ if (!root) throw new Error("Missing application root");
 
 const pathname = window.location.pathname;
 const surface =
-  pathname === "/providers"
-    ? <ProviderConsole />
-    : pathname === "/operator"
-      ? <OperatorConsole />
-      : <App />;
+  pathname === "/providers" ? (
+    <ProviderConsole />
+  ) : pathname === "/operator" ? (
+    <OperatorConsole />
+  ) : (
+    <App />
+  );
 
 createRoot(root).render(<StrictMode>{surface}</StrictMode>);
