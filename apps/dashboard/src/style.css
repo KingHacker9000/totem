@@ -462,7 +462,7 @@ h2 {
   background: rgba(127, 29, 29, 0.15);
 }
 
-.task-failure span {
+.task-failure .task-failure-message {
   color: #fecdd3;
 }
 
