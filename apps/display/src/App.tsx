@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SceneDebugPanel } from "./SceneDebugPanel";
 import {
   type DeviceProfile,
   mapTouchPoint,
@@ -269,6 +270,7 @@ export function App() {
                 </div>
               )}
             </div>
+            <SceneDebugPanel />
           </aside>
         </div>
       )}
