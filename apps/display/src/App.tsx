@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useCoreDisplayState } from "./coreDisplay";
 import { SceneDebugPanel } from "./SceneDebugPanel";
 import {
   type DeviceProfile,
@@ -20,6 +21,7 @@ export function App() {
   const [pointer, setPointer] = useState<PointerState>(null);
   const [panelScale, setPanelScale] = useState(1);
   const panelRef = useRef<HTMLDivElement>(null);
+  const coreDisplay = useCoreDisplayState();
 
   useEffect(() => {
     fetch("/profiles/index.json")
@@ -188,9 +190,23 @@ export function App() {
                   className={`product-output ${showMask ? "masked" : ""}`}
                   style={showMask ? maskStyle : undefined}
                 >
-                  <div className="ambient-scene">
-                    <div className="orb" />
-                    <p className="eyebrow">Ambient</p>
+                  <div
+                    className="ambient-scene"
+                    data-core-scene={coreDisplay.activeSceneId ?? "ambient"}
+                    data-led-semantic={coreDisplay.led.semantic}
+                  >
+                    <div
+                      className="orb"
+                      style={{
+                        opacity: Math.max(0.2, coreDisplay.led.intensity),
+                      }}
+                    />
+                    <p className="eyebrow">
+                      {coreDisplay.activeSceneId &&
+                      coreDisplay.activeSceneId !== "ambient"
+                        ? coreDisplay.activeSceneId
+                        : "Ambient"}
+                    </p>
                     <h2>Totem</h2>
                     <p>{profile.name}</p>
                   </div>
@@ -269,6 +285,21 @@ export function App() {
                   ))}
                 </div>
               )}
+            </div>
+            <div className="core-scene-readout">
+              <p className="eyebrow">Core-driven scene</p>
+              <strong>{coreDisplay.activeSceneId ?? "—"}</strong>
+              <span>
+                LED {coreDisplay.led.semantic} · {coreDisplay.led.effect} ·{" "}
+                {Math.round(coreDisplay.led.intensity * 100)}%
+              </span>
+              <span className="muted">
+                {coreDisplay.connected
+                  ? coreDisplay.lastEventAt
+                    ? `updated ${new Date(coreDisplay.lastEventAt).toLocaleTimeString()}`
+                    : "connected to core"
+                  : "core stream offline"}
+              </span>
             </div>
             <SceneDebugPanel />
           </aside>

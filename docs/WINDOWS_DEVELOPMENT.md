@@ -77,6 +77,24 @@ On Windows, multiple roots use the normal semicolon-separated PATH convention:
 $env:TOTEM_EXTENSION_ROOTS = "C:\dev\extensions-a;C:\dev\extensions-b"
 ```
 
+## Run a mocked task end to end
+
+With the stack running, start a deterministic mocked task from any HTTP client:
+
+```powershell
+curl.exe -s -X POST http://127.0.0.1:3000/api/tasks `
+  -H "content-type: application/json" `
+  -d '{\"prompt\":\"say hello\",\"scenario\":\"success\"}'
+```
+
+or from the dashboard **Tasks** section, which has a prompt box, a scenario
+selector (`success` / `failure` / `wait`), and a live-updating task history.
+The task is persisted durably; reloading the dashboard or restarting core
+replays it from storage. A `wait` task stays `running` until interrupted
+(dashboard **Interrupt** button, or `POST /api/tasks/<id>/interrupt`). The
+display simulator's "Core-driven scene" panel reflects the task's scene/LED
+transitions live over `/api/events`.
+
 ## Core configuration
 
 The launcher preserves explicitly configured environment values. Common settings are:

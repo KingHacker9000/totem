@@ -264,6 +264,37 @@ dd {
   font-size: 0.88rem;
 }
 
+.core-scene-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 22px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0c1219;
+}
+
+.core-scene-readout strong {
+  font-size: 1.05rem;
+}
+
+.core-scene-readout span {
+  color: #91a0ae;
+  font-size: 0.85rem;
+}
+
+.ambient-scene[data-led-semantic="attention"] .orb {
+  background: radial-gradient(circle at 30% 30%, #ffd479, #d9821f);
+}
+
+.ambient-scene[data-led-semantic="success"] .orb {
+  background: radial-gradient(circle at 30% 30%, #9ff5c4, #2f9e63);
+}
+
+.ambient-scene[data-led-semantic="error"] .orb {
+  background: radial-gradient(circle at 30% 30%, #ffb0b0, #c23b3b);
+}
+
 .lighting-zones {
   display: grid;
   gap: 8px;

@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@totem/agents": "workspace:*",
+    "@totem/protocol": "workspace:*",
     "@totem/storage": "workspace:*",
+    "@totem/tasks": "workspace:*",
     "fastify": "5.12.3"
   },
   "devDependencies": {

@@ -306,13 +306,45 @@ h2 {
 }
 
 .placeholder-card button,
-.task-section-heading button {
+.task-section-heading button,
+.task-start-form button,
+.task-detail-heading button {
   border: 1px solid #344150;
   border-radius: 0.65rem;
   padding: 0.6rem 0.85rem;
   color: #dbe4ec;
   background: #161f29;
   cursor: pointer;
+}
+
+.task-start-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.task-start-form input[type="text"] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  border: 1px solid #344150;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  color: #dbe4ec;
+  background: #0d131a;
+}
+
+.task-start-form select {
+  border: 1px solid #344150;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.6rem;
+  color: #dbe4ec;
+  background: #0d131a;
+}
+
+.task-start-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tasks-layout {
