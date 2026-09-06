@@ -1,6 +1,15 @@
 #!/usr/bin/env node
-import { access, constants, mkdir, readFile, stat, statfs, writeFile, unlink } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import {
+  access,
+  constants,
+  mkdir,
+  readFile,
+  stat,
+  statfs,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -9,7 +18,10 @@ const jsonOnly = args.has("--json");
 const offline = args.has("--offline");
 const strict = args.has("--strict");
 const port = Number(process.env.TOTEM_PORT ?? "3000");
-const stateDir = process.env.TOTEM_STATE_DIR ?? process.env.TOTEM_DATA_DIR ?? "/var/lib/totem";
+const stateDir =
+  process.env.TOTEM_STATE_DIR ??
+  process.env.TOTEM_DATA_DIR ??
+  "/var/lib/totem";
 const baseUrl = process.env.TOTEM_BASE_URL ?? `http://127.0.0.1:${port}`;
 const results = [];
 
@@ -23,13 +35,23 @@ function command(name, argv = []) {
 
 async function probeJson(route) {
   try {
-    const response = await fetch(`${baseUrl}${route}`, { signal: AbortSignal.timeout(3500) });
+    const response = await fetch(`${baseUrl}${route}`, {
+      signal: AbortSignal.timeout(3500),
+    });
     const text = await response.text();
     let body = null;
-    try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = text;
+    }
     return { ok: response.ok, status: response.status, body };
   } catch (error) {
-    return { ok: false, status: null, error: error instanceof Error ? error.message : String(error) };
+    return {
+      ok: false,
+      status: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -44,10 +66,23 @@ add("host", "PASS", "Host/runtime detected", {
 });
 
 if (process.platform === "linux") {
-  const model = await readFile("/proc/device-tree/model", "utf8").catch(() => null);
-  add("raspberry_pi", model?.includes("Raspberry Pi") ? "PASS" : "SKIP", model ? model.replace(/\0/g, "").trim() : "Raspberry Pi model metadata unavailable", { model: model?.replace(/\0/g, "").trim() ?? null });
+  const model = await readFile("/proc/device-tree/model", "utf8").catch(
+    () => null,
+  );
+  add(
+    "raspberry_pi",
+    model?.includes("Raspberry Pi") ? "PASS" : "SKIP",
+    model
+      ? model.replace(/\0/g, "").trim()
+      : "Raspberry Pi model metadata unavailable",
+    { model: model?.replace(/\0/g, "").trim() ?? null },
+  );
 } else {
-  add("raspberry_pi", "SKIP", "Not running on Linux/Pi; host-independent checks only");
+  add(
+    "raspberry_pi",
+    "SKIP",
+    "Not running on Linux/Pi; host-independent checks only",
+  );
 }
 
 try {
@@ -58,26 +93,73 @@ try {
   await unlink(probe);
   const fs = await statfs(stateDir);
   const freeBytes = Number(fs.bavail) * Number(fs.bsize);
-  const minFree = Number(process.env.TOTEM_MIN_FREE_BYTES ?? 512 * 1024 * 1024);
-  add("storage", freeBytes >= minFree ? "PASS" : "FAIL", freeBytes >= minFree ? "State directory is writable with sufficient free space" : "State directory is writable but low on free space", { state_dir: stateDir, free_bytes: freeBytes, minimum_free_bytes: minFree });
-  const mount = command("findmnt", ["-T", stateDir, "-J", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS"]);
+  const minFree = Number(
+    process.env.TOTEM_MIN_FREE_BYTES ?? 512 * 1024 * 1024,
+  );
+  add(
+    "storage",
+    freeBytes >= minFree ? "PASS" : "FAIL",
+    freeBytes >= minFree
+      ? "State directory is writable with sufficient free space"
+      : "State directory is writable but low on free space",
+    {
+      state_dir: stateDir,
+      free_bytes: freeBytes,
+      minimum_free_bytes: minFree,
+    },
+  );
+  const mount = command("findmnt", [
+    "-T",
+    stateDir,
+    "-J",
+    "-o",
+    "TARGET,SOURCE,FSTYPE,OPTIONS",
+  ]);
   if (mount.status === 0) {
     let mountInfo = mount.stdout.trim();
-    try { mountInfo = JSON.parse(mountInfo); } catch {}
-    add("state_mount", "PASS", "State-directory backing mount resolved", { mount: mountInfo });
+    try {
+      mountInfo = JSON.parse(mountInfo);
+    } catch {
+      // Keep the raw output so diagnostics still remain useful.
+    }
+    add("state_mount", "PASS", "State-directory backing mount resolved", {
+      mount: mountInfo,
+    });
   } else {
-    add("state_mount", "SKIP", "findmnt unavailable; mount identity not verified", { state_dir: stateDir });
+    add(
+      "state_mount",
+      "SKIP",
+      "findmnt unavailable; mount identity not verified",
+      { state_dir: stateDir },
+    );
   }
 } catch (error) {
-  add("storage", "FAIL", "State directory is not safely writable", { state_dir: stateDir, error: error instanceof Error ? error.message : String(error) });
+  add("storage", "FAIL", "State directory is not safely writable", {
+    state_dir: stateDir,
+    error: error instanceof Error ? error.message : String(error),
+  });
 }
 
 const currentRelease = "/opt/totem/current";
 try {
   const releaseStat = await stat(currentRelease);
-  add("release", releaseStat.isDirectory() ? "PASS" : "FAIL", releaseStat.isDirectory() ? "Current release path exists" : "Current release path is not a directory", { path: currentRelease });
+  add(
+    "release",
+    releaseStat.isDirectory() ? "PASS" : "FAIL",
+    releaseStat.isDirectory()
+      ? "Current release path exists"
+      : "Current release path is not a directory",
+    { path: currentRelease },
+  );
 } catch {
-  add("release", offline ? "SKIP" : "FAIL", offline ? "Release path not required in offline CI mode" : "Current release path is missing", { path: currentRelease });
+  add(
+    "release",
+    offline ? "SKIP" : "FAIL",
+    offline
+      ? "Release path not required in offline CI mode"
+      : "Current release path is missing",
+    { path: currentRelease },
+  );
 }
 
 if (process.platform === "linux" && !offline) {
@@ -87,26 +169,58 @@ if (process.platform === "linux" && !offline) {
   } else if (systemctl.error?.code === "ENOENT") {
     add("service", "SKIP", "systemctl unavailable on this Linux host");
   } else {
-    add("service", "FAIL", "totem.service is not active", { output: `${systemctl.stdout}${systemctl.stderr}`.trim(), exit_code: systemctl.status });
+    add("service", "FAIL", "totem.service is not active", {
+      output: `${systemctl.stdout}${systemctl.stderr}`.trim(),
+      exit_code: systemctl.status,
+    });
   }
 } else {
-  add("service", "SKIP", offline ? "Service check skipped in offline mode" : "systemd service check only applies on Linux");
+  add(
+    "service",
+    "SKIP",
+    offline
+      ? "Service check skipped in offline mode"
+      : "systemd service check only applies on Linux",
+  );
 }
 
 if (!offline) {
   const health = await probeJson("/health");
-  add("health", health.ok ? "PASS" : "FAIL", health.ok ? "Core health endpoint responds" : "Core health endpoint is unavailable", health);
+  add(
+    "health",
+    health.ok ? "PASS" : "FAIL",
+    health.ok
+      ? "Core health endpoint responds"
+      : "Core health endpoint is unavailable",
+    health,
+  );
 
   const status = await probeJson("/api/status");
-  add("core_status", status.ok ? "PASS" : "FAIL", status.ok ? "Core status endpoint responds" : "Core status endpoint is unavailable", status);
+  add(
+    "core_status",
+    status.ok ? "PASS" : "FAIL",
+    status.ok
+      ? "Core status endpoint responds"
+      : "Core status endpoint is unavailable",
+    status,
+  );
 
-  for (const [id, route, optional] of [
-    ["extensions", "/api/extensions/runtime", false],
-    ["themes", "/api/themes/runtime", false],
-    ["providers", "/api/providers", false],
+  for (const [id, route] of [
+    ["extensions", "/api/extensions/runtime"],
+    ["themes", "/api/themes/runtime"],
+    ["providers", "/api/providers"],
   ]) {
     const probe = await probeJson(route);
-    add(id, probe.ok ? "PASS" : optional || probe.status === 404 ? "SKIP" : "FAIL", probe.ok ? `${id} API responds` : probe.status === 404 ? `${id} capability is not exposed by this build` : `${id} API failed`, probe);
+    add(
+      id,
+      probe.ok ? "PASS" : probe.status === 404 ? "SKIP" : "FAIL",
+      probe.ok
+        ? `${id} API responds`
+        : probe.status === 404
+          ? `${id} capability is not exposed by this build`
+          : `${id} API failed`,
+      probe,
+    );
   }
 
   for (const [id, route] of [
@@ -115,25 +229,59 @@ if (!offline) {
     ["permissions", "/api/security/status"],
   ]) {
     const probe = await probeJson(route);
-    add(id, probe.ok ? "PASS" : "SKIP", probe.ok ? `${id} capability/status is available` : `${id} capability is absent or not yet exposed; treated as optional`, probe);
+    add(
+      id,
+      probe.ok ? "PASS" : "SKIP",
+      probe.ok
+        ? `${id} capability/status is available`
+        : `${id} capability is absent or not yet exposed; treated as optional`,
+      probe,
+    );
   }
 } else {
-  for (const id of ["health", "core_status", "extensions", "themes", "providers", "speech", "display", "permissions"]) add(id, "SKIP", "Live core check skipped in offline mode");
+  for (const id of [
+    "health",
+    "core_status",
+    "extensions",
+    "themes",
+    "providers",
+    "speech",
+    "display",
+    "permissions",
+  ]) {
+    add(id, "SKIP", "Live core check skipped in offline mode");
+  }
 }
 
 if (process.platform === "linux") {
-  const tempRaw = await readFile("/sys/class/thermal/thermal_zone0/temp", "utf8").catch(() => null);
+  const tempRaw = await readFile(
+    "/sys/class/thermal/thermal_zone0/temp",
+    "utf8",
+  ).catch(() => null);
   const throttle = command("vcgencmd", ["get_throttled"]);
   const details = {};
-  if (tempRaw) details.cpu_temp_c = Number(tempRaw.trim()) / 1000;
-  if (throttle.status === 0) details.throttled = throttle.stdout.trim();
-  add("thermals", Object.keys(details).length ? "PASS" : "SKIP", Object.keys(details).length ? "Thermal telemetry available" : "Thermal telemetry unavailable on this host", details);
+  if (tempRaw) {
+    details.cpu_temp_c = Number(tempRaw.trim()) / 1000;
+  }
+  if (throttle.status === 0) {
+    details.throttled = throttle.stdout.trim();
+  }
+  add(
+    "thermals",
+    Object.keys(details).length ? "PASS" : "SKIP",
+    Object.keys(details).length
+      ? "Thermal telemetry available"
+      : "Thermal telemetry unavailable on this host",
+    details,
+  );
 } else {
   add("thermals", "SKIP", "Pi/Linux thermal telemetry not applicable");
 }
 
 const counts = { PASS: 0, SKIP: 0, FAIL: 0 };
-for (const result of results) counts[result.status] += 1;
+for (const result of results) {
+  counts[result.status] += 1;
+}
 const report = {
   schema: "totem.pi-self-test/v1",
   generated_at: new Date().toISOString(),
@@ -149,9 +297,17 @@ if (jsonOnly) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   console.log("Totem Pi readiness self-test");
-  for (const item of results) console.log(`${item.status.padEnd(4)} ${item.id.padEnd(15)} ${item.summary}`);
-  console.log(`\nOverall: ${report.overall} (${counts.PASS} pass, ${counts.SKIP} skip, ${counts.FAIL} fail)`);
+  for (const item of results) {
+    console.log(
+      `${item.status.padEnd(4)} ${item.id.padEnd(15)} ${item.summary}`,
+    );
+  }
+  console.log(
+    `\nOverall: ${report.overall} (${counts.PASS} pass, ${counts.SKIP} skip, ${counts.FAIL} fail)`,
+  );
   console.log("Use --json for a machine-readable report.");
 }
 
-if (counts.FAIL > 0 || (strict && counts.SKIP > 0)) process.exitCode = 1;
+if (counts.FAIL > 0 || (strict && counts.SKIP > 0)) {
+  process.exitCode = 1;
+}
