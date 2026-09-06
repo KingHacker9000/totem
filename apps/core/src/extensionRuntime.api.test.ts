@@ -57,7 +57,8 @@ describe("extension runtime HTTP surface", () => {
         url: "/api/extensions/runtime",
       });
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({
+      const payload = response.json();
+      expect(payload).toMatchObject({
         extensions: [
           {
             id: "weather",
@@ -69,7 +70,8 @@ describe("extension runtime HTTP surface", () => {
         ],
         security: { defaultGrantPolicy: "deny", secretValuesExposed: false },
       });
-      expect(response.body).not.toContain("secretValue");
+      expect(payload.extensions[0]).not.toHaveProperty("secretValue");
+      expect(payload.extensions[0]).not.toHaveProperty("secretValues");
     } finally {
       await app.close();
       await rm(root, { recursive: true, force: true });
