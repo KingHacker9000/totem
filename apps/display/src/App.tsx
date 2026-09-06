@@ -16,6 +16,7 @@ export function App() {
   const [showMask, setShowMask] = useState(true);
   const [showSafeArea, setShowSafeArea] = useState(true);
   const [pointer, setPointer] = useState<PointerState>(null);
+  const [panelScale, setPanelScale] = useState(1);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,13 +48,20 @@ export function App() {
   }, [profileName]);
 
   const display = profile?.display.present ? profile.display : null;
+
+  useEffect(() => {
+    if (!display || !panelRef.current) return;
+    const panel = panelRef.current;
+    const updateScale = () => setPanelScale(panel.getBoundingClientRect().width / display.logicalSize.width);
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [display]);
+
   const panelStyle = useMemo(() => {
     if (!display) return undefined;
-    return {
-      aspectRatio: `${display.logicalSize.width} / ${display.logicalSize.height}`,
-      "--logical-width": `${display.logicalSize.width}`,
-      "--logical-height": `${display.logicalSize.height}`,
-    } as React.CSSProperties;
+    return { aspectRatio: `${display.logicalSize.width} / ${display.logicalSize.height}` } as React.CSSProperties;
   }, [display]);
 
   const logicalStyle = useMemo(() => {
@@ -61,8 +69,9 @@ export function App() {
     return {
       width: `${display.logicalSize.width}px`,
       height: `${display.logicalSize.height}px`,
+      transform: `scale(${panelScale})`,
     } as React.CSSProperties;
-  }, [display]);
+  }, [display, panelScale]);
 
   const maskStyle = useMemo(() => {
     if (!display) return undefined;
