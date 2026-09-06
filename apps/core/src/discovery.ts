@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { access, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -289,7 +290,8 @@ async function scanCandidate(
   packagePath: string,
   enablement: Readonly<Record<string, boolean>>,
 ): Promise<DiscoveredPackageV0> {
-  const filename = type === "extension" ? "totem-extension.json" : "totem-theme.json";
+  const filename =
+    type === "extension" ? "totem-extension.json" : "totem-theme.json";
   const manifestPath = resolve(packagePath, filename);
   const errors: PackageDiagnostic[] = [];
   let raw: string;
@@ -372,7 +374,7 @@ async function scanRoots(
   const rootDiagnostics: DiscoveryRootDiagnostic[] = [];
 
   for (const root of roots) {
-    let entries;
+    let entries: Dirent[];
     try {
       entries = await readdir(root, { withFileTypes: true });
     } catch (error) {
@@ -390,7 +392,9 @@ async function scanRoots(
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      packages.push(await scanCandidate(type, resolve(root, entry.name), enablement));
+      packages.push(
+        await scanCandidate(type, resolve(root, entry.name), enablement),
+      );
     }
   }
 
@@ -439,7 +443,9 @@ function selectTheme(
     }
   }
 
-  const defaultTheme = enabledThemes.find((candidate) => candidate.id === "default");
+  const defaultTheme = enabledThemes.find(
+    (candidate) => candidate.id === "default",
+  );
   if (defaultTheme !== undefined) {
     return {
       source: "default",
