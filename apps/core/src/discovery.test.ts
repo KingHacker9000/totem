@@ -52,12 +52,18 @@ describe("discoverPackages", () => {
     });
 
     expect(snapshot.extensions).toHaveLength(2);
-    expect(snapshot.extensions.find((candidate) => candidate.id === "clock")).toMatchObject({
+    expect(
+      snapshot.extensions.find((candidate) => candidate.id === "clock"),
+    ).toMatchObject({
       state: "enabled",
       enabled: true,
       unsupportedCapabilities: ["future-capability"],
     });
-    expect(snapshot.extensions.find((candidate) => candidate.id === "Broken Extension")).toMatchObject({
+    expect(
+      snapshot.extensions.find(
+        (candidate) => candidate.id === "Broken Extension",
+      ),
+    ).toMatchObject({
       state: "invalid",
       enabled: false,
     });
