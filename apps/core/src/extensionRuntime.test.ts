@@ -39,10 +39,12 @@ describe("ExtensionRuntime", () => {
     expect(runtime.get("weather")?.grantedPermissions).toEqual([
       "display.present",
     ]);
-    expect(() => runtime.assertPermission("weather", "display.present")).not.toThrow();
-    expect(() => runtime.assertPermission("weather", "network.internet")).toThrow(
-      ExtensionPermissionError,
-    );
+    expect(() =>
+      runtime.assertPermission("weather", "display.present"),
+    ).not.toThrow();
+    expect(() =>
+      runtime.assertPermission("weather", "network.internet"),
+    ).toThrow(ExtensionPermissionError);
   });
 
   it("revokes runtime access while disabled and supports deterministic lifecycle", () => {
@@ -73,9 +75,13 @@ describe("ExtensionRuntime", () => {
       }),
     ]);
 
-    expect(runtime.canPublish("weather", "extension.weather.updated")).toBe(true);
+    expect(runtime.canPublish("weather", "extension.weather.updated")).toBe(
+      true,
+    );
     expect(runtime.canPublish("weather", "task.succeeded")).toBe(false);
-    expect(runtime.canPublish("weather", "extension.weather.other")).toBe(false);
+    expect(runtime.canPublish("weather", "extension.weather.other")).toBe(
+      false,
+    );
   });
 
   it("exposes declaration metadata but never secret values", () => {
