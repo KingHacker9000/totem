@@ -48,65 +48,71 @@ describe("buildExtensionContributionSnapshot", () => {
     expect(snapshot.display).toEqual([]);
   });
 
-  it("includes display contributions only with an effective display.present grant", async () => {
-    const runtime = new ExtensionRuntime(
-      [
+  it(
+    "includes display contributions only with an effective display.present grant",
+    async () => {
+      const runtime = new ExtensionRuntime(
+        [
+          extension(
+            "weather",
+            {
+              display: [{ id: "weather", title: "Weather" }],
+              dashboard: [{ id: "weather", title: "Weather" }],
+            },
+            ["display.present"],
+          ),
+        ],
+        { weather: ["display.present"] },
+      );
+
+      const snapshot = await buildExtensionContributionSnapshot(runtime, {
+        contributionSnapshot: async () => ({
+          location: "Toronto",
+          temperatureC: 4,
+          condition: "cloudy",
+        }),
+      });
+
+      expect(snapshot.display).toHaveLength(1);
+      expect(snapshot.display[0]).toMatchObject({
+        extensionId: "weather",
+        contributionId: "weather",
+        surface: "display",
+      });
+      expect(snapshot.dashboard).toHaveLength(1);
+    },
+  );
+
+  it(
+    "removes disabled or failed owners before exposing contribution data",
+    async () => {
+      const runtime = new ExtensionRuntime([
+        extension("timer", {
+          dashboard: [{ id: "timer", title: "Timer" }],
+        }),
         extension(
-          "weather",
-          {
-            display: [{ id: "weather", title: "Weather" }],
-            dashboard: [{ id: "weather", title: "Weather" }],
-          },
-          ["display.present"],
+          "disabled",
+          { dashboard: [{ id: "hidden", title: "Hidden" }] },
+          [],
+          false,
         ),
-      ],
-      { weather: ["display.present"] },
-    );
+      ]);
 
-    const snapshot = await buildExtensionContributionSnapshot(runtime, {
-      contributionSnapshot: async () => ({
-        location: "Toronto",
-        temperatureC: 4,
-        condition: "cloudy",
-      }),
-    });
+      const backendHost = {
+        contributionSnapshot: async (extensionId: string) => {
+          if (extensionId === "timer") {
+            runtime.markFailed(extensionId, new Error("snapshot failed"));
+          }
+          return { activeCount: 0 };
+        },
+      };
 
-    expect(snapshot.display).toHaveLength(1);
-    expect(snapshot.display[0]).toMatchObject({
-      extensionId: "weather",
-      contributionId: "weather",
-      surface: "display",
-    });
-    expect(snapshot.dashboard).toHaveLength(1);
-  });
+      const snapshot = await buildExtensionContributionSnapshot(
+        runtime,
+        backendHost,
+      );
 
-  it("removes disabled or failed owners before exposing contribution data", async () => {
-    const runtime = new ExtensionRuntime([
-      extension("timer", {
-        dashboard: [{ id: "timer", title: "Timer" }],
-      }),
-      extension(
-        "disabled",
-        { dashboard: [{ id: "hidden", title: "Hidden" }] },
-        [],
-        false,
-      ),
-    ]);
-
-    const backendHost = {
-      contributionSnapshot: async (extensionId: string) => {
-        if (extensionId === "timer") {
-          runtime.markFailed(extensionId, new Error("snapshot failed"));
-        }
-        return { activeCount: 0 };
-      },
-    };
-
-    const snapshot = await buildExtensionContributionSnapshot(
-      runtime,
-      backendHost,
-    );
-
-    expect(snapshot).toEqual({ display: [], dashboard: [] });
-  });
+      expect(snapshot).toEqual({ display: [], dashboard: [] });
+    },
+  );
 });
