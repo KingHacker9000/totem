@@ -68,7 +68,10 @@ export interface SpeechRuntimeOptions {
   stt: SpeechToTextAdapter;
   tts: TextToSpeechAdapter;
   playback: SpeechPlaybackSink;
-  resolveVoice?: () => Promise<SpeechVoiceSelection | undefined> | SpeechVoiceSelection | undefined;
+  resolveVoice?: () =>
+    | Promise<SpeechVoiceSelection | undefined>
+    | SpeechVoiceSelection
+    | undefined;
   now?: () => number;
 }
 
@@ -121,14 +124,23 @@ export class SpeechRuntime {
 
   async submitText(prompt: string): Promise<SpeechTaskHandle> {
     const normalized = prompt.trim();
-    if (!normalized) throw new SpeechRuntimeError("prompt_required", "prompt must not be empty");
-    const task = await this.#tasks.startTask({ prompt: normalized, kind: "assistant" });
+    if (!normalized)
+      throw new SpeechRuntimeError(
+        "prompt_required",
+        "prompt must not be empty",
+      );
+    const task = await this.#tasks.startTask({
+      prompt: normalized,
+      kind: "assistant",
+    });
     this.#activeTaskId = task.taskId;
     this.#activeInput = "text";
     return task;
   }
 
-  async submitAudio(audio: SpeechAudioChunk): Promise<SpeechTaskHandle | undefined> {
+  async submitAudio(
+    audio: SpeechAudioChunk,
+  ): Promise<SpeechTaskHandle | undefined> {
     this.#inputAbort?.abort();
     const controller = new AbortController();
     this.#inputAbort = controller;
@@ -143,11 +155,16 @@ export class SpeechRuntime {
           status.reason ?? `STT adapter '${this.#stt.id}' is unavailable`,
         );
       }
-      const transcript = (await this.#stt.transcribe(audio, controller.signal)).trim();
+      const transcript = (
+        await this.#stt.transcribe(audio, controller.signal)
+      ).trim();
       if (!transcript) return undefined;
       this.#lastTranscript = transcript;
       this.#lastInputLatencyMs = Math.max(0, this.#now() - started);
-      const task = await this.#tasks.startTask({ prompt: transcript, kind: "assistant" });
+      const task = await this.#tasks.startTask({
+        prompt: transcript,
+        kind: "assistant",
+      });
       this.#activeTaskId = task.taskId;
       this.#activeInput = "speech";
       return task;
@@ -175,7 +192,11 @@ export class SpeechRuntime {
     const started = this.#now();
     const voice = await this.#resolveVoice?.();
     try {
-      for await (const chunk of this.#tts.synthesize(normalized, voice ?? {}, controller.signal)) {
+      for await (const chunk of this.#tts.synthesize(
+        normalized,
+        voice ?? {},
+        controller.signal,
+      )) {
         if (controller.signal.aborted) break;
         await this.#playback.play(chunk, controller.signal);
       }
@@ -230,7 +251,10 @@ export class EnergyVad implements VoiceActivityDetector {
 
   constructor(threshold = 0.015) {
     if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
-      throw new SpeechRuntimeError("invalid_vad_threshold", "VAD threshold must be between 0 and 1");
+      throw new SpeechRuntimeError(
+        "invalid_vad_threshold",
+        "VAD threshold must be between 0 and 1",
+      );
     }
     this.#threshold = threshold;
   }
