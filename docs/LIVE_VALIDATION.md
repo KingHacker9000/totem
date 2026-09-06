@@ -33,7 +33,9 @@ Run one provider and use a specific read-only workspace:
 pnpm validate:live -- --provider codex --workspace /path/to/workspace
 ```
 
-The normal smoke starts a real durable task through `/api/provider-tasks`, waits on `/api/tasks/:taskId`, and records the resulting task/session IDs in the machine-readable result. Provider resume capability is reported from the provider contract; the destructive multi-turn resume/burn-in remains in the consolidated local validation gate.
+The normal smoke starts a real durable task through `/api/provider-tasks`, waits on `/api/tasks/:taskId`, and records the resulting task/session IDs in the machine-readable result. When a provider advertises resume support and the initial turn succeeds, the harness then calls `/api/provider-tasks/:taskId/resume`, executes a real second turn, and verifies that it stays on the same durable session.
+
+Resume currently requires the successful provider session to remain resident in the same running core process. Cross-core-restart resume is intentionally not claimed by this harness; after a core restart, start a new provider task instead. Restart/reconnect behavior remains part of the consolidated real-machine burn-in.
 
 Interruption is opt-in because it deliberately cancels a live provider turn:
 
