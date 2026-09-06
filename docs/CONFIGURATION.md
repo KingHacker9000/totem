@@ -1,6 +1,6 @@
 # Core configuration and data layout
 
-Phase 1 core configuration is intentionally local, explicit, and portable across Windows development and later Linux/Pi deployment.
+Core configuration is intentionally local, explicit, and portable across Windows development and later Linux/Pi deployment.
 
 The authoritative startup values currently come from environment variables. Invalid values fail startup deterministically with a structured JSON error rather than being silently coerced.
 
@@ -16,6 +16,7 @@ The authoritative startup values currently come from environment variables. Inva
 | `TOTEM_EXTENSION_ROOTS` | `<TOTEM_DATA_DIR>/extensions` | Ordered local extension discovery roots. Separate multiple roots with the platform path-list delimiter (`;` on Windows, `:` on Unix). |
 | `TOTEM_THEME_ROOTS` | `<TOTEM_DATA_DIR>/themes` | Ordered local theme discovery roots, using the same path-list delimiter. |
 | `TOTEM_ACTIVE_THEME` | unset | Optional preferred enabled theme id. If unavailable/invalid, discovery falls back to enabled `default`, then the built-in fallback presentation. |
+| `TOTEM_EXTENSION_GRANTS` | unset / deny all | JSON object mapping extension IDs to explicitly granted permission strings, for example `{"weather":["network.internet","display.present"]}`. This is runtime authority, separate from manifest requests. |
 
 The default data root is platform-friendly rather than Pi-specific:
 
@@ -26,7 +27,7 @@ A later Pi installation can point `TOTEM_DATA_DIR` at an external HDD such as `/
 
 ## Data layout
 
-Core startup creates the configured root and these Phase 1 subdirectories when missing:
+Core startup creates the configured root and these subdirectories when missing:
 
 ```text
 <TOTEM_DATA_DIR>/
@@ -36,28 +37,31 @@ Core startup creates the configured root and these Phase 1 subdirectories when m
 └── logs/
 ```
 
-`state/` is reserved for durable core state such as the SQLite database introduced by the persistence task. Extension/theme discovery uses the corresponding directories by default. `logs/` is reserved for file-backed logging/export if enabled later; Phase 1 currently emits structured Pino/Fastify logs to the process output stream.
+`state/` contains durable core state such as SQLite. Extension/theme discovery uses the corresponding directories by default. `logs/` is reserved for file-backed logging/export if enabled later; normal runtime logs currently go to structured Pino/Fastify output.
 
 No code may assume that this tree lives on NVMe, microSD, an external HDD, or a specific drive letter.
 
 ## Extension and theme discovery
 
-Phase 1 scans each immediate child directory of every configured discovery root and looks for `totem-extension.json` or `totem-theme.json` according to the package type. Invalid candidates are reported independently and do not prevent other packages or core startup from working.
+Core scans each immediate child directory of every configured discovery root and looks for `totem-extension.json` or `totem-theme.json` according to the package type. Invalid candidates are reported independently and do not prevent other packages or core startup from working.
 
-Discovery state is exposed read-only through:
+Discovery and runtime state are exposed through:
 
 ```text
 GET /api/extensions
+GET /api/extensions/runtime
 GET /api/themes
 ```
 
-The responses include package identity where valid, path, enabled/invalid state, diagnostics, and root-level scan errors. Theme responses also report whether the current presentation selection came from an explicitly configured theme, the enabled `default` theme, or the built-in fallback presentation.
+`GET /api/extensions` is the compatibility discovery snapshot. `GET /api/extensions/runtime` is the Phase 2 security/runtime snapshot: it reports lifecycle state, manifest-requested permissions, effective granted permissions, contribution/settings declarations, secret references, MCP declarations, and diagnostics. It does not return secret values. When `TOTEM_EXTENSION_GRANTS` is absent, effective grants are empty by design.
 
-The normative Phase 1 schema and security rules remain in [`DISCOVERY.md`](DISCOVERY.md). These endpoints do not install packages, freeze the public SDK v1, or grant extension capabilities.
+Theme responses also report whether the current presentation selection came from an explicitly configured theme, the enabled `default` theme, or the built-in fallback presentation.
 
-### First-party Phase 1 fixtures
+The normative Phase 2 extension manifest and permission rules live in [`EXTENSION_MANIFEST_V0.md`](EXTENSION_MANIFEST_V0.md). The Phase 1 compatibility scanner remains documented in [`DISCOVERY.md`](DISCOVERY.md) until the Phase 2 integration pass removes that transitional layer.
 
-For a sibling checkout containing `totem`, `totem-base-extensions`, and `totem-base-themes`, the public first-party fixtures can be exercised through the exact same configurable discovery roots used for third-party packages; no copy step or first-party special case is required.
+### First-party fixtures
+
+For a sibling checkout containing `totem`, `totem-base-extensions`, and `totem-base-themes`, public first-party packages use the same configurable discovery roots as third-party packages; no first-party special case is required.
 
 PowerShell from the `totem` checkout:
 
@@ -65,6 +69,7 @@ PowerShell from the `totem` checkout:
 $env:TOTEM_EXTENSION_ROOTS = (Resolve-Path "..\totem-base-extensions").Path
 $env:TOTEM_THEME_ROOTS = (Resolve-Path "..\totem-base-themes").Path
 $env:TOTEM_ACTIVE_THEME = "default"
+$env:TOTEM_EXTENSION_GRANTS = '{"weather":["network.internet","display.present"]}'
 pnpm --filter @totem/core dev
 ```
 
@@ -74,10 +79,9 @@ Unix shell from the `totem` checkout:
 TOTEM_EXTENSION_ROOTS="$(cd ../totem-base-extensions && pwd)" \
 TOTEM_THEME_ROOTS="$(cd ../totem-base-themes && pwd)" \
 TOTEM_ACTIVE_THEME=default \
+TOTEM_EXTENSION_GRANTS='{"weather":["network.internet","display.present"]}' \
 pnpm --filter @totem/core dev
 ```
-
-The Phase 1 fixture directories are `clock/` and `default/`, each containing only the corresponding v0 manifest plus explanatory documentation. They intentionally do not bypass the normal scanner and do not imply that the eventual SDK v1 is frozen.
 
 ## Health and status
 
@@ -88,9 +92,7 @@ GET /health
 GET /api/status
 ```
 
-`/health` is a minimal liveness response. `/api/status` provides the local management surfaces with runtime identity, environment, start time, uptime, process/Node version, and active data root.
-
-These endpoints are local Phase 1 surfaces, not a frozen remote-management API.
+`/health` is a minimal liveness response. `/api/status` provides local management surfaces with runtime identity, environment, start time, uptime, process/Node version, and active data root.
 
 ## Tasks and the runtime event stream
 
@@ -138,6 +140,7 @@ PowerShell:
 ```powershell
 $env:TOTEM_DATA_DIR = "D:\TotemData"
 $env:TOTEM_EXTENSION_ROOTS = "D:\TotemPackages\extensions;D:\Dev\totem-extensions"
+$env:TOTEM_EXTENSION_GRANTS = '{"weather":["network.internet","display.present"]}'
 $env:TOTEM_ACTIVE_THEME = "default"
 $env:TOTEM_LOG_LEVEL = "debug"
 pnpm --filter @totem/core dev
@@ -148,6 +151,7 @@ Unix shell:
 ```sh
 TOTEM_DATA_DIR=/srv/assistant \
 TOTEM_EXTENSION_ROOTS=/srv/assistant/extensions:/opt/totem/extensions \
+TOTEM_EXTENSION_GRANTS='{"weather":["network.internet","display.present"]}' \
 TOTEM_LOG_LEVEL=debug \
 pnpm --filter @totem/core dev
 ```
