@@ -9,6 +9,8 @@ import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
 import { TaskOrchestrator } from "./orchestrator.js";
 import { ensureDataDirectories } from "./runtime.js";
+import { registerThemeRoutes } from "./themeRoutes.js";
+import { ThemeRuntime } from "./themeRuntime.js";
 
 function writeStartupFailure(error: unknown): void {
   const payload =
@@ -59,6 +61,14 @@ try {
   );
   await extensionBackendHost.startEnabled();
 
+  const themeRuntime = new ThemeRuntime({
+    themeRoots: config.discovery.themeRoots,
+    stateFile: join(config.paths.state, "theme-state.json"),
+    ...(config.discovery.activeThemeId
+      ? { configuredThemeId: config.discovery.activeThemeId }
+      : {}),
+  });
+
   const startedAt = new Date().toISOString();
   let orchestrator: TaskOrchestrator | undefined;
   const app = createApp({
@@ -70,6 +80,7 @@ try {
     extensionBackendHost,
     getOrchestrator: () => orchestrator,
   });
+  registerThemeRoutes(app, themeRuntime);
   orchestrator = new TaskOrchestrator({
     taskStore,
     hub: eventHub,
@@ -107,6 +118,7 @@ try {
   }
 
   const address = await app.listen({ host: config.host, port: config.port });
+  const activeTheme = await themeRuntime.snapshot();
   app.log.info(
     {
       event: "system.ready",
@@ -117,6 +129,7 @@ try {
         id: extension.id,
         state: extension.state,
       })),
+      activeTheme: activeTheme.activeThemeId,
     },
     "Totem core ready",
   );
