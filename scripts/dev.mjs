@@ -1,7 +1,7 @@
+import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -67,10 +67,6 @@ const children = processes.map(({ label, filter }) => {
     windowsHide: false,
   });
 
-  child.on("error", (error) => {
-    console.error(`[${label}] failed to start: ${error.message}`);
-  });
-
   return { label, child };
 });
 
@@ -96,9 +92,17 @@ await Promise.all(
   children.map(
     ({ label, child }) =>
       new Promise((resolveChild) => {
-        child.once("exit", (code, signal) => {
-          if (!stopping && code !== 0) {
-            exitCode = code ?? 1;
+        child.once("error", (error) => {
+          if (!stopping) {
+            exitCode = 1;
+            console.error(`[${label}] failed to start: ${error.message}`);
+            stopAll();
+          }
+        });
+
+        child.once("close", (code, signal) => {
+          if (!stopping) {
+            exitCode = code && code !== 0 ? code : 1;
             console.error(
               `[${label}] exited unexpectedly (${signal ?? `code ${code}`}); stopping stack.`,
             );
