@@ -128,7 +128,9 @@ export class ExtensionBackendHost {
       const record = this.#runtime.get(extensionId);
       if (!record?.enabled) continue;
       try {
-        const manifest = await loadManifest(this.#requireCandidate(extensionId));
+        const manifest = await loadManifest(
+          this.#requireCandidate(extensionId),
+        );
         if (manifest.lifecycle?.start === "on-demand") continue;
       } catch (error) {
         this.#recordFailure(
@@ -230,11 +232,7 @@ export class ExtensionBackendHost {
       if (manifest.lifecycle?.start !== "on-demand")
         await this.start(extensionId);
     } catch (error) {
-      this.#recordFailure(
-        extensionId,
-        "extension_manifest_load_failed",
-        error,
-      );
+      this.#recordFailure(extensionId, "extension_manifest_load_failed", error);
     }
   }
 
