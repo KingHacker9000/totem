@@ -23,14 +23,17 @@ export function App() {
   useEffect(() => {
     fetch("/profiles/index.json")
       .then((response) => {
-        if (!response.ok) throw new Error(`Profile index failed: ${response.status}`);
+        if (!response.ok)
+          throw new Error(`Profile index failed: ${response.status}`);
         return response.json() as Promise<{ profiles: string[] }>;
       })
       .then(({ profiles }) => {
         setProfileNames(profiles);
         setProfileName(profiles[0] ?? "");
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)));
+      .catch((reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : String(reason)),
+      );
   }, []);
 
   useEffect(() => {
@@ -39,7 +42,8 @@ export function App() {
     setPointer(null);
     fetch(`/profiles/${profileName}`)
       .then((response) => {
-        if (!response.ok) throw new Error(`Profile load failed: ${response.status}`);
+        if (!response.ok)
+          throw new Error(`Profile load failed: ${response.status}`);
         return response.json();
       })
       .then((value: unknown) => setProfile(validateDeviceProfile(value)))
@@ -54,7 +58,10 @@ export function App() {
   useEffect(() => {
     if (!display || !panelRef.current) return;
     const panel = panelRef.current;
-    const updateScale = () => setPanelScale(panel.getBoundingClientRect().width / display.logicalSize.width);
+    const updateScale = () =>
+      setPanelScale(
+        panel.getBoundingClientRect().width / display.logicalSize.width,
+      );
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(panel);
@@ -63,7 +70,9 @@ export function App() {
 
   const panelStyle = useMemo(() => {
     if (!display) return undefined;
-    return { aspectRatio: `${display.logicalSize.width} / ${display.logicalSize.height}` } as React.CSSProperties;
+    return {
+      aspectRatio: `${display.logicalSize.width} / ${display.logicalSize.height}`,
+    } as React.CSSProperties;
   }, [display]);
 
   const logicalStyle = useMemo(() => {
@@ -78,18 +87,31 @@ export function App() {
   const maskStyle = useMemo(() => {
     if (!display) return undefined;
     return {
-      clipPath: visibleRegionClipPath(display.visibleRegion, display.logicalSize),
+      clipPath: visibleRegionClipPath(
+        display.visibleRegion,
+        display.logicalSize,
+      ),
     } as React.CSSProperties;
   }, [display]);
 
   function handlePointer(event: React.PointerEvent<HTMLDivElement>) {
     if (!display || !profile?.touch.present || !panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
-    const sourceX = ((event.clientX - rect.left) / rect.width) * profile.touch.sourceSize.width;
-    const sourceY = ((event.clientY - rect.top) / rect.height) * profile.touch.sourceSize.height;
-    const { x, y } = mapTouchPoint(sourceX, sourceY, profile.touch, display.logicalSize);
+    const sourceX =
+      ((event.clientX - rect.left) / rect.width) *
+      profile.touch.sourceSize.width;
+    const sourceY =
+      ((event.clientY - rect.top) / rect.height) *
+      profile.touch.sourceSize.height;
+    const { x, y } = mapTouchPoint(
+      sourceX,
+      sourceY,
+      profile.touch,
+      display.logicalSize,
+    );
     const accepted =
-      !profile.touch.rejectOutsideVisibleRegion || pointInVisibleRegion(display.visibleRegion, x, y);
+      !profile.touch.rejectOutsideVisibleRegion ||
+      pointInVisibleRegion(display.visibleRegion, x, y);
     setPointer({ x, y, accepted });
   }
 
@@ -102,7 +124,10 @@ export function App() {
         </div>
         <label>
           Device profile
-          <select value={profileName} onChange={(event) => setProfileName(event.target.value)}>
+          <select
+            value={profileName}
+            onChange={(event) => setProfileName(event.target.value)}
+          >
             {profileNames.map((name) => (
               <option key={name} value={name}>
                 {name.replace(/\.json$/, "")}
@@ -139,8 +164,8 @@ export function App() {
           <p className="eyebrow">{profile.id}</p>
           <h2>{profile.name}</h2>
           <p>
-            This profile is intentionally headless. Display rendering is disabled while developer tooling remains
-            available.
+            This profile is intentionally headless. Display rendering is
+            disabled while developer tooling remains available.
           </p>
         </section>
       )}
@@ -182,7 +207,9 @@ export function App() {
                     <span>content safe area</span>
                   </div>
                 )}
-                {!showMask && <div className="visible-outline" style={maskStyle} />}
+                {!showMask && (
+                  <div className="visible-outline" style={maskStyle} />
+                )}
                 {pointer && (
                   <div
                     className={`pointer-dot ${pointer.accepted ? "accepted" : "rejected"}`}
