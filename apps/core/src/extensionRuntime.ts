@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { DiscoveredPackageV0 } from "./discovery.js";
 import type {
   ExtensionSecretProvider,
@@ -68,11 +66,6 @@ interface Phase2Manifest {
   mcp?: unknown;
 }
 
-interface RuntimeSource {
-  candidate: DiscoveredPackageV0;
-  manifest: Record<string, unknown>;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -134,17 +127,6 @@ function validateSettingValue(
   }
 }
 
-async function readPhase2Manifest(
-  candidate: DiscoveredPackageV0,
-): Promise<Record<string, unknown>> {
-  const raw = await readFile(
-    resolve(candidate.path, "totem-extension.json"),
-    "utf8",
-  );
-  const parsed: unknown = JSON.parse(raw);
-  return isRecord(parsed) ? parsed : {};
-}
-
 /**
  * Security boundary for extension-owned runtime capabilities.
  *
@@ -203,38 +185,13 @@ export class ExtensionRuntime {
     }
   }
 
-  /**
-   * Phase 1 discovery normalizes manifests to its old stub shape. Until T207
-   * removes that compatibility layer, reload the package-local JSON here so the
-   * Phase 2 security/runtime declarations are not silently discarded.
-   */
+  /** Use the validated discovery snapshot without re-reading mutable manifests. */
   static async fromDiscovery(
     packages: readonly DiscoveredPackageV0[],
     grants: Readonly<Record<string, readonly string[]>> = {},
     services: ExtensionRuntimeServices = {},
   ): Promise<ExtensionRuntime> {
-    const sources = await Promise.all(
-      packages
-        .filter(
-          (candidate) =>
-            candidate.type === "extension" &&
-            candidate.id !== undefined &&
-            candidate.state !== "invalid",
-        )
-        .map(async (candidate): Promise<RuntimeSource | undefined> => {
-          try {
-            return { candidate, manifest: await readPhase2Manifest(candidate) };
-          } catch {
-            return undefined;
-          }
-        }),
-    );
-    const manifests: Record<string, Record<string, unknown>> = {};
-    for (const source of sources) {
-      if (source?.candidate.id)
-        manifests[source.candidate.id] = source.manifest;
-    }
-    return new ExtensionRuntime(packages, grants, manifests, services);
+    return new ExtensionRuntime(packages, grants, {}, services);
   }
 
   list(): ExtensionRuntimeRecord[] {
@@ -271,12 +228,12 @@ export class ExtensionRuntime {
     return this.#public(record);
   }
 
-  markFailed(extensionId: string, error: unknown): ExtensionRuntimeRecord {
+  markFailed(extensionId: string, _error: unknown): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
     record.state = "failed";
     record.diagnostics.push({
       code: "extension_runtime_failed",
-      message: error instanceof Error ? error.message : String(error),
+      message: "Extension backend failed; error details withheld",
     });
     return this.#public(record);
   }

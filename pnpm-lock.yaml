@@ -26,6 +26,9 @@ importers:
       '@totem/agents':
         specifier: workspace:*
         version: link:../../packages/agents
+      '@totem/extension-sdk':
+        specifier: github:KingHacker9000/totem-extension-sdk#916607a23a7a5905e0d675a1f451402b495ec3e1
+        version: https://codeload.github.com/KingHacker9000/totem-extension-sdk/tar.gz/916607a23a7a5905e0d675a1f451402b495ec3e1
       '@totem/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -88,6 +91,8 @@ importers:
         version: 7.3.6(@types/node@22.20.1)(tsx@4.23.13)
 
   packages/agents: {}
+
+  packages/device-drivers: {}
 
   packages/events: {}
 
@@ -582,6 +587,11 @@ packages:
     resolution: {integrity: sha512-at8QVep6S3h5Y6gSbdGU06bRY5WJkf6WUduM9YtvYMbYhB1MOFfUgc6kehitQXzOtMSaT70q7f9ydPhpqu821w==}
     cpu: [x64]
     os: [win32]
+
+  '@totem/extension-sdk@https://codeload.github.com/KingHacker9000/totem-extension-sdk/tar.gz/916607a23a7a5905e0d675a1f451402b495ec3e1':
+    resolution: {tarball: https://codeload.github.com/KingHacker9000/totem-extension-sdk/tar.gz/916607a23a7a5905e0d675a1f451402b495ec3e1}
+    version: 0.2.0
+    engines: {node: '>=22'}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -1470,6 +1480,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.63.1':
     optional: true
+
+  '@totem/extension-sdk@https://codeload.github.com/KingHacker9000/totem-extension-sdk/tar.gz/916607a23a7a5905e0d675a1f451402b495ec3e1': {}
 
   '@types/babel__core@7.20.5':
     dependencies:

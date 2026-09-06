@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { DiscoveredPackageV0 } from "./discovery.js";
@@ -65,12 +64,7 @@ function selectFactory(
 async function loadManifest(
   candidate: DiscoveredPackageV0,
 ): Promise<BackendManifest> {
-  const raw = await readFile(
-    resolve(candidate.path, "totem-extension.json"),
-    "utf8",
-  );
-  const parsed: unknown = JSON.parse(raw);
-  return isRecord(parsed) ? (parsed as BackendManifest) : {};
+  return (candidate.manifest ?? {}) as BackendManifest;
 }
 
 function resolveBackendPath(
@@ -215,7 +209,7 @@ export class ExtensionBackendHost {
       this.#diagnostics.push({
         extensionId,
         code: "extension_backend_stop_failed",
-        message: error instanceof Error ? error.message : String(error),
+        message: "Extension backend failed; error details withheld",
       });
     }
   }
@@ -246,7 +240,7 @@ export class ExtensionBackendHost {
     this.#diagnostics.push({
       extensionId,
       code,
-      message: error instanceof Error ? error.message : String(error),
+      message: "Extension backend failed; error details withheld",
     });
   }
 

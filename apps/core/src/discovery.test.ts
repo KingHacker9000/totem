@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -30,14 +30,16 @@ describe("discoverPackages", () => {
 
     await writeManifest(extensions, "clock", "totem-extension.json", {
       schema: "totem.extension/v0",
+      compatibility: { totem: ">=0.2.0 <0.3.0", sdk: ">=0.2.0 <0.3.0" },
       id: "clock",
       name: "Clock",
       version: "0.1.0",
       enabledByDefault: true,
-      capabilities: ["display", "future-capability"],
+      permissions: [],
     });
     await writeManifest(extensions, "broken", "totem-extension.json", {
       schema: "totem.extension/v0",
+      compatibility: { totem: ">=0.2.0 <0.3.0", sdk: ">=0.2.0 <0.3.0" },
       id: "Broken Extension",
       name: "Broken",
       version: "not-semver",
@@ -61,7 +63,6 @@ describe("discoverPackages", () => {
     ).toMatchObject({
       state: "enabled",
       enabled: true,
-      unsupportedCapabilities: ["future-capability"],
     });
     expect(
       snapshot.extensions.find(
@@ -125,6 +126,7 @@ describe("discoverPackages", () => {
 
     const manifest = {
       schema: "totem.extension/v0",
+      compatibility: { totem: ">=0.2.0 <0.3.0", sdk: ">=0.2.0 <0.3.0" },
       id: "clock",
       name: "Clock",
       version: "0.1.0",
@@ -156,4 +158,49 @@ describe("discoverPackages", () => {
       enabled: false,
     });
   });
+});
+
+it("rejects incompatible and overprivileged manifests through the public SDK", async () => {
+  const root = await mkdtemp(join(tmpdir(), "totem-sdk-discovery-"));
+  const base = {
+    schema: "totem.extension/v0",
+    name: "Fixture",
+    version: "0.2.0",
+    compatibility: { totem: ">=0.2.0 <0.3.0", sdk: ">=0.2.0 <0.3.0" },
+    enabledByDefault: true,
+  };
+  await writeManifest(root, "unknown", "totem-extension.json", {
+    ...base,
+    id: "unknown",
+    permissions: ["network"],
+  });
+  await writeManifest(root, "incompatible", "totem-extension.json", {
+    ...base,
+    id: "incompatible",
+    compatibility: { totem: ">=9.0.0", sdk: ">=0.2.0" },
+  });
+  await writeManifest(root, "escape", "totem-extension.json", {
+    ...base,
+    id: "escape",
+    entrypoints: { backend: "../../outside.js" },
+  });
+  const snapshot = await discoverPackages({
+    extensionRoots: [root],
+    themeRoots: [],
+  });
+  expect(snapshot.extensions).toHaveLength(3);
+  expect(
+    snapshot.extensions.every((candidate) => candidate.state === "invalid"),
+  ).toBe(true);
+  expect(
+    snapshot.extensions.flatMap((candidate) =>
+      candidate.errors.map((error) => error.code),
+    ),
+  ).toEqual(
+    expect.arrayContaining([
+      "permission_unknown",
+      "compatibility_unsatisfied",
+      "entrypoint_invalid",
+    ]),
+  );
 });

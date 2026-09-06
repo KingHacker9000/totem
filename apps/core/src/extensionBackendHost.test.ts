@@ -88,7 +88,7 @@ describe("ExtensionBackendHost", () => {
       {
         extensionId: "broken",
         code: "extension_backend_start_failed",
-        message: "fixture boom",
+        message: "Extension backend failed; error details withheld",
       },
     ]);
   });

@@ -1,5 +1,12 @@
+import {
+  type ExtensionManifestV0,
+  validateManifest,
+} from "@totem/extension-sdk";
+
+export type { ExtensionManifestV0 } from "@totem/extension-sdk";
+
 import type { Dirent } from "node:fs";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 export type PackageType = "extension" | "theme";
@@ -9,16 +16,6 @@ export interface PackageDiagnostic {
   code: string;
   message: string;
   field?: string;
-}
-
-export interface ExtensionManifestV0 {
-  schema: "totem.extension/v0";
-  id: string;
-  name: string;
-  version: string;
-  enabledByDefault?: boolean;
-  entrypoint?: string;
-  capabilities?: string[];
 }
 
 export interface ThemeManifestV0 {
@@ -81,17 +78,6 @@ const THEME_PRIVILEGE_FIELDS = [
   "secrets",
   "system",
 ] as const;
-const SUPPORTED_EXTENSION_CAPABILITIES = new Set([
-  "display",
-  "dashboard",
-  "agent-tools",
-  "mcp",
-  "background-jobs",
-  "network",
-  "secrets",
-  "system",
-]);
-
 function packageKey(type: PackageType, id: string): string {
   return `${type}:${id}`;
 }
@@ -175,68 +161,30 @@ async function validateExtension(
   packagePath: string,
   errors: PackageDiagnostic[],
 ): Promise<ExtensionManifestV0 | undefined> {
-  const identity = validateIdentity(value, "totem.extension/v0", errors);
-  const enabledByDefault = booleanField(value, "enabledByDefault", errors);
-  let entrypoint: string | undefined;
-  let capabilities: string[] | undefined;
-
-  if (value.entrypoint !== undefined) {
-    if (
-      typeof value.entrypoint !== "string" ||
-      value.entrypoint.trim() === ""
-    ) {
+  const result = validateManifest(value, {
+    runtimeVersions: { totem: "0.2.0", sdk: "0.2.0" },
+  });
+  for (const diagnostic of result.diagnostics) {
+    if (diagnostic.severity === "error")
       errors.push({
-        code: "entrypoint_invalid",
-        field: "entrypoint",
-        message: "entrypoint must be a non-empty string when present",
+        code: diagnostic.code,
+        field: diagnostic.path,
+        message: diagnostic.message,
       });
-    } else {
-      entrypoint = value.entrypoint;
-      try {
-        await access(resolve(packagePath, entrypoint));
-      } catch {
-        errors.push({
-          code: "entrypoint_missing",
-          field: "entrypoint",
-          message: `Entrypoint does not exist: ${entrypoint}`,
-        });
-      }
+  }
+  if (!result.ok) return undefined;
+  const manifest = result.manifest as ExtensionManifestV0;
+  if (manifest.entrypoints?.backend) {
+    try {
+      await access(resolve(packagePath, manifest.entrypoints.backend));
+    } catch {
+      errors.push({
+        code: "entrypoint_missing",
+        message: "Backend entrypoint does not exist",
+      });
     }
   }
-
-  if (value.capabilities !== undefined) {
-    if (
-      !Array.isArray(value.capabilities) ||
-      value.capabilities.some((capability) => typeof capability !== "string")
-    ) {
-      errors.push({
-        code: "capabilities_invalid",
-        field: "capabilities",
-        message: "capabilities must be an array of strings when present",
-      });
-    } else {
-      capabilities = [...value.capabilities];
-    }
-  }
-
-  if (
-    errors.length > 0 ||
-    identity.id === undefined ||
-    identity.name === undefined ||
-    identity.version === undefined
-  ) {
-    return undefined;
-  }
-
-  return {
-    schema: "totem.extension/v0",
-    id: identity.id,
-    name: identity.name,
-    version: identity.version,
-    ...(enabledByDefault === undefined ? {} : { enabledByDefault }),
-    ...(entrypoint === undefined ? {} : { entrypoint }),
-    ...(capabilities === undefined ? {} : { capabilities }),
-  };
+  return errors.length ? undefined : manifest;
 }
 
 function validateTheme(
@@ -372,12 +320,6 @@ async function scanCandidate(
 
   const explicitEnabled = enablement[packageKey(type, manifest.id)];
   const enabled = explicitEnabled ?? manifest.enabledByDefault ?? false;
-  const unsupportedCapabilities =
-    type === "extension"
-      ? (manifest as ExtensionManifestV0).capabilities?.filter(
-          (capability) => !SUPPORTED_EXTENSION_CAPABILITIES.has(capability),
-        )
-      : undefined;
 
   return {
     type,
@@ -387,7 +329,6 @@ async function scanCandidate(
     enabled,
     manifest,
     errors,
-    ...(unsupportedCapabilities?.length ? { unsupportedCapabilities } : {}),
   };
 }
 
