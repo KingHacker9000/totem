@@ -10,6 +10,12 @@ export default defineConfig({
       "@totem/tasks": fileURLToPath(
         new URL("./packages/tasks/src/index.ts", import.meta.url),
       ),
+      "@totem/agents": fileURLToPath(
+        new URL("./packages/agents/src/index.ts", import.meta.url),
+      ),
+      "@totem/storage": fileURLToPath(
+        new URL("./packages/storage/src/index.ts", import.meta.url),
+      ),
     },
   },
   test: {
