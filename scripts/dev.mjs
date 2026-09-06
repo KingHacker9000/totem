@@ -4,7 +4,26 @@ import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const isWindows = process.platform === "win32";
+
+/**
+ * Spawn a `pnpm <args>` child.
+ *
+ * On Windows, `pnpm` resolves to `pnpm.cmd`; current Node refuses to spawn a
+ * `.cmd` directly (EINVAL) and spawning with `shell: true` triggers a
+ * DeprecationWarning (DEP0190) on every launch. Going through `cmd.exe`
+ * explicitly avoids both. `stdio` and other options are forwarded.
+ */
+function spawnPnpm(args, options) {
+  if (isWindows) {
+    const comspec = process.env.ComSpec || "cmd.exe";
+    return spawn(comspec, ["/d", "/s", "/c", "pnpm", ...args], {
+      ...options,
+      windowsVerbatimArguments: true,
+    });
+  }
+  return spawn("pnpm", args, options);
+}
 
 async function directoryExists(path) {
   try {
@@ -60,14 +79,11 @@ if (env.TOTEM_THEME_ROOTS) {
 console.log("Press Ctrl+C once to stop the complete stack.\n");
 
 const children = processes.map(({ label, filter }) => {
-  const child = spawn(pnpmCommand, ["--filter", filter, "dev"], {
+  const child = spawnPnpm(["--filter", filter, "dev"], {
     cwd: repoRoot,
     env,
     stdio: "inherit",
     windowsHide: false,
-    // On Windows, Node >=18.20.2/20.12.2 refuses to spawn `.cmd` files without a
-    // shell (EINVAL). pnpm resolves to `pnpm.cmd` there, so a shell is required.
-    shell: process.platform === "win32",
   });
 
   return { label, child };
@@ -81,10 +97,10 @@ function stopChild(child, signal) {
     return;
   }
 
-  if (process.platform === "win32") {
-    // The managed children are `pnpm.cmd` shells (spawned with `shell: true`);
-    // `child.kill()` only terminates the `cmd.exe` wrapper and orphans the
-    // underlying dev servers. `taskkill /T` tears down the whole tree.
+  if (isWindows) {
+    // Each managed child is a `cmd.exe` wrapper around `pnpm`; `child.kill()`
+    // only terminates that wrapper and orphans the underlying dev servers.
+    // `taskkill /T` tears down the whole tree.
     spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
       stdio: "ignore",
     });

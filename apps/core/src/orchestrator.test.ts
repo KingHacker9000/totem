@@ -9,6 +9,7 @@ let taskStore: TaskStore;
 let hub: RuntimeEventHub;
 let captured: TotemEvent[];
 let orchestrator: TaskOrchestrator;
+let now: () => Date;
 
 async function waitForStatus(taskId: string, status: string): Promise<void> {
   for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -37,7 +38,7 @@ beforeEach(async () => {
   hub.subscribe((event) => captured.push(event));
 
   let tick = Date.parse("2026-09-06T00:00:00.000Z");
-  const now = () => {
+  now = () => {
     tick += 1000;
     return new Date(tick);
   };
@@ -152,6 +153,30 @@ describe("TaskOrchestrator", () => {
     });
 
     const session = await reconnected.getSession(task?.sessionId ?? "");
+    expect(session?.status).toBe("closed");
+  });
+
+  it("does not collide on session id when core restarts against the same store", async () => {
+    const first = await orchestrator.startMockTask({
+      prompt: "before restart",
+    });
+    await orchestrator.waitForTask(first.taskId);
+
+    // A brand-new orchestrator instance stands in for a restarted core: its mock
+    // provider resets its internal session counter, so a naive implementation
+    // would reuse `mock-session-1` as the durable primary key and collide. Use
+    // the real id factory here, as a restarted process would.
+    const afterRestart = new TaskOrchestrator({ taskStore, hub, now });
+    const second = await afterRestart.startMockTask({
+      prompt: "after restart",
+    });
+    await afterRestart.waitForTask(second.taskId);
+
+    expect(second.sessionId).not.toBe(first.sessionId);
+    expect((await taskStore.getTask(second.taskId))?.status).toBe("succeeded");
+
+    const session = await taskStore.getSession(second.sessionId);
+    expect(session?.providerSessionRef).toBe("mock-session-1");
     expect(session?.status).toBe("closed");
   });
 
