@@ -99,7 +99,9 @@ export function ProviderConsole() {
       setError(null);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to start provider task",
+        cause instanceof Error
+          ? cause.message
+          : "Unable to start provider task",
       );
     } finally {
       setBusy(false);
@@ -122,7 +124,9 @@ export function ProviderConsole() {
       );
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to interrupt task");
+      setError(
+        cause instanceof Error ? cause.message : "Unable to interrupt task",
+      );
     } finally {
       setBusy(false);
     }
@@ -146,7 +150,9 @@ export function ProviderConsole() {
         {providers.map((provider) => (
           <section className="metric-card" key={provider.id}>
             <span>{provider.id}</span>
-            <strong>{provider.status.available ? "Available" : "Unavailable"}</strong>
+            <strong>
+              {provider.status.available ? "Available" : "Unavailable"}
+            </strong>
             <small>{provider.status.detail ?? "No provider detail"}</small>
           </section>
         ))}
@@ -156,9 +162,9 @@ export function ProviderConsole() {
             <p className="eyebrow">Provider-selected task</p>
             <h2>Run through core orchestration</h2>
             <p>
-              Real CLI execution stays behind the provider-neutral core contract.
-              Workspace access is explicit and provider availability is probed by
-              core before a task starts.
+              Real CLI execution stays behind the provider-neutral core
+              contract. Workspace access is explicit and provider availability
+              is probed by core before a task starts.
             </p>
           </div>
           <div className="task-start-form">
@@ -171,7 +177,8 @@ export function ProviderConsole() {
                 .filter((provider) => provider.id !== "mock")
                 .map((provider) => (
                   <option key={provider.id} value={provider.id}>
-                    {provider.id} {provider.status.available ? "" : "(unavailable)"}
+                    {provider.id}{" "}
+                    {provider.status.available ? "" : "(unavailable)"}
                   </option>
                 ))}
             </select>
@@ -221,11 +228,16 @@ export function ProviderConsole() {
               <h3>{started.taskId}</h3>
             </div>
             <p>
-              Provider <strong>{started.providerId}</strong> · session {started.sessionId}
+              Provider <strong>{started.providerId}</strong> · session{" "}
+              {started.sessionId}
               {" · "}
               status {started.status}
             </p>
-            <button type="button" disabled={busy} onClick={() => void interrupt()}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void interrupt()}
+            >
               Interrupt task
             </button>
           </section>
@@ -238,11 +250,11 @@ export function ProviderConsole() {
               <h3>{selected.id}</h3>
             </div>
             <p>
-              streaming {String(selected.capabilities.streaming)} · resume {String(
-                selected.capabilities.resume,
-              )} · interrupt {String(selected.capabilities.interrupt)} · workspaces {String(
-                selected.capabilities.workspaces,
-              )} · MCP {String(selected.capabilities.mcp)}
+              streaming {String(selected.capabilities.streaming)} · resume{" "}
+              {String(selected.capabilities.resume)} · interrupt{" "}
+              {String(selected.capabilities.interrupt)} · workspaces{" "}
+              {String(selected.capabilities.workspaces)} · MCP{" "}
+              {String(selected.capabilities.mcp)}
             </p>
           </section>
         ) : null}
