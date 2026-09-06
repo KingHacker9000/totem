@@ -154,7 +154,6 @@ export function App() {
               ref={panelRef}
               role="application"
               style={panelStyle}
-              tabIndex={0}
               onPointerMove={handlePointer}
               onPointerDown={handlePointer}
             >
