@@ -23,9 +23,18 @@ importers:
 
   apps/core:
     dependencies:
+      '@totem/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@totem/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       '@totem/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@totem/tasks':
+        specifier: workspace:*
+        version: link:../../packages/tasks
       fastify:
         specifier: 5.12.3
         version: 5.12.3

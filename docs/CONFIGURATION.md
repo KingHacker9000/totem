@@ -92,6 +92,31 @@ GET /api/status
 
 These endpoints are local Phase 1 surfaces, not a frozen remote-management API.
 
+## Tasks and the runtime event stream
+
+The core also exposes the durable task surfaces plus a mocked task entry point:
+
+```text
+GET  /api/tasks               # durable task list (newest first)
+GET  /api/tasks/:taskId       # task snapshot + append-only event log
+POST /api/tasks               # start a mocked agent task
+POST /api/tasks/:taskId/interrupt
+GET  /api/events              # Server-Sent Events: core.status + normalized runtime events
+```
+
+`POST /api/tasks` accepts `{ "prompt": string, "kind"?: string, "title"?: string, "scenario"?: "success" | "failure" | "wait" }`
+and returns `202` with `{ taskId, sessionId, status }`. The task then runs
+against the in-process deterministic `MockAgentProvider`: its normalized events
+are persisted through the durable `TaskStore` and broadcast on `/api/events`.
+The `wait` scenario leaves the task `running` until `POST /api/tasks/:taskId/interrupt`
+drives it through `cancelling` → `cancelled`.
+
+Core derives `display.scene_changed` / `display.led_changed` events from task
+lifecycle and publishes them on the same stream so the display simulator reflects
+live task state. Browser clients treat the persisted task store as authoritative
+and use `/api/events` only for live updates; reloading a client replays durable
+state from `GET /api/tasks`.
+
 ## Lifecycle logging
 
 Normal runtime logging goes through Fastify's Pino logger and includes semantic event keys such as:

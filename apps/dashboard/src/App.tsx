@@ -122,6 +122,12 @@ export function App() {
   const [taskDetail, setTaskDetail] = useState<TaskDetail | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [liveTick, setLiveTick] = useState(0);
+  const [taskPrompt, setTaskPrompt] = useState("");
+  const [taskScenario, setTaskScenario] = useState<
+    "success" | "failure" | "wait"
+  >("success");
+  const [startingTask, setStartingTask] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -174,6 +180,24 @@ export function App() {
         setError("Received an invalid core status event");
       }
     });
+    const taskEventTypes = [
+      "task.created",
+      "task.started",
+      "task.progress",
+      "task.waiting_for_input",
+      "task.cancelling",
+      "task.cancelled",
+      "task.succeeded",
+      "task.failed",
+      "agent.message",
+      "agent.progress",
+    ];
+    for (const eventType of taskEventTypes) {
+      source.addEventListener(eventType, () => {
+        if (!disposed) setLiveTick((value) => value + 1);
+      });
+    }
+
     source.onerror = () => {
       if (!disposed) {
         setConnection((current) =>
@@ -236,10 +260,43 @@ export function App() {
     }
   }, []);
 
+  const startTask = useCallback(async () => {
+    const prompt = taskPrompt.trim();
+    if (!prompt) return;
+    setStartingTask(true);
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt, scenario: taskScenario }),
+      });
+      if (!response.ok && response.status !== 202) {
+        throw new Error(`Task start failed (${response.status})`);
+      }
+      const started = (await response.json()) as { taskId: string };
+      setTaskPrompt("");
+      setSelectedTaskId(started.taskId);
+      await loadTasks();
+      setTaskError(null);
+    } catch (cause) {
+      setTaskError(
+        cause instanceof Error ? cause.message : "Unable to start mock task",
+      );
+    } finally {
+      setStartingTask(false);
+    }
+  }, [taskPrompt, taskScenario, loadTasks]);
+
   useEffect(() => {
     if (section !== "Tasks") return;
     void loadTasks();
   }, [section, loadTasks]);
+
+  useEffect(() => {
+    if (section !== "Tasks" || liveTick === 0) return;
+    void loadTasks();
+    if (selectedTaskId) void loadTaskDetail(selectedTaskId);
+  }, [liveTick, section, selectedTaskId, loadTasks, loadTaskDetail]);
 
   useEffect(() => {
     if (section !== "Tasks" || !selectedTaskId) {
@@ -387,6 +444,41 @@ export function App() {
                 </button>
               </div>
 
+              <form
+                className="task-start-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void startTask();
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder="Prompt for a mocked agent task"
+                  value={taskPrompt}
+                  onChange={(event) => setTaskPrompt(event.target.value)}
+                  aria-label="Mock task prompt"
+                />
+                <select
+                  value={taskScenario}
+                  aria-label="Mock task scenario"
+                  onChange={(event) =>
+                    setTaskScenario(
+                      event.target.value as "success" | "failure" | "wait",
+                    )
+                  }
+                >
+                  <option value="success">success</option>
+                  <option value="failure">failure</option>
+                  <option value="wait">wait (interruptible)</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={startingTask || taskPrompt.trim() === ""}
+                >
+                  {startingTask ? "Starting…" : "Start mock task"}
+                </button>
+              </form>
+
               {tasks.length === 0 ? (
                 <p className="empty-state">
                   {tasksLoading
@@ -433,6 +525,23 @@ export function App() {
                     <span className={`task-status ${taskDetail.task.status}`}>
                       {taskDetail.task.status.replaceAll("_", " ")}
                     </span>
+                    {["running", "waiting_for_input", "cancelling"].includes(
+                      taskDetail.task.status,
+                    ) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void fetch(
+                            `/api/tasks/${encodeURIComponent(
+                              taskDetail.task.id,
+                            )}/interrupt`,
+                            { method: "POST" },
+                          );
+                        }}
+                      >
+                        Interrupt
+                      </button>
+                    ) : null}
                   </div>
 
                   <dl className="task-facts">

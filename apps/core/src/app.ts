@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
+import type { RuntimeEventHub } from "./events.js";
+import { OrchestratorError, type TaskOrchestrator } from "./orchestrator.js";
 import { createRuntimeStatus } from "./runtime.js";
 
 export interface TaskDataSource {
@@ -14,6 +16,29 @@ export interface CreateAppOptions {
   startedAt?: string;
   logger?: boolean;
   taskStore?: TaskDataSource;
+  eventHub?: RuntimeEventHub;
+  orchestrator?: TaskOrchestrator;
+  /**
+   * Late-bound orchestrator accessor. The orchestrator needs the Fastify logger,
+   * which only exists after {@link createApp} returns, so `main` wires it in
+   * after construction via this getter.
+   */
+  getOrchestrator?: () => TaskOrchestrator | undefined;
+}
+
+interface StartTaskBody {
+  prompt?: unknown;
+  kind?: unknown;
+  title?: unknown;
+  scenario?: unknown;
+}
+
+const MOCK_SCENARIOS = new Set(["success", "failure", "wait"]);
+
+function resolveOrchestrator(
+  options: CreateAppOptions,
+): TaskOrchestrator | undefined {
+  return options.orchestrator ?? options.getOrchestrator?.();
 }
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -53,6 +78,90 @@ export function createApp(options: CreateAppOptions = {}) {
 
     return { tasks: await options.taskStore.listTasks() };
   });
+
+  app.post<{ Body: StartTaskBody }>("/api/tasks", async (request, reply) => {
+    const orchestrator = resolveOrchestrator(options);
+    if (!orchestrator) {
+      return reply.code(503).send({
+        error: "orchestrator_unavailable",
+        message:
+          "The mock task orchestrator is not available in this core instance.",
+      });
+    }
+
+    const body = request.body ?? {};
+    if (typeof body.prompt !== "string" || body.prompt.trim() === "") {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'prompt' is required and must be a non-empty string.",
+      });
+    }
+    if (body.kind !== undefined && typeof body.kind !== "string") {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'kind' must be a string when provided.",
+      });
+    }
+    if (body.title !== undefined && typeof body.title !== "string") {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'title' must be a string when provided.",
+      });
+    }
+    if (
+      body.scenario !== undefined &&
+      (typeof body.scenario !== "string" || !MOCK_SCENARIOS.has(body.scenario))
+    ) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'scenario' must be one of: success, failure, wait.",
+      });
+    }
+
+    try {
+      const started = await orchestrator.startMockTask({
+        prompt: body.prompt,
+        ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
+        ...(typeof body.title === "string" ? { title: body.title } : {}),
+        ...(typeof body.scenario === "string"
+          ? { scenario: body.scenario as "success" | "failure" | "wait" }
+          : {}),
+      });
+      return reply.code(202).send(started);
+    } catch (error) {
+      if (error instanceof OrchestratorError) {
+        return reply
+          .code(400)
+          .send({ error: error.code, message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.post<{ Params: { taskId: string } }>(
+    "/api/tasks/:taskId/interrupt",
+    async (request, reply) => {
+      const orchestrator = resolveOrchestrator(options);
+      if (!orchestrator) {
+        return reply.code(503).send({
+          error: "orchestrator_unavailable",
+          message:
+            "The mock task orchestrator is not available in this core instance.",
+        });
+      }
+      try {
+        await orchestrator.interruptTask(request.params.taskId);
+        return { status: "interrupting", taskId: request.params.taskId };
+      } catch (error) {
+        if (error instanceof OrchestratorError) {
+          return reply
+            .code(409)
+            .send({ error: error.code, message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.get<{ Params: { taskId: string } }>(
     "/api/tasks/:taskId",
@@ -123,8 +232,16 @@ export function createApp(options: CreateAppOptions = {}) {
     const heartbeat = setInterval(writeStatus, 15_000);
     heartbeat.unref();
 
+    const unsubscribe = options.eventHub?.subscribe((event) => {
+      if (reply.raw.writableEnded) return;
+      reply.raw.write(
+        `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
+      );
+    });
+
     request.raw.on("close", () => {
       clearInterval(heartbeat);
+      unsubscribe?.();
       if (!reply.raw.writableEnded) {
         reply.raw.end();
       }

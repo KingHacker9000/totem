@@ -421,6 +421,10 @@ async function scanRoots(
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
+      // Skip dot-directories (e.g. `.git`, `.vscode`) and dependency trees so a
+      // normal source checkout used as a discovery root does not surface
+      // spurious `manifest_missing` candidates.
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
       packages.push(
         await scanCandidate(type, resolve(root, entry.name), enablement),
       );
