@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
+    "validate:live": "node scripts/live-validation.mjs",
     "build": "pnpm -r build",
     "lint": "biome lint .",
     "format": "biome format --write .",
