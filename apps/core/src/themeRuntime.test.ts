@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ThemeRuntime, type ThemeRuntimeError } from "./themeRuntime.js";
+import { ThemeRuntime } from "./themeRuntime.js";
 
 async function writeTheme(
   root: string,
@@ -102,9 +102,7 @@ describe("ThemeRuntime", () => {
       themeRoots: [themes],
       stateFile: join(root, "theme-state.json"),
     });
-    await expect(
-      runtime.activate("unsafe"),
-    ).rejects.toMatchObject<ThemeRuntimeError>({
+    await expect(runtime.activate("unsafe")).rejects.toMatchObject({
       code: "theme_invalid",
     });
   });
