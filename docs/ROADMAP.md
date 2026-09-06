@@ -4,7 +4,7 @@ The project is intentionally software-first. Hardware/CAD work begins after the 
 
 ## Phase 0 — architecture and repository bootstrap
 
-Status: **complete once the Phase 0 documents and repository scopes are committed.**
+Status: **complete.**
 
 Deliverables:
 
@@ -22,29 +22,34 @@ Deliverables:
 - ADRs recording the major architectural decisions
 - all existing Totem repositories initialized with scope/readme documentation
 
-No production implementation is required in Phase 0.
+See [PHASE0.md](PHASE0.md).
 
 ## Phase 1 — core software platform + PC simulator
 
+Status: **complete.** The clean-checkout release gate passed on 2026-09-06; see [PHASE1.md](PHASE1.md).
+
 Goal: boot Totem on a normal PC without any AI, Pi, or special hardware.
 
-Deliverables:
+Delivered:
 
 - workspace/build scaffolding
 - core process and typed protocol
-- configuration + embedded durable state
+- configuration + embedded durable SQLite state
 - event bus
-- task model
-- dashboard shell
+- durable task model and ordered history
+- dashboard shell with live status and task views
 - display simulator
 - device profile / visible-safe-area model
 - virtual touch/LED drivers
-- extension/theme discovery stubs
+- extension/theme discovery seams and base fixtures
 - deterministic mock agent provider
+- end-to-end mock task flow with interruption, reconnect, and restart persistence
 
-Exit criterion: a user can start Totem locally, see the simulated device and dashboard, inspect system state, and run a mocked task end to end.
+Exit criterion: **passed.** A user can start Totem locally, see the simulated device and dashboard, inspect system state, and run a mocked task end to end from a fresh checkout.
 
 ## Phase 2 — extension platform
+
+Status: **active.**
 
 - finalize extension manifest v0
 - permission declarations
