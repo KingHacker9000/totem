@@ -183,7 +183,10 @@ export abstract class CliAgentProvider
       if (!state.queue.length) {
         await new Promise<void>((resolve) => state.waiters.push(resolve));
       }
-      while (state.queue.length) yield state.queue.shift()!;
+      while (state.queue.length) {
+        const event = state.queue.shift();
+        if (event) yield event;
+      }
       if (!state.process && state.session.status !== "active") break;
     }
   }
@@ -232,9 +235,13 @@ export abstract class CliAgentProvider
     return state;
   }
 
+  private wakeWaiters(state: CliSessionState): void {
+    for (const wake of state.waiters.splice(0)) wake();
+  }
+
   private push(state: CliSessionState, event: AgentEventDraft): void {
     state.queue.push(event);
-    state.waiters.splice(0).forEach((wake) => wake());
+    this.wakeWaiters(state);
   }
 
   private async consume(
@@ -279,7 +286,7 @@ export abstract class CliAgentProvider
       });
     } finally {
       state.process = undefined;
-      state.waiters.splice(0).forEach((wake) => wake());
+      this.wakeWaiters(state);
     }
   }
 }
