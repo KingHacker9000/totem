@@ -1,0 +1,27 @@
+[Unit]
+Description=Totem core service
+After=network-online.target local-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=totem
+Group=totem
+WorkingDirectory=/opt/totem/current
+EnvironmentFile=-/etc/totem/totem.env
+ExecStart=/usr/bin/env pnpm --filter @totem/core start
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/totem /var/log/totem
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
