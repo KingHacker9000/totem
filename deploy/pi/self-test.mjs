@@ -19,9 +19,7 @@ const offline = args.has("--offline");
 const strict = args.has("--strict");
 const port = Number(process.env.TOTEM_PORT ?? "3000");
 const stateDir =
-  process.env.TOTEM_STATE_DIR ??
-  process.env.TOTEM_DATA_DIR ??
-  "/var/lib/totem";
+  process.env.TOTEM_STATE_DIR ?? process.env.TOTEM_DATA_DIR ?? "/var/lib/totem";
 const baseUrl = process.env.TOTEM_BASE_URL ?? `http://127.0.0.1:${port}`;
 const results = [];
 
@@ -93,9 +91,7 @@ try {
   await unlink(probe);
   const fs = await statfs(stateDir);
   const freeBytes = Number(fs.bavail) * Number(fs.bsize);
-  const minFree = Number(
-    process.env.TOTEM_MIN_FREE_BYTES ?? 512 * 1024 * 1024,
-  );
+  const minFree = Number(process.env.TOTEM_MIN_FREE_BYTES ?? 512 * 1024 * 1024);
   add(
     "storage",
     freeBytes >= minFree ? "PASS" : "FAIL",
