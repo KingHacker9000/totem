@@ -13,7 +13,9 @@ import {
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 function canonicalize(value: unknown): unknown {
@@ -31,7 +33,10 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-function signedCatalog(pkg: RegistryPackageVersion, privateKey: string): SignedRegistryIndex {
+function signedCatalog(
+  pkg: RegistryPackageVersion,
+  privateKey: string,
+): SignedRegistryIndex {
   const index = {
     schema: "totem.registry/v0",
     generatedAt: "2026-09-06T12:00:00Z",
@@ -89,17 +94,28 @@ describe("RegistryManager", () => {
       grantedPermissions: ["display.read"],
     });
     expect(installed.installed).toBe(true);
-    expect((await manager.snapshot()).installed["extension:clock"]?.version).toBe("2.0.0");
+    expect(
+      (await manager.snapshot()).installed["extension:clock"]?.version,
+    ).toBe("2.0.0");
     expect(
       await readFile(
-        join(stateDir, "registry", "artifacts", "extension", "clock", "2.0.0.artifact"),
+        join(
+          stateDir,
+          "registry",
+          "artifacts",
+          "extension",
+          "clock",
+          "2.0.0.artifact",
+        ),
         "utf8",
       ),
     ).toBe("totem-test-package");
 
     const rollback = await manager.rollback("extension", "clock");
     expect(rollback.toVersion).toBeNull();
-    expect((await manager.snapshot()).installed["extension:clock"]).toBeUndefined();
+    expect(
+      (await manager.snapshot()).installed["extension:clock"],
+    ).toBeUndefined();
   });
 
   it("rejects untrusted registry signatures", async () => {
@@ -117,16 +133,19 @@ describe("RegistryManager", () => {
       source: "https://registry.example/clock.totem",
       sha256: "0".repeat(64),
     };
-    await expect(manager.setCatalog(signedCatalog(pkg, privateKey))).rejects.toThrow(
-      "not trusted",
-    );
+    await expect(
+      manager.setCatalog(signedCatalog(pkg, privateKey)),
+    ).rejects.toThrow("not trusted");
   });
 });
 
 describe("RemoteNodeManager", () => {
   it("registers, probes, capability-checks, invokes, and removes nodes", async () => {
     const requests: string[] = [];
-    const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const fakeFetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
       const url = input instanceof Request ? input.url : input.toString();
       requests.push(`${init?.method ?? "GET"} ${url}`);
       if (url.endsWith("/descriptor")) {
@@ -154,12 +173,18 @@ describe("RemoteNodeManager", () => {
     const node = await manager.register("desk", "http://node.example:8080");
     expect(node.descriptor.capabilities).toContain("system.status");
     expect((await manager.list())[0]?.status).toBe("online");
-    await expect(manager.invoke("desk", "missing", {})).rejects.toThrow("not advertised");
+    await expect(manager.invoke("desk", "missing", {})).rejects.toThrow(
+      "not advertised",
+    );
     expect(await manager.invoke("desk", "system.status", {})).toMatchObject({
       result: { load: 0.25 },
     });
     expect(manager.remove("desk")).toBe(true);
     expect(await manager.list()).toEqual([]);
-    expect(requests.some((request) => request.startsWith("POST ") && request.endsWith("/invoke"))).toBe(true);
+    expect(
+      requests.some(
+        (request) => request.startsWith("POST ") && request.endsWith("/invoke"),
+      ),
+    ).toBe(true);
   });
 });
