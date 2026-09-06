@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import "./SceneDebugPanel.css";
 import {
   SceneArbiter,
   type SceneSnapshot,
