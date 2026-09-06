@@ -61,12 +61,16 @@ afterEach(async () => {
 describe("RealProviderCoordinator", () => {
   it("runs a provider-selected task and persists the native session reference", async () => {
     let tick = Date.parse("2026-09-06T11:00:00.000Z");
+    const now = () => {
+      tick += 1000;
+      return new Date(tick);
+    };
     const coordinator = new RealProviderCoordinator({
       taskStore,
       hub,
       providers: [new CodexCliProvider(processFor)],
       newId: deterministicIds(),
-      now: () => new Date((tick += 1000)),
+      now,
     });
 
     const started = await coordinator.startTask({
