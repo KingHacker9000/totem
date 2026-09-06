@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
+import { ExtensionRuntime } from "./extensionRuntime.js";
 import type { RuntimeEventHub } from "./events.js";
 import { OrchestratorError, type TaskOrchestrator } from "./orchestrator.js";
 import { createRuntimeStatus } from "./runtime.js";
@@ -18,6 +19,7 @@ export interface CreateAppOptions {
   taskStore?: TaskDataSource;
   eventHub?: RuntimeEventHub;
   orchestrator?: TaskOrchestrator;
+  extensionGrants?: Readonly<Record<string, readonly string[]>>;
   /**
    * Late-bound orchestrator accessor. The orchestrator needs the Fastify logger,
    * which only exists after {@link createApp} returns, so `main` wires it in
@@ -196,6 +198,21 @@ export function createApp(options: CreateAppOptions = {}) {
       rootDiagnostics: snapshot.rootDiagnostics.filter(
         (diagnostic) => diagnostic.type === "extension",
       ),
+    };
+  });
+
+  app.get("/api/extensions/runtime", async () => {
+    const snapshot = await discover();
+    const runtime = await ExtensionRuntime.fromDiscovery(
+      snapshot.extensions,
+      options.extensionGrants ?? {},
+    );
+    return {
+      extensions: runtime.publicSnapshot(),
+      security: {
+        defaultGrantPolicy: "deny",
+        secretValuesExposed: false,
+      },
     };
   });
 
