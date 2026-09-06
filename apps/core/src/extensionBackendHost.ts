@@ -14,6 +14,7 @@ interface BackendManifest {
 interface BackendInstance {
   start?: () => unknown | Promise<unknown>;
   stop?: () => unknown | Promise<unknown>;
+  contributionSnapshot?: () => unknown | Promise<unknown>;
 }
 
 type BackendFactory = (context: {
@@ -40,7 +41,9 @@ function isBackendInstance(value: unknown): value is BackendInstance {
   if (!isRecord(value)) return false;
   return (
     (value.start === undefined || typeof value.start === "function") &&
-    (value.stop === undefined || typeof value.stop === "function")
+    (value.stop === undefined || typeof value.stop === "function") &&
+    (value.contributionSnapshot === undefined ||
+      typeof value.contributionSnapshot === "function")
   );
 }
 
@@ -177,7 +180,7 @@ export class ExtensionBackendHost {
       });
       if (!isBackendInstance(created)) {
         throw new Error(
-          "Backend factory must return an object with optional start/stop methods",
+          "Backend factory must return an object with optional start/stop/contributionSnapshot methods",
         );
       }
       await created.start?.();
@@ -191,6 +194,31 @@ export class ExtensionBackendHost {
           : "extension_backend_start_failed",
         error,
       );
+    }
+  }
+
+  /**
+   * Resolve read-only presentation data for an enabled extension.
+   * On-demand backends are started through the same permission gate as every
+   * other backend capability. Snapshot failures are isolated and never expose
+   * backend error details to UI callers.
+   */
+  async contributionSnapshot(extensionId: string): Promise<unknown | undefined> {
+    const record = this.#runtime.get(extensionId);
+    if (!record?.enabled || record.state === "failed") return undefined;
+    if (!this.#loaded.has(extensionId)) await this.start(extensionId);
+    const loaded = this.#loaded.get(extensionId);
+    if (!loaded?.instance.contributionSnapshot) return undefined;
+    try {
+      return structuredClone(await loaded.instance.contributionSnapshot());
+    } catch (error) {
+      this.#runtime.markFailed(extensionId, error);
+      this.#diagnostics.push({
+        extensionId,
+        code: "extension_contribution_snapshot_failed",
+        message: "Extension contribution snapshot failed; error details withheld",
+      });
+      return undefined;
     }
   }
 
