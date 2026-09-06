@@ -12,6 +12,12 @@ interface StartProviderTaskBody {
   workspace?: unknown;
 }
 
+interface ResumeProviderTaskBody {
+  prompt?: unknown;
+  kind?: unknown;
+  title?: unknown;
+}
+
 function parseWorkspace(value: unknown) {
   if (value === undefined) return undefined;
   if (!value || typeof value !== "object") {
@@ -34,6 +40,45 @@ function parseWorkspace(value: unknown) {
     );
   }
   return { path: workspace.path, access: workspace.access } as const;
+}
+
+function validateTurnBody(body: ResumeProviderTaskBody) {
+  if (typeof body.prompt !== "string" || body.prompt.trim() === "") {
+    return {
+      error: "invalid_request",
+      message: "'prompt' is required and must be a non-empty string.",
+    };
+  }
+  if (body.kind !== undefined && typeof body.kind !== "string") {
+    return {
+      error: "invalid_request",
+      message: "'kind' must be a string when provided.",
+    };
+  }
+  if (body.title !== undefined && typeof body.title !== "string") {
+    return {
+      error: "invalid_request",
+      message: "'title' must be a string when provided.",
+    };
+  }
+  return undefined;
+}
+
+function providerErrorStatus(error: RealProviderError): number {
+  if (error.code === "provider_unavailable") return 503;
+  if (error.code === "provider_not_found" || error.code === "task_not_found") {
+    return 404;
+  }
+  if (
+    error.code === "task_not_resumable" ||
+    error.code === "resume_session_unavailable" ||
+    error.code === "resume_not_supported" ||
+    error.code === "session_busy" ||
+    error.code === "task_not_active"
+  ) {
+    return 409;
+  }
+  return 400;
 }
 
 export function registerProviderRoutes(
@@ -65,12 +110,8 @@ export function registerProviderRoutes(
     "/api/provider-tasks",
     async (request, reply) => {
       const body = request.body ?? {};
-      if (typeof body.prompt !== "string" || body.prompt.trim() === "") {
-        return reply.code(400).send({
-          error: "invalid_request",
-          message: "'prompt' is required and must be a non-empty string.",
-        });
-      }
+      const invalid = validateTurnBody(body);
+      if (invalid) return reply.code(400).send(invalid);
       if (
         typeof body.providerId !== "string" ||
         body.providerId.trim() === "" ||
@@ -81,22 +122,10 @@ export function registerProviderRoutes(
           message: "'providerId' must select a real provider.",
         });
       }
-      if (body.kind !== undefined && typeof body.kind !== "string") {
-        return reply.code(400).send({
-          error: "invalid_request",
-          message: "'kind' must be a string when provided.",
-        });
-      }
-      if (body.title !== undefined && typeof body.title !== "string") {
-        return reply.code(400).send({
-          error: "invalid_request",
-          message: "'title' must be a string when provided.",
-        });
-      }
 
       try {
         const started = await coordinator.startTask({
-          prompt: body.prompt,
+          prompt: body.prompt as string,
           providerId: body.providerId,
           ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
           ...(typeof body.title === "string" ? { title: body.title } : {}),
@@ -107,14 +136,36 @@ export function registerProviderRoutes(
         return reply.code(202).send(started);
       } catch (error) {
         if (error instanceof RealProviderError) {
-          const status =
-            error.code === "provider_unavailable"
-              ? 503
-              : error.code === "provider_not_found"
-                ? 404
-                : 400;
           return reply
-            .code(status)
+            .code(providerErrorStatus(error))
+            .send({ error: error.code, message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post<{
+    Params: { taskId: string };
+    Body: ResumeProviderTaskBody;
+  }>(
+    "/api/provider-tasks/:taskId/resume",
+    async (request, reply) => {
+      const body = request.body ?? {};
+      const invalid = validateTurnBody(body);
+      if (invalid) return reply.code(400).send(invalid);
+
+      try {
+        const resumed = await coordinator.resumeTask(request.params.taskId, {
+          prompt: body.prompt as string,
+          ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
+          ...(typeof body.title === "string" ? { title: body.title } : {}),
+        });
+        return reply.code(202).send(resumed);
+      } catch (error) {
+        if (error instanceof RealProviderError) {
+          return reply
+            .code(providerErrorStatus(error))
             .send({ error: error.code, message: error.message });
         }
         throw error;
@@ -131,7 +182,7 @@ export function registerProviderRoutes(
       } catch (error) {
         if (error instanceof RealProviderError) {
           return reply
-            .code(409)
+            .code(providerErrorStatus(error))
             .send({ error: error.code, message: error.message });
         }
         throw error;
