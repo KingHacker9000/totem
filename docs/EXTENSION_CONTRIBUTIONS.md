@@ -1,6 +1,6 @@
 # Extension contribution rendering
 
-Totem renders extension-owned dashboard and display contributions through one generic core snapshot. Product UIs do not switch on extension IDs or import first-party extension code.
+Totem renders extension-owned dashboard and display contributions through one generic core snapshot. Product UIs do not switch on extension IDs or import first-party extension code. Dashboard and display hosts consume the same snapshot contract.
 
 ## Declaration
 
