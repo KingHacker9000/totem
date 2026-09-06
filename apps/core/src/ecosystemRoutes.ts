@@ -73,12 +73,19 @@ function packageKey(pkg: Pick<RegistryPackageVersion, "kind" | "id">): string {
   return `${pkg.kind}:${pkg.id}`;
 }
 
-function assertPackage(value: unknown): asserts value is RegistryPackageVersion {
+function assertPackage(
+  value: unknown,
+): asserts value is RegistryPackageVersion {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("registry package must be an object");
   }
   const pkg = value as Record<string, unknown>;
-  const kinds = new Set(["extension", "theme", "agent-provider", "node-plugin"]);
+  const kinds = new Set([
+    "extension",
+    "theme",
+    "agent-provider",
+    "node-plugin",
+  ]);
   if (typeof pkg.id !== "string" || pkg.id.trim() === "") {
     throw new Error("registry package id is required");
   }
@@ -91,7 +98,10 @@ function assertPackage(value: unknown): asserts value is RegistryPackageVersion 
   if (typeof pkg.source !== "string" || pkg.source.trim() === "") {
     throw new Error("registry package source is required");
   }
-  if (typeof pkg.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(pkg.sha256)) {
+  if (
+    typeof pkg.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/i.test(pkg.sha256)
+  ) {
     throw new Error("registry package sha256 must be 64 hex characters");
   }
   if (
@@ -129,7 +139,9 @@ export class RegistryManager {
 
   async #readState(): Promise<RegistryState> {
     try {
-      const parsed = JSON.parse(await readFile(this.#stateFile, "utf8")) as RegistryState;
+      const parsed = JSON.parse(
+        await readFile(this.#stateFile, "utf8"),
+      ) as RegistryState;
       return {
         ...parsed,
         installed: parsed.installed ?? {},
@@ -182,7 +194,9 @@ export class RegistryManager {
     const packages = (state.catalog?.index.packages ?? []).filter((pkg) => {
       if (query?.kind && pkg.kind !== query.kind) return false;
       if (!needle) return true;
-      return `${pkg.id} ${pkg.kind} ${pkg.version}`.toLowerCase().includes(needle);
+      return `${pkg.id} ${pkg.kind} ${pkg.version}`
+        .toLowerCase()
+        .includes(needle);
     });
     return {
       catalog: state.catalog
@@ -195,7 +209,10 @@ export class RegistryManager {
       packages,
       installed: state.installed,
       rollbackAvailable: Object.fromEntries(
-        Object.entries(state.rollback).map(([key, value]) => [key, value !== null]),
+        Object.entries(state.rollback).map(([key, value]) => [
+          key,
+          value !== null,
+        ]),
       ),
     };
   }
@@ -220,11 +237,16 @@ export class RegistryManager {
       (permission) => !granted.has(permission),
     );
     if (missingPermissions.length > 0) {
-      return { installed: false, reason: "permissions_required", missingPermissions };
+      return {
+        installed: false,
+        reason: "permissions_required",
+        missingPermissions,
+      };
     }
 
     const response = await this.#fetch(candidate.source);
-    if (!response.ok) throw new Error(`artifact download failed with ${response.status}`);
+    if (!response.ok)
+      throw new Error(`artifact download failed with ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());
     const actualSha256 = createHash("sha256").update(bytes).digest("hex");
     if (actualSha256.toLowerCase() !== candidate.sha256.toLowerCase()) {
@@ -244,13 +266,18 @@ export class RegistryManager {
     state.rollback[key] = previous;
     state.installed[key] = candidate;
     await this.#writeState(state);
-    return { installed: true, action: previous ? "update" : "install", package: candidate };
+    return {
+      installed: true,
+      action: previous ? "update" : "install",
+      package: candidate,
+    };
   }
 
   async rollback(kind: RegistryPackageVersion["kind"], id: string) {
     const state = await this.#readState();
     const key = `${kind}:${id}`;
-    if (!(key in state.rollback)) throw new Error("rollback record was not found");
+    if (!(key in state.rollback))
+      throw new Error("rollback record was not found");
     const previous = state.rollback[key];
     const current = state.installed[key] ?? null;
     if (previous) state.installed[key] = previous;
@@ -294,7 +321,8 @@ export class RemoteNodeManager {
     if (descriptor.schema !== "totem.node/v0") {
       throw new Error("remote node uses an unsupported descriptor schema");
     }
-    if (descriptor.id !== id) throw new Error("remote node id does not match descriptor");
+    if (descriptor.id !== id)
+      throw new Error("remote node id does not match descriptor");
     if (!Array.isArray(descriptor.capabilities)) {
       throw new Error("remote node capabilities are invalid");
     }
@@ -343,7 +371,9 @@ export class RemoteNodeManager {
   }
 }
 
-export function parseRegistryTrustedKeys(raw: string | undefined): Readonly<Record<string, string>> {
+export function parseRegistryTrustedKeys(
+  raw: string | undefined,
+): Readonly<Record<string, string>> {
   if (!raw?.trim()) return {};
   const parsed = JSON.parse(raw) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -351,7 +381,9 @@ export function parseRegistryTrustedKeys(raw: string | undefined): Readonly<Reco
   }
   for (const [key, value] of Object.entries(parsed)) {
     if (!key.trim() || typeof value !== "string" || !value.trim()) {
-      throw new Error("TOTEM_REGISTRY_TRUSTED_KEYS values must be non-empty PEM strings");
+      throw new Error(
+        "TOTEM_REGISTRY_TRUSTED_KEYS values must be non-empty PEM strings",
+      );
     }
   }
   return parsed as Record<string, string>;
@@ -366,14 +398,19 @@ export function registerEcosystemRoutes(
     "/api/registry",
     async (request) => registry.snapshot(request.query),
   );
-  app.put<{ Body: SignedRegistryIndex }>("/api/registry/catalog", async (request, reply) => {
-    try {
-      await registry.setCatalog(request.body);
-      return registry.snapshot();
-    } catch (error) {
-      return reply.code(400).send({ error: "registry_invalid", message: String(error) });
-    }
-  });
+  app.put<{ Body: SignedRegistryIndex }>(
+    "/api/registry/catalog",
+    async (request, reply) => {
+      try {
+        await registry.setCatalog(request.body);
+        return registry.snapshot();
+      } catch (error) {
+        return reply
+          .code(400)
+          .send({ error: "registry_invalid", message: String(error) });
+      }
+    },
+  );
   app.post<{
     Body: {
       kind: RegistryPackageVersion["kind"];
@@ -385,7 +422,9 @@ export function registerEcosystemRoutes(
     try {
       return await registry.install(request.body);
     } catch (error) {
-      return reply.code(400).send({ error: "registry_install_failed", message: String(error) });
+      return reply
+        .code(400)
+        .send({ error: "registry_install_failed", message: String(error) });
     }
   });
   app.post<{ Body: { kind: RegistryPackageVersion["kind"]; id: string } }>(
@@ -394,7 +433,9 @@ export function registerEcosystemRoutes(
       try {
         return await registry.rollback(request.body.kind, request.body.id);
       } catch (error) {
-        return reply.code(400).send({ error: "registry_rollback_failed", message: String(error) });
+        return reply
+          .code(400)
+          .send({ error: "registry_rollback_failed", message: String(error) });
       }
     },
   );
@@ -403,28 +444,46 @@ export function registerEcosystemRoutes(
   app.put<{ Params: { nodeId: string }; Body: { url?: string } }>(
     "/api/nodes/:nodeId",
     async (request, reply) => {
-      if (typeof request.body?.url !== "string" || request.body.url.trim() === "") {
-        return reply.code(400).send({ error: "invalid_request", message: "'url' is required" });
+      if (
+        typeof request.body?.url !== "string" ||
+        request.body.url.trim() === ""
+      ) {
+        return reply
+          .code(400)
+          .send({ error: "invalid_request", message: "'url' is required" });
       }
       try {
-        return { node: await nodes.register(request.params.nodeId, request.body.url) };
+        return {
+          node: await nodes.register(request.params.nodeId, request.body.url),
+        };
       } catch (error) {
-        return reply.code(400).send({ error: "node_registration_failed", message: String(error) });
+        return reply
+          .code(400)
+          .send({ error: "node_registration_failed", message: String(error) });
       }
     },
   );
-  app.delete<{ Params: { nodeId: string } }>("/api/nodes/:nodeId", async (request, reply) => {
-    if (!nodes.remove(request.params.nodeId)) {
-      return reply.code(404).send({ error: "node_not_found" });
-    }
-    return { removed: true, nodeId: request.params.nodeId };
-  });
+  app.delete<{ Params: { nodeId: string } }>(
+    "/api/nodes/:nodeId",
+    async (request, reply) => {
+      if (!nodes.remove(request.params.nodeId)) {
+        return reply.code(404).send({ error: "node_not_found" });
+      }
+      return { removed: true, nodeId: request.params.nodeId };
+    },
+  );
   app.post<{
     Params: { nodeId: string };
     Body: { capability?: string; input?: unknown };
   }>("/api/nodes/:nodeId/invoke", async (request, reply) => {
-    if (typeof request.body?.capability !== "string" || request.body.capability.trim() === "") {
-      return reply.code(400).send({ error: "invalid_request", message: "'capability' is required" });
+    if (
+      typeof request.body?.capability !== "string" ||
+      request.body.capability.trim() === ""
+    ) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'capability' is required",
+      });
     }
     try {
       return await nodes.invoke(
@@ -433,7 +492,9 @@ export function registerEcosystemRoutes(
         request.body.input ?? {},
       );
     } catch (error) {
-      return reply.code(400).send({ error: "node_invoke_failed", message: String(error) });
+      return reply
+        .code(400)
+        .send({ error: "node_invoke_failed", message: String(error) });
     }
   });
 }
