@@ -239,7 +239,7 @@ export function App() {
   useEffect(() => {
     if (section !== "Tasks") return;
     void loadTasks();
-  }, [section, lastEventAt, loadTasks]);
+  }, [section, loadTasks]);
 
   useEffect(() => {
     if (section !== "Tasks" || !selectedTaskId) {
@@ -247,7 +247,7 @@ export function App() {
       return;
     }
     void loadTaskDetail(selectedTaskId);
-  }, [section, selectedTaskId, lastEventAt, loadTaskDetail]);
+  }, [section, selectedTaskId, loadTaskDetail]);
 
   const started = useMemo(
     () => (runtime ? new Date(runtime.startedAt).toLocaleString() : "—"),
@@ -457,7 +457,9 @@ export function App() {
                   {taskDetail.task.failure ? (
                     <div className="task-failure">
                       <strong>{taskDetail.task.failure.code}</strong>
-                      <span>{taskDetail.task.failure.message}</span>
+                      <span className="task-failure-message">
+                        {taskDetail.task.failure.message}
+                      </span>
                     </div>
                   ) : null}
 
