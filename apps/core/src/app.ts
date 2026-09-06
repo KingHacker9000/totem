@@ -242,9 +242,10 @@ export function createApp(options: CreateAppOptions = {}) {
         };
       } catch (error) {
         if (error instanceof ExtensionSettingsError) {
-          return reply
-            .code(400)
-            .send({ error: "extension_settings_invalid", message: error.message });
+          return reply.code(400).send({
+            error: "extension_settings_invalid",
+            message: error.message,
+          });
         }
         throw error;
       }
@@ -254,34 +255,32 @@ export function createApp(options: CreateAppOptions = {}) {
   app.put<{
     Params: { extensionId: string; key: string };
     Body: ExtensionSettingBody;
-  }>(
-    "/api/extensions/:extensionId/settings/:key",
-    async (request, reply) => {
-      if (!("value" in (request.body ?? {}))) {
+  }>("/api/extensions/:extensionId/settings/:key", async (request, reply) => {
+    if (!("value" in (request.body ?? {}))) {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'value' is required.",
+      });
+    }
+    try {
+      return {
+        extensionId: request.params.extensionId,
+        values: await (await extensionRuntime()).setSetting(
+          request.params.extensionId,
+          request.params.key,
+          request.body.value,
+        ),
+      };
+    } catch (error) {
+      if (error instanceof ExtensionSettingsError) {
         return reply.code(400).send({
-          error: "invalid_request",
-          message: "'value' is required.",
+          error: "extension_settings_invalid",
+          message: error.message,
         });
       }
-      try {
-        return {
-          extensionId: request.params.extensionId,
-          values: await (await extensionRuntime()).setSetting(
-            request.params.extensionId,
-            request.params.key,
-            request.body.value,
-          ),
-        };
-      } catch (error) {
-        if (error instanceof ExtensionSettingsError) {
-          return reply
-            .code(400)
-            .send({ error: "extension_settings_invalid", message: error.message });
-        }
-        throw error;
-      }
-    },
-  );
+      throw error;
+    }
+  });
 
   app.get("/api/themes", async () => {
     const snapshot = await discover();
