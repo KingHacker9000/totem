@@ -116,8 +116,12 @@ function validateSettingValue(
   const valid =
     (type === "string" && typeof value === "string") ||
     (type === "boolean" && typeof value === "boolean") ||
-    (type === "number" && typeof value === "number" && Number.isFinite(value)) ||
-    (type === "integer" && typeof value === "number" && Number.isInteger(value));
+    (type === "number" &&
+      typeof value === "number" &&
+      Number.isFinite(value)) ||
+    (type === "integer" &&
+      typeof value === "number" &&
+      Number.isInteger(value));
   if (!valid) {
     throw new ExtensionSettingsError(
       `Setting '${extensionId}.${key}' must be of type '${String(type)}'`,
@@ -227,7 +231,8 @@ export class ExtensionRuntime {
     );
     const manifests: Record<string, Record<string, unknown>> = {};
     for (const source of sources) {
-      if (source?.candidate.id) manifests[source.candidate.id] = source.manifest;
+      if (source?.candidate.id)
+        manifests[source.candidate.id] = source.manifest;
     }
     return new ExtensionRuntime(packages, grants, manifests, services);
   }
@@ -330,7 +335,9 @@ export class ExtensionRuntime {
     }
     validateSettingValue(extensionId, key, definition, value);
     if (!this.#services.settings) {
-      throw new ExtensionSettingsError("Extension settings storage is unavailable");
+      throw new ExtensionSettingsError(
+        "Extension settings storage is unavailable",
+      );
     }
     await this.#services.settings.set(extensionId, key, value);
     return this.getSettings(extensionId);
@@ -363,7 +370,9 @@ export class ExtensionRuntime {
 
   mcpRegistrations(extensionId: string): Array<Record<string, unknown>> {
     this.assertPermission(extensionId, "mcp.register");
-    return this.#require(extensionId).mcp.map((entry) => structuredClone(entry));
+    return this.#require(extensionId).mcp.map((entry) =>
+      structuredClone(entry),
+    );
   }
 
   publicSnapshot(): ExtensionRuntimeRecord[] {
