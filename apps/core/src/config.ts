@@ -196,14 +196,18 @@ function parseExtensionGrants(
   const grants: Record<string, readonly string[]> = {};
   for (const [extensionId, permissions] of Object.entries(parsed)) {
     if (!PACKAGE_ID_PATTERN.test(extensionId)) {
-      issues.push(`TOTEM_EXTENSION_GRANTS has invalid extension id '${extensionId}'`);
+      issues.push(
+        `TOTEM_EXTENSION_GRANTS has invalid extension id '${extensionId}'`,
+      );
       continue;
     }
     if (
       !Array.isArray(permissions) ||
       permissions.some((permission) => typeof permission !== "string")
     ) {
-      issues.push(`TOTEM_EXTENSION_GRANTS['${extensionId}'] must be a string array`);
+      issues.push(
+        `TOTEM_EXTENSION_GRANTS['${extensionId}'] must be a string array`,
+      );
       continue;
     }
     grants[extensionId] = [...new Set(permissions)];
