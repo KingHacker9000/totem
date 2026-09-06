@@ -55,6 +55,30 @@ The responses include package identity where valid, path, enabled/invalid state,
 
 The normative Phase 1 schema and security rules remain in [`DISCOVERY.md`](DISCOVERY.md). These endpoints do not install packages, freeze the public SDK v1, or grant extension capabilities.
 
+### First-party Phase 1 fixtures
+
+For a sibling checkout containing `totem`, `totem-base-extensions`, and `totem-base-themes`, the public first-party fixtures can be exercised through the exact same configurable discovery roots used for third-party packages; no copy step or first-party special case is required.
+
+PowerShell from the `totem` checkout:
+
+```powershell
+$env:TOTEM_EXTENSION_ROOTS = (Resolve-Path "..\totem-base-extensions").Path
+$env:TOTEM_THEME_ROOTS = (Resolve-Path "..\totem-base-themes").Path
+$env:TOTEM_ACTIVE_THEME = "default"
+pnpm --filter @totem/core dev
+```
+
+Unix shell from the `totem` checkout:
+
+```sh
+TOTEM_EXTENSION_ROOTS="$(cd ../totem-base-extensions && pwd)" \
+TOTEM_THEME_ROOTS="$(cd ../totem-base-themes && pwd)" \
+TOTEM_ACTIVE_THEME=default \
+pnpm --filter @totem/core dev
+```
+
+The Phase 1 fixture directories are `clock/` and `default/`, each containing only the corresponding v0 manifest plus explanatory documentation. They intentionally do not bypass the normal scanner and do not imply that the eventual SDK v1 is frozen.
+
 ## Health and status
 
 The core exposes:
