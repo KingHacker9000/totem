@@ -55,13 +55,7 @@ button, select, input { font: inherit; }
   overflow: hidden;
   touch-action: none;
 }
-.logical-panel {
-  position: absolute;
-  inset: 0 auto auto 0;
-  transform-origin: top left;
-  transform: scale(min(calc(100cqw / var(--logical-width)), calc(100cqh / var(--logical-height))));
-}
-.panel-frame { container-type: size; }
+.logical-panel { position: absolute; inset: 0 auto auto 0; transform-origin: top left; }
 .product-output { position: absolute; inset: 0; overflow: hidden; background: #111923; }
 .product-output.masked { background: #111923; }
 .ambient-scene {
