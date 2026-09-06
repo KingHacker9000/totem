@@ -53,7 +53,10 @@ function fixture() {
     stt,
     tts,
     playback,
-    resolveVoice: () => ({ voiceId: "theme-voice", modelPath: "/voices/theme.onnx" }),
+    resolveVoice: () => ({
+      voiceId: "theme-voice",
+      modelPath: "/voices/theme.onnx",
+    }),
     now: (() => {
       let now = 100;
       return () => (now += 5);
@@ -109,7 +112,10 @@ describe("SpeechRuntime", () => {
       vad: new EnergyVad(0),
       stt: {
         id: "missing-stt",
-        status: () => ({ available: false, reason: "model_path_not_configured" }),
+        status: () => ({
+          available: false,
+          reason: "model_path_not_configured",
+        }),
         transcribe: vi.fn(),
       },
       tts: {
