@@ -158,7 +158,10 @@ function parseDiscoveryRoots(
   return roots;
 }
 
-function parseActiveThemeId(raw: string | undefined, issues: string[]): string | undefined {
+function parseActiveThemeId(
+  raw: string | undefined,
+  issues: string[],
+): string | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
   if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
@@ -184,6 +187,7 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
     themes: join(root, "themes"),
     logs: join(root, "logs"),
   };
+  const activeThemeId = parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues);
 
   const config: TotemConfig = {
     host: parseHost(env.TOTEM_HOST, issues),
@@ -204,9 +208,7 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
         "TOTEM_THEME_ROOTS",
         issues,
       ),
-      ...(parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues) === undefined
-        ? {}
-        : { activeThemeId: parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues) }),
+      ...(activeThemeId === undefined ? {} : { activeThemeId }),
     },
   };
 
