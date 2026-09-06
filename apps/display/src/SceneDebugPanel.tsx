@@ -82,9 +82,9 @@ export function SceneDebugPanel() {
           Release active
         </button>
       </div>
-      <div className="scene-stack" aria-label="Scene request stack">
+      <div className="scene-stack" role="list" aria-label="Scene request stack">
         {scene.requests.map((request) => (
-          <span key={request.id}>
+          <span key={request.id} role="listitem">
             {request.sceneId} · p{request.priority}
           </span>
         ))}
