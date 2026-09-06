@@ -10,7 +10,7 @@ An extension may contain:
 
 ```text
 extension/
-├── totem-extension.yaml
+├── totem-extension.json
 ├── backend/
 ├── display/
 ├── dashboard/
@@ -19,74 +19,33 @@ extension/
 └── README.md
 ```
 
-The exact on-disk schema is owned by `totem-extension-sdk` and may evolve before v1.
+The normative Phase 2 manifest and permission contract is [EXTENSION_MANIFEST_V0.md](EXTENSION_MANIFEST_V0.md). The public authoring/parser/validation API is owned by `totem-extension-sdk` and must implement that contract rather than inventing a parallel schema.
 
-## Phase 1 discovery stub
+## Manifest contract
 
-Phase 1 intentionally uses a much smaller local discovery contract before the full SDK exists. The normative stub contract is [DISCOVERY.md](DISCOVERY.md).
+Phase 1 used a deliberately smaller discovery stub documented in [DISCOVERY.md](DISCOVERY.md). Phase 2 freezes the security-relevant semantics of `totem.extension/v0`: identity/version compatibility, entrypoints/lifecycle metadata, granular requested permissions, explicit event publication/subscription, and reserved declaration surfaces for contributions, settings, secrets, and MCP.
 
-For Phase 1 only, local candidates use `totem-extension.json` with schema id `totem.extension/v0`, stable identity/version fields, optional enablement/entrypoint metadata, and coarse capability declarations. These declarations are **not** blanket authorization and do not freeze the final permission vocabulary.
+A manifest requests capabilities; it never grants them. Core owns the effective grant set and enforces it at privileged boundaries. Requested and granted permissions must remain separately observable and revocable.
 
-The full manifest, public SDK compatibility policy, registry/install behavior, and granular requested/granted permission model remain deferred.
-
-## Manifest concepts
-
-Every extension must eventually declare, at minimum:
-
-- stable ID and version
-- compatible Totem/SDK versions
-- requested permissions
-- backend entry point, if any
-- contributed display/dashboard views
-- tools exposed to agents
-- MCP servers/connectors it registers
-- event subscriptions/publications
-- settings schema
-- secret references it needs
-
-## Permissions
-
-Examples of capabilities that must be explicit:
-
-```text
-network.internet
-network.local
-filesystem.read
-filesystem.write
-shell.user
-system.service
-system.package_install
-system.root
-display.present
-audio.play
-secrets.read:<name>
-mcp.register
-```
-
-Permission names above are architectural examples, not a frozen v1 list.
-
-Extensions receive only the capabilities granted to them. The dashboard must show requested vs granted permissions and support revocation.
+See [EXTENSION_MANIFEST_V0.md](EXTENSION_MANIFEST_V0.md) for the complete vocabulary, validation rules, valid/rejected examples, and the migration from Phase 1 `entrypoint`/`capabilities` fields.
 
 ## MCP
 
-MCP is a first-class extension mechanism. An extension can package or configure an MCP server and ask Totem's agent broker to expose it to compatible providers.
+MCP is a first-class extension mechanism. An extension can package or configure an MCP server and ask Totem's agent broker to expose it to compatible providers. Registration requires the manifest's `mcp.register` permission and remains subject to the dedicated contribution/settings/secrets/MCP contract.
 
-An MCP-only extension is valid. For example, a future food-delivery extension could consist mainly of:
-
-- authentication/configuration
-- an MCP connection
-- display cards for restaurant/menu/order state
-- dashboard settings
-
-The core must not need to understand the external service itself.
+An MCP-only extension is valid and does not require a backend entrypoint merely to be considered an extension.
 
 ## UI contributions
 
-Extensions may register named views but do not own the physical display. They request presentation from the display manager using priority/lifetime metadata. This prevents unrelated extensions from fighting for the screen.
+Extensions may register named views but do not own the physical display. They request presentation from the display manager using priority/lifetime metadata. `display.present` is required for presentation requests; declaring a UI contribution alone is not authority.
 
 ## Isolation
 
-Before v1, the project should decide the exact process/container isolation strategy. Regardless of implementation, extensions must communicate through documented APIs and must not rely on importing private core internals.
+Before v1, the project should decide the exact process/container isolation strategy. Regardless of implementation, extensions must communicate through documented APIs and must not rely on importing private core internals. Isolation is defense in depth and does not replace permission checks.
+
+## Theme boundary
+
+Themes remain presentation-only packages. Theme manifests must reject extension permission/capability, MCP, agent-tool, shell, network, filesystem/system, and secret-access declarations. Privilege-bearing behavior belongs to extensions.
 
 ## Bundled extensions
 
