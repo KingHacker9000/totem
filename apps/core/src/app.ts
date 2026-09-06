@@ -60,7 +60,8 @@ export function createApp(options: CreateAppOptions = {}) {
       if (!options.taskStore) {
         return reply.code(503).send({
           error: "task_store_unavailable",
-          message: "Durable task storage is not available in this core instance.",
+          message:
+            "Durable task storage is not available in this core instance.",
         });
       }
 

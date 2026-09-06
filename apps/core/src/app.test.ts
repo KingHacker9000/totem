@@ -141,7 +141,9 @@ describe("core HTTP surface", () => {
     try {
       const response = await app.inject({ method: "GET", url: "/api/tasks" });
       expect(response.statusCode).toBe(503);
-      expect(response.json()).toMatchObject({ error: "task_store_unavailable" });
+      expect(response.json()).toMatchObject({
+        error: "task_store_unavailable",
+      });
     } finally {
       await app.close();
     }

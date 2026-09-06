@@ -1,9 +1,5 @@
 import { join } from "node:path";
-import {
-  migrateToLatest,
-  openTotemDatabase,
-  TaskStore,
-} from "@totem/storage";
+import { migrateToLatest, openTotemDatabase, TaskStore } from "@totem/storage";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { ensureDataDirectories } from "./runtime.js";

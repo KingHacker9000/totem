@@ -484,8 +484,8 @@ export function App() {
                 </>
               ) : (
                 <p className="empty-state">
-                  Select a persisted task to inspect its snapshot and append-only
-                  event history.
+                  Select a persisted task to inspect its snapshot and
+                  append-only event history.
                 </p>
               )}
             </section>
