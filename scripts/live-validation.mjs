@@ -194,7 +194,8 @@ async function providerLifecycle(baseUrl, provider, options) {
         {
           method: "POST",
           body: JSON.stringify({
-            prompt: "Reply with exactly TOTEM_LIVE_RESUME_OK and no other text.",
+            prompt:
+              "Reply with exactly TOTEM_LIVE_RESUME_OK and no other text.",
             kind: "live-validation",
             title: `Live resume validation: ${providerId}`,
           }),
@@ -254,15 +255,18 @@ async function providerLifecycle(baseUrl, provider, options) {
   }
 
   try {
-    const interruptStarted = await requestJson(`${baseUrl}/api/provider-tasks`, {
-      method: "POST",
-      body: JSON.stringify({
-        ...startBody,
-        prompt:
-          "Perform a deliberate multi-step reasoning task. Do not finish immediately; emit progress before the final answer.",
-        title: `Live interrupt validation: ${providerId}`,
-      }),
-    });
+    const interruptStarted = await requestJson(
+      `${baseUrl}/api/provider-tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...startBody,
+          prompt:
+            "Perform a deliberate multi-step reasoning task. Do not finish immediately; emit progress before the final answer.",
+          title: `Live interrupt validation: ${providerId}`,
+        }),
+      },
+    );
     await new Promise((resolve) => setTimeout(resolve, 1_500));
     await requestJson(
       `${baseUrl}/api/provider-tasks/${encodeURIComponent(interruptStarted.taskId)}/interrupt`,

@@ -202,7 +202,11 @@ export class RealProviderCoordinator {
         `Provider '${retained.provider.id}' does not support resume`,
       );
     }
-    if ([...this.#active.values()].some((active) => active.durableSessionId === priorTask.sessionId)) {
+    if (
+      [...this.#active.values()].some(
+        (active) => active.durableSessionId === priorTask.sessionId,
+      )
+    ) {
       throw new RealProviderError(
         "session_busy",
         `Session '${priorTask.sessionId}' already has an active task`,
