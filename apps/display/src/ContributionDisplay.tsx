@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type DeviceProfile,
   validateDeviceProfile,
@@ -26,13 +26,21 @@ function concise(value: unknown): string {
   if (Array.isArray(value)) return value.length === 0 ? "None" : `${value.length} items`;
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
-    const preferred = ["display", "condition", "temperatureC", "activeCount", "platform"];
+    const preferred = [
+      "display",
+      "condition",
+      "temperatureC",
+      "activeCount",
+      "platform",
+    ];
     const selected = preferred
       .map((key) => entries.find(([entryKey]) => entryKey === key))
       .filter((entry): entry is [string, unknown] => entry !== undefined)
       .slice(0, 2);
     if (selected.length > 0) {
-      return selected.map(([key, item]) => `${key}: ${concise(item)}`).join(" · ");
+      return selected
+        .map(([key, item]) => `${key}: ${concise(item)}`)
+        .join(" · ");
     }
     return entries
       .slice(0, 2)
@@ -48,6 +56,8 @@ export function ContributionDisplay() {
   const [profile, setProfile] = useState<DeviceProfile | null>(null);
   const [views, setViews] = useState<ContributionView[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [panelScale, setPanelScale] = useState(1);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/profiles/index.json")
@@ -65,7 +75,8 @@ export function ContributionDisplay() {
     if (!profileName) return;
     fetch(`/profiles/${profileName}`)
       .then((response) => {
-        if (!response.ok) throw new Error(`Profile load failed (${response.status})`);
+        if (!response.ok)
+          throw new Error(`Profile load failed (${response.status})`);
         return response.json();
       })
       .then((value: unknown) => setProfile(validateDeviceProfile(value)))
@@ -101,6 +112,20 @@ export function ContributionDisplay() {
   }, [refresh]);
 
   const display = profile?.display.present ? profile.display : null;
+
+  useEffect(() => {
+    if (!display || !panelRef.current) return;
+    const panel = panelRef.current;
+    const updateScale = () =>
+      setPanelScale(
+        panel.getBoundingClientRect().width / display.logicalSize.width,
+      );
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [display]);
+
   const panelStyle = useMemo(
     () =>
       display
@@ -120,7 +145,10 @@ export function ContributionDisplay() {
         </div>
         <label>
           Device profile
-          <select value={profileName} onChange={(event) => setProfileName(event.target.value)}>
+          <select
+            value={profileName}
+            onChange={(event) => setProfileName(event.target.value)}
+          >
             {profileNames.map((name) => (
               <option key={name} value={name}>
                 {name.replace(/\.json$/, "")}
@@ -140,21 +168,28 @@ export function ContributionDisplay() {
       {profile && !profile.display.present ? (
         <section className="headless-card">
           <h2>{profile.name}</h2>
-          <p>This device profile is headless, so display contributions are intentionally not mounted.</p>
+          <p>
+            This device profile is headless, so display contributions are
+            intentionally not mounted.
+          </p>
         </section>
       ) : null}
 
       {profile && display ? (
         <div className="workspace">
           <section className="stage">
-            <div className="panel-frame" style={panelStyle}>
+            <div className="panel-frame" ref={panelRef} style={panelStyle}>
               <div
                 className="logical-panel"
                 style={{
                   width: `${display.logicalSize.width}px`,
                   height: `${display.logicalSize.height}px`,
+                  transform: `scale(${panelScale})`,
                   transformOrigin: "top left",
-                  clipPath: visibleRegionClipPath(display.visibleRegion, display.logicalSize),
+                  clipPath: visibleRegionClipPath(
+                    display.visibleRegion,
+                    display.logicalSize,
+                  ),
                 }}
               >
                 <div className="ambient-scene">
@@ -180,11 +215,16 @@ export function ContributionDisplay() {
                   {views.length === 0 ? (
                     <div className="touch-readout">
                       <strong>No granted display contributions</strong>
-                      <span>Grant display.present to an enabled compatible extension.</span>
+                      <span>
+                        Grant display.present to an enabled compatible extension.
+                      </span>
                     </div>
                   ) : (
                     views.slice(0, 4).map((view) => (
-                      <div className="touch-readout" key={`${view.extensionId}:${view.contributionId}`}>
+                      <div
+                        className="touch-readout"
+                        key={`${view.extensionId}:${view.contributionId}`}
+                      >
                         <strong>{view.title}</strong>
                         <span>{concise(view.data)}</span>
                         <span className="muted">{view.extensionId}</span>
@@ -199,7 +239,8 @@ export function ContributionDisplay() {
             <p className="eyebrow">Safe-area contract</p>
             <h2>{profile.name}</h2>
             <p>
-              Contributions are mounted only inside {display.contentSafeArea.width} × {display.contentSafeArea.height}
+              Contributions are mounted only inside{" "}
+              {display.contentSafeArea.width} × {display.contentSafeArea.height}
               at ({display.contentSafeArea.x}, {display.contentSafeArea.y}).
             </p>
             <p>{views.length} display contribution(s) currently granted by core.</p>
