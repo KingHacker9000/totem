@@ -30,9 +30,12 @@ describe("live validation helpers", () => {
   });
 
   it("keeps live-service secrets out of the service spec", () => {
-    const service = parseServiceSpec("github|https://api.github.com/user|GH_TOKEN", {
-      GH_TOKEN: "super-secret",
-    });
+    const service = parseServiceSpec(
+      "github|https://api.github.com/user|GH_TOKEN",
+      {
+        GH_TOKEN: "super-secret",
+      },
+    );
 
     expect(service).toEqual({
       id: "github",
@@ -40,9 +43,9 @@ describe("live validation helpers", () => {
       tokenEnv: "GH_TOKEN",
       token: "super-secret",
     });
-    expect(JSON.stringify(service).replace(service.token, "<redacted>")).not.toContain(
-      "super-secret",
-    );
+    expect(
+      JSON.stringify(service).replace(service.token, "<redacted>"),
+    ).not.toContain("super-secret");
   });
 
   it("reports failure only when a capability fails", () => {
