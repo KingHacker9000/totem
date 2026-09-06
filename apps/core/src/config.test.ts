@@ -70,11 +70,11 @@ describe("loadConfig", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ConfigError);
       expect((error as ConfigError).issues).toEqual([
+        "TOTEM_ACTIVE_THEME must be a valid package id",
         "TOTEM_HOST must be a hostname or IP address without whitespace or slashes",
         "TOTEM_PORT must be an integer between 1 and 65535",
         "TOTEM_LOG_LEVEL must be one of: fatal, error, warn, info, debug, trace, silent",
         "TOTEM_ENV must be development, test, or production",
-        "TOTEM_ACTIVE_THEME must be a valid package id",
       ]);
     }
   });
