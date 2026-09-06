@@ -10,6 +10,7 @@ import {
   RemoteNodeManager,
 } from "./ecosystemRoutes.js";
 import { ExtensionBackendHost } from "./extensionBackendHost.js";
+import { registerExtensionContributionRoutes } from "./extensionContributionRoutes.js";
 import { ExtensionRuntime } from "./extensionRuntime.js";
 import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
@@ -88,6 +89,11 @@ try {
     extensionBackendHost,
     getOrchestrator: () => orchestrator,
   });
+  registerExtensionContributionRoutes(
+    app,
+    extensionRuntime,
+    extensionBackendHost,
+  );
   registerThemeRoutes(app, themeRuntime);
 
   const registry = new RegistryManager({
