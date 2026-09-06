@@ -23,7 +23,8 @@ function concise(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
   if (typeof value === "boolean") return value ? "On" : "Off";
-  if (Array.isArray(value)) return value.length === 0 ? "None" : `${value.length} items`;
+  if (Array.isArray(value))
+    return value.length === 0 ? "None" : `${value.length} items`;
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
     const preferred = [
@@ -196,7 +197,7 @@ export function ContributionDisplay() {
                   <p className="eyebrow">Extension surface</p>
                   <h2>Totem</h2>
                 </div>
-                <div
+                <section
                   aria-label="Extension contribution safe area"
                   style={{
                     position: "absolute",
@@ -231,7 +232,7 @@ export function ContributionDisplay() {
                       </div>
                     ))
                   )}
-                </div>
+                </section>
               </div>
             </div>
           </section>
