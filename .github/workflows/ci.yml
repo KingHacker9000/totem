@@ -22,6 +22,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm build
+      - name: Validate Pi self-test host-independent path
+        shell: bash
+        run: |
+          export TOTEM_STATE_DIR="$RUNNER_TEMP/totem-self-test-state"
+          node deploy/pi/self-test.mjs --offline --json > "$RUNNER_TEMP/totem-pi-self-test.json"
+          node -e 'const r=require(process.argv[1]); if(r.schema!=="totem.pi-self-test/v1"||r.overall!=="PASS"||r.counts.FAIL!==0) process.exit(1)' "$RUNNER_TEMP/totem-pi-self-test.json"
       - name: Validate pinned Phase 2 extension integration
         shell: bash
         run: |
