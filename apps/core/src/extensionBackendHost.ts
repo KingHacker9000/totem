@@ -127,8 +127,17 @@ export class ExtensionBackendHost {
     for (const extensionId of this.#candidates.keys()) {
       const record = this.#runtime.get(extensionId);
       if (!record?.enabled) continue;
-      const manifest = await loadManifest(this.#requireCandidate(extensionId));
-      if (manifest.lifecycle?.start === "on-demand") continue;
+      try {
+        const manifest = await loadManifest(this.#requireCandidate(extensionId));
+        if (manifest.lifecycle?.start === "on-demand") continue;
+      } catch (error) {
+        this.#recordFailure(
+          extensionId,
+          "extension_manifest_load_failed",
+          error,
+        );
+        continue;
+      }
       await this.start(extensionId);
     }
   }
@@ -148,7 +157,7 @@ export class ExtensionBackendHost {
       const manifest = await loadManifest(candidate);
       const entrypoint = manifest.entrypoints?.backend;
       if (entrypoint === undefined) {
-        this.#runtime.markRunning(extensionId);
+        this.#runtime.markReady(extensionId);
         return;
       }
       if (typeof entrypoint !== "string" || entrypoint.trim() === "") {
@@ -179,15 +188,13 @@ export class ExtensionBackendHost {
       this.#loaded.set(extensionId, { extensionId, instance: created });
       this.#runtime.markRunning(extensionId);
     } catch (error) {
-      this.#runtime.markFailed(extensionId, error);
-      this.#diagnostics.push({
+      this.#recordFailure(
         extensionId,
-        code:
-          error instanceof ExtensionPermissionError
-            ? "extension_permission_denied"
-            : "extension_backend_start_failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
+        error instanceof ExtensionPermissionError
+          ? "extension_permission_denied"
+          : "extension_backend_start_failed",
+        error,
+      );
     }
   }
 
@@ -200,7 +207,9 @@ export class ExtensionBackendHost {
       if (this.#runtime.get(extensionId)?.enabled)
         this.#runtime.markReady(extensionId);
     } catch (error) {
-      this.#runtime.markFailed(extensionId, error);
+      if (this.#runtime.get(extensionId)?.enabled) {
+        this.#runtime.markFailed(extensionId, error);
+      }
       this.#diagnostics.push({
         extensionId,
         code: "extension_backend_stop_failed",
@@ -216,14 +225,31 @@ export class ExtensionBackendHost {
       return;
     }
     this.#runtime.setEnabled(extensionId, true);
-    const manifest = await loadManifest(this.#requireCandidate(extensionId));
-    if (manifest.lifecycle?.start !== "on-demand")
-      await this.start(extensionId);
+    try {
+      const manifest = await loadManifest(this.#requireCandidate(extensionId));
+      if (manifest.lifecycle?.start !== "on-demand")
+        await this.start(extensionId);
+    } catch (error) {
+      this.#recordFailure(
+        extensionId,
+        "extension_manifest_load_failed",
+        error,
+      );
+    }
   }
 
   async stopAll(): Promise<void> {
     for (const extensionId of [...this.#loaded.keys()])
       await this.stop(extensionId);
+  }
+
+  #recordFailure(extensionId: string, code: string, error: unknown): void {
+    this.#runtime.markFailed(extensionId, error);
+    this.#diagnostics.push({
+      extensionId,
+      code,
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 
   #requireCandidate(extensionId: string): DiscoveredPackageV0 {
