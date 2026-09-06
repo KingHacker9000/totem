@@ -5,9 +5,12 @@ Totem is software-first and PC-first.
 ## Run the T102 scaffold
 
 Install Node.js **24.18.0** (pinned in `.nvmrc` and `.node-version`) and
-pnpm **10.28.0**. Node **22.12.0 or newer** is supported; the minimum includes
-Vite's Node 22 requirement. With Corepack available, run `corepack enable`;
-otherwise install pnpm with `npm install --global pnpm@10.28.0`.
+pnpm **10.28.0**. Node **22.20.0 or newer** is supported. The original scaffold
+used the Vite minimum of Node 22.12.0, but Phase 1 durable SQLite validation
+showed that older Node 22 patch releases are not a safe runtime floor for the
+current native `better-sqlite3` dependency. With Corepack available, run
+`corepack enable`; otherwise install pnpm with
+`npm install --global pnpm@10.28.0`.
 
 From the repository root, in PowerShell, Command Prompt, or a Unix shell:
 
@@ -41,7 +44,7 @@ not installed before their packages exist. Browser E2E tests and
 `pnpm test:e2e` are deferred until the browser integration task.
 
 CI runs frozen installation, `pnpm check`, and `pnpm build` on Windows and
-Linux with Node 22.12.0 and 24.18.0. `pnpm format` applies Biome formatting;
+Linux with Node 22.20.0 and 24.18.0. `pnpm format` applies Biome formatting;
 `pnpm format:check` checks it without writes. Markdown remains source-preserved.
 When using WSL, use Linux Node and pnpm in WSL; do not share an installed
 `node_modules` tree with native Windows. No Docker or Pi hardware is needed.
@@ -77,7 +80,7 @@ Do not hand every trivial change to an agent merely because Totem integrates age
 ADR 0010 is the source of truth for the Phase 1 stack. In summary:
 
 - TypeScript in strict mode across core, browser clients, and shared contracts
-- Node.js 22+ runtime baseline
+- Node.js 22+ runtime baseline, with 22.20.0 as the tested minimum patch release
 - pnpm 10 workspaces via Corepack where available
 - Fastify for the authoritative local core HTTP service
 - JSON HTTP endpoints for commands/state snapshots
