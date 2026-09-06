@@ -1,0 +1,15 @@
+{
+  "schema": "totem.device-profile/v0",
+  "id": "headless",
+  "name": "Headless Totem",
+  "display": {
+    "present": false
+  },
+  "touch": {
+    "present": false
+  },
+  "lighting": {
+    "mode": "none",
+    "zones": []
+  }
+}

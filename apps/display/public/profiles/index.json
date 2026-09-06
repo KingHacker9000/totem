@@ -1,0 +1,8 @@
+{
+  "profiles": [
+    "simulator-rectangle-800x480.json",
+    "simulator-rounded-640x640.json",
+    "simulator-circle-800x480.json",
+    "headless.json"
+  ]
+}
