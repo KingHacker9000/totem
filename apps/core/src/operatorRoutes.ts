@@ -1,4 +1,11 @@
-import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { TotemConfig } from "./config.js";
@@ -62,14 +69,19 @@ export class OperatorManager {
   private readonly env: NodeJS.ProcessEnv;
   private readonly now: () => Date;
 
-  constructor(private readonly config: TotemConfig, options: Omit<OperatorRouteOptions, "config"> = {}) {
+  constructor(
+    private readonly config: TotemConfig,
+    options: Omit<OperatorRouteOptions, "config"> = {},
+  ) {
     this.env = options.env ?? process.env;
     this.now = options.now ?? (() => new Date());
   }
 
   record(entry: OperatorLogEntry): void {
     this.logs.push(entry);
-    if (this.logs.length > 250) this.logs.splice(0, this.logs.length - 250);
+    if (this.logs.length > 250) {
+      this.logs.splice(0, this.logs.length - 250);
+    }
   }
 
   recentLogs(limit = 100): readonly OperatorLogEntry[] {
@@ -78,8 +90,8 @@ export class OperatorManager {
   }
 
   capabilitySnapshot() {
-    const operatorTokenConfigured = Boolean(this.env.TOTEM_OPERATOR_TOKEN?.trim());
     const loopbackOnly = isLoopbackHost(this.config.host);
+    const externalAccessLayer = this.env.TOTEM_REMOTE_ACCESS_LAYER?.trim() || null;
     return {
       speech: {
         statusEndpoint: "/api/speech/status",
@@ -90,17 +102,18 @@ export class OperatorManager {
         transport: "core-events",
         eventEndpoint: "/api/events",
         simulatorUrl:
-          this.env.TOTEM_DISPLAY_SIMULATOR_URL?.trim() || "http://127.0.0.1:5174",
+          this.env.TOTEM_DISPLAY_SIMULATOR_URL?.trim() ||
+          "http://127.0.0.1:5174",
       },
       security: {
         host: this.config.host,
         loopbackOnly,
-        operatorAuth: operatorTokenConfigured ? "bearer-token-configured" : "none",
-        remoteExposureSecure: loopbackOnly || operatorTokenConfigured,
-        recommendation:
-          loopbackOnly || operatorTokenConfigured
-            ? null
-            : "Configure TOTEM_OPERATOR_TOKEN before exposing Totem beyond loopback.",
+        applicationAuth: "not-implemented",
+        externalAccessLayer,
+        remoteExposureSecure: loopbackOnly,
+        recommendation: loopbackOnly
+          ? null
+          : "Totem core has no application-wide authentication boundary. Keep TOTEM_HOST on loopback or place it behind an authenticated reverse-access layer.",
       },
       backup: {
         directory: join(this.config.paths.root, "backups"),
@@ -115,7 +128,10 @@ export class OperatorManager {
     const entries = await readdir(root, { withFileTypes: true });
     const manifests = await Promise.all(
       entries
-        .filter((entry) => entry.isDirectory() && BACKUP_ID_PATTERN.test(entry.name))
+        .filter(
+          (entry) =>
+            entry.isDirectory() && BACKUP_ID_PATTERN.test(entry.name),
+        )
         .map((entry) => readManifest(join(root, entry.name, "manifest.json"))),
     );
     return manifests
@@ -131,9 +147,14 @@ export class OperatorManager {
       throw new Error(`Backup '${id}' already exists.`);
     }
     await mkdir(root, { recursive: true });
-    const entries = await readdir(this.config.paths.state).catch(() => [] as string[]);
+    const entries = await readdir(this.config.paths.state).catch(
+      () => [] as string[],
+    );
     if (await pathExists(this.config.paths.state)) {
-      await cp(this.config.paths.state, destination, { recursive: true, force: false });
+      await cp(this.config.paths.state, destination, {
+        recursive: true,
+        force: false,
+      });
     } else {
       await mkdir(destination, { recursive: true });
     }
@@ -144,7 +165,11 @@ export class OperatorManager {
       source: this.config.paths.state,
       entries: entries.map((entry) => String(entry)).sort(),
     };
-    await writeFile(join(root, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(root, "manifest.json"),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8",
+    );
     return manifest;
   }
 
@@ -154,12 +179,15 @@ export class OperatorManager {
     }
     const root = join(this.config.paths.root, "backups", id);
     const manifest = await readManifest(join(root, "manifest.json"));
-    if (!manifest) throw new Error(`Backup '${id}' was not found.`);
+    if (!manifest) {
+      throw new Error(`Backup '${id}' was not found.`);
+    }
     return {
       schema: "totem.restore-plan/v0",
       backup: manifest,
       liveRestoreSupported: false,
-      reason: "Durable state must not be replaced while the core process is running.",
+      reason:
+        "Durable state must not be replaced while the core process is running.",
       steps: [
         "Stop the Totem core service.",
         `Preserve the current state directory: ${this.config.paths.state}`,
@@ -176,22 +204,30 @@ export function registerOperatorRoutes(
 ): OperatorManager {
   const manager = new OperatorManager(options.config, options);
 
-  app.addHook("onResponse", async (request, reply) => {
+  app.addHook("onResponse", (request, reply, done) => {
     manager.record({
       occurredAt: (options.now ?? (() => new Date()))().toISOString(),
       method: request.method,
       url: request.url,
       statusCode: reply.statusCode,
     });
+    done();
   });
 
-  app.get("/api/operator/capabilities", async () => manager.capabilitySnapshot());
+  app.get("/api/operator/capabilities", async () =>
+    manager.capabilitySnapshot(),
+  );
 
-  app.get<{ Querystring: { limit?: string } }>("/api/operator/logs", async (request) => ({
-    logs: manager.recentLogs(Number(request.query.limit ?? "100")),
+  app.get<{ Querystring: { limit?: string } }>(
+    "/api/operator/logs",
+    async (request) => ({
+      logs: manager.recentLogs(Number(request.query.limit ?? "100")),
+    }),
+  );
+
+  app.get("/api/operator/backups", async () => ({
+    backups: await manager.listBackups(),
   }));
-
-  app.get("/api/operator/backups", async () => ({ backups: await manager.listBackups() }));
 
   app.post("/api/operator/backups", async (_request, reply) =>
     reply.code(201).send({ backup: await manager.createBackup() }),
