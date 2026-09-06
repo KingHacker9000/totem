@@ -18,6 +18,10 @@ function configFor(root: string): TotemConfig {
       themes: join(root, "themes"),
       logs: join(root, "logs"),
     },
+    discovery: {
+      extensionRoots: [join(root, "extensions")],
+      themeRoots: [join(root, "themes")],
+    },
   };
 }
 

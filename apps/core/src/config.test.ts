@@ -1,4 +1,4 @@
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "./config.js";
 
@@ -15,6 +15,10 @@ describe("loadConfig", () => {
     expect(config.paths.extensions).toBe(join(config.paths.root, "extensions"));
     expect(config.paths.themes).toBe(join(config.paths.root, "themes"));
     expect(config.paths.logs).toBe(join(config.paths.root, "logs"));
+    expect(config.discovery).toEqual({
+      extensionRoots: [config.paths.extensions],
+      themeRoots: [config.paths.themes],
+    });
   });
 
   it("accepts explicit portable overrides", () => {
@@ -25,6 +29,12 @@ describe("loadConfig", () => {
         TOTEM_LOG_LEVEL: "debug",
         TOTEM_ENV: "test",
         TOTEM_DATA_DIR: "./var/totem-test",
+        TOTEM_EXTENSION_ROOTS: [
+          "./fixtures/extensions",
+          "./vendor/extensions",
+        ].join(delimiter),
+        TOTEM_THEME_ROOTS: "./fixtures/themes",
+        TOTEM_ACTIVE_THEME: "minimal",
       },
     });
 
@@ -33,6 +43,14 @@ describe("loadConfig", () => {
       port: 4312,
       logLevel: "debug",
       environment: "test",
+      discovery: {
+        extensionRoots: [
+          resolve("./fixtures/extensions"),
+          resolve("./vendor/extensions"),
+        ],
+        themeRoots: [resolve("./fixtures/themes")],
+        activeThemeId: "minimal",
+      },
     });
     expect(config.paths.root).toBe(resolve("./var/totem-test"));
   });
@@ -45,12 +63,14 @@ describe("loadConfig", () => {
           TOTEM_PORT: "70000",
           TOTEM_LOG_LEVEL: "verbose",
           TOTEM_ENV: "qa",
+          TOTEM_ACTIVE_THEME: "Invalid Theme",
         },
       });
       throw new Error("expected loadConfig to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(ConfigError);
       expect((error as ConfigError).issues).toEqual([
+        "TOTEM_ACTIVE_THEME must be a valid package id",
         "TOTEM_HOST must be a hostname or IP address without whitespace or slashes",
         "TOTEM_PORT must be an integer between 1 and 65535",
         "TOTEM_LOG_LEVEL must be one of: fatal, error, warn, info, debug, trace, silent",

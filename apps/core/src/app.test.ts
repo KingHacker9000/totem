@@ -14,10 +14,14 @@ const testConfig: TotemConfig = {
     themes: "/tmp/totem-test/themes",
     logs: "/tmp/totem-test/logs",
   },
+  discovery: {
+    extensionRoots: ["/tmp/totem-test/extensions"],
+    themeRoots: ["/tmp/totem-test/themes"],
+  },
 };
 
 describe("core HTTP surface", () => {
-  it("serves identity, health, and runtime status", async () => {
+  it("serves identity, health, runtime status, and discovery snapshots", async () => {
     const startedAt = "2026-09-05T22:00:00.000Z";
     const app = createApp({ config: testConfig, startedAt, logger: false });
 
@@ -45,6 +49,21 @@ describe("core HTTP surface", () => {
         dataDir: testConfig.paths.root,
       });
       expect(status.json().uptimeSeconds).toBeGreaterThanOrEqual(0);
+
+      const extensions = await app.inject({
+        method: "GET",
+        url: "/api/extensions",
+      });
+      expect(extensions.statusCode).toBe(200);
+      expect(extensions.json()).toEqual({ packages: [], rootDiagnostics: [] });
+
+      const themes = await app.inject({ method: "GET", url: "/api/themes" });
+      expect(themes.statusCode).toBe(200);
+      expect(themes.json()).toEqual({
+        packages: [],
+        rootDiagnostics: [],
+        activeTheme: { source: "fallback", id: null, packagePath: null },
+      });
 
       expect(
         (await app.inject({ method: "GET", url: "/missing" })).statusCode,
