@@ -5,15 +5,16 @@ import { ConfigError, loadConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
 import {
   parseRegistryTrustedKeys,
-  registerEcosystemRoutes,
   RegistryManager,
   RemoteNodeManager,
+  registerEcosystemRoutes,
 } from "./ecosystemRoutes.js";
+import { RuntimeEventHub } from "./events.js";
 import { ExtensionBackendHost } from "./extensionBackendHost.js";
 import { registerExtensionContributionRoutes } from "./extensionContributionRoutes.js";
 import { ExtensionRuntime } from "./extensionRuntime.js";
-import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
+import { registerOperatorRoutes } from "./operatorRoutes.js";
 import { TaskOrchestrator } from "./orchestrator.js";
 import { registerProviderRoutes } from "./providerRoutes.js";
 import { RealProviderCoordinator } from "./realProviders.js";
@@ -95,6 +96,7 @@ try {
     extensionBackendHost,
   );
   registerThemeRoutes(app, themeRuntime);
+  registerOperatorRoutes(app, { config });
 
   const registry = new RegistryManager({
     stateDir: config.paths.state,
