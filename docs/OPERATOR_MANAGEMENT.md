@@ -12,9 +12,11 @@ Totem's `/operator` surface reads management state from core APIs. It does not k
 
 ## Security posture
 
-The default core bind remains `127.0.0.1`. `/api/operator/capabilities` reports whether the effective bind is loopback-only. If Totem is configured on a non-loopback host, set `TOTEM_OPERATOR_TOKEN` before treating that deployment as remotely protected; the status surface reports a warning when neither condition is true.
+The default core bind remains `127.0.0.1`. `/api/operator/capabilities` reports whether the effective bind is loopback-only. That loopback default is the only security boundary core claims today.
 
-The current token setting is a deployment/posture signal rather than a new application-wide authentication layer. Operators should continue to place non-loopback deployments behind the authenticated reverse-access layer used by the host until a full remote-auth boundary is implemented.
+Totem does **not** currently implement application-wide authentication. A non-loopback bind is therefore reported as needing action even when an operator declares an external access layer through `TOTEM_REMOTE_ACCESS_LAYER`. The declaration is diagnostic metadata only; it is not treated as proof that the deployment is protected.
+
+For remote operation, keep `TOTEM_HOST` on loopback and expose Totem through the host's authenticated reverse-access layer, or otherwise ensure authentication is enforced before traffic reaches core. The dashboard deliberately does not present a configured-but-unenforced token as security.
 
 ## Speech and display
 
