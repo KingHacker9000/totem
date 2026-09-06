@@ -1,0 +1,37 @@
+name: T903 formatter
+
+on:
+  push:
+    branches:
+      - chatgpt-worker2/t903-operator-apis
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-worker2/t903-operator-apis
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome check --write apps/core/src/operatorRoutes.ts apps/core/src/operatorRoutes.test.ts apps/dashboard/src/ManagementConsole.tsx apps/core/src/main.ts apps/dashboard/src/main.tsx
+      - name: Commit formatter fixes
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/core/src/operatorRoutes.ts apps/core/src/operatorRoutes.test.ts apps/dashboard/src/ManagementConsole.tsx apps/core/src/main.ts apps/dashboard/src/main.tsx
+          git commit -m "chore: apply Biome fixes for T903"
+          git push
