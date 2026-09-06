@@ -1,4 +1,10 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,7 +14,11 @@ import { OperatorManager } from "./operatorRoutes.js";
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs
+      .splice(0)
+      .map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 function makeConfig(root: string, host = "127.0.0.1"): TotemConfig {
@@ -32,7 +42,7 @@ function makeConfig(root: string, host = "127.0.0.1"): TotemConfig {
 }
 
 describe("OperatorManager", () => {
-  it("reports loopback as secure-by-default and warns on unauthenticated remote bind", async () => {
+  it("reports loopback as secure-by-default and warns on remote bind", async () => {
     const root = await mkdtemp(join(tmpdir(), "totem-operator-test-"));
     tempDirs.push(root);
 
@@ -40,39 +50,53 @@ describe("OperatorManager", () => {
     expect(local.capabilitySnapshot().security).toMatchObject({
       loopbackOnly: true,
       remoteExposureSecure: true,
-      operatorAuth: "none",
+      applicationAuth: "not-implemented",
     });
 
-    const remote = new OperatorManager(makeConfig(root, "0.0.0.0"), { env: {} });
+    const remote = new OperatorManager(makeConfig(root, "0.0.0.0"), {
+      env: {},
+    });
     expect(remote.capabilitySnapshot().security).toMatchObject({
       loopbackOnly: false,
       remoteExposureSecure: false,
+      applicationAuth: "not-implemented",
     });
 
-    const authenticated = new OperatorManager(makeConfig(root, "0.0.0.0"), {
-      env: { TOTEM_OPERATOR_TOKEN: "configured-secret" },
-    });
-    expect(authenticated.capabilitySnapshot().security).toMatchObject({
+    const declaredAccessLayer = new OperatorManager(
+      makeConfig(root, "0.0.0.0"),
+      { env: { TOTEM_REMOTE_ACCESS_LAYER: "tailscale-proxy" } },
+    );
+    expect(declaredAccessLayer.capabilitySnapshot().security).toMatchObject({
       loopbackOnly: false,
-      remoteExposureSecure: true,
-      operatorAuth: "bearer-token-configured",
+      remoteExposureSecure: false,
+      externalAccessLayer: "tailscale-proxy",
     });
   });
 
-  it("creates immutable state backups and produces restart-required restore plans", async () => {
+  it("creates state backups and produces restart-required restore plans", async () => {
     const root = await mkdtemp(join(tmpdir(), "totem-operator-test-"));
     tempDirs.push(root);
     const config = makeConfig(root);
     await mkdir(config.paths.state, { recursive: true });
-    await writeFile(join(config.paths.state, "state.json"), "original\n", "utf8");
+    await writeFile(
+      join(config.paths.state, "state.json"),
+      "original\n",
+      "utf8",
+    );
 
     const now = new Date("2026-09-06T19:40:00.000Z");
-    const manager = new OperatorManager(config, { now: () => now, env: {} });
+    const manager = new OperatorManager(config, {
+      now: () => now,
+      env: {},
+    });
     const backup = await manager.createBackup();
     expect(backup.id).toBe("20260906T194000.000Z");
     expect(backup.entries).toContain("state.json");
     expect(
-      await readFile(join(root, "backups", backup.id, "state", "state.json"), "utf8"),
+      await readFile(
+        join(root, "backups", backup.id, "state", "state.json"),
+        "utf8",
+      ),
     ).toBe("original\n");
 
     const listed = await manager.listBackups();
