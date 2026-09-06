@@ -1,0 +1,33 @@
+name: T112 lockfile helper
+
+on:
+  push:
+    branches:
+      - chatgpt/t112-dashboard-tasks
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    if: ${{ !contains(github.event.head_commit.message, '[t112-lockfile]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/t112-dashboard-tasks
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.20.0
+      - run: corepack enable
+      - run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Commit lockfile update
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add pnpm-lock.yaml
+          git commit -m "chore: update T112 lockfile [t112-lockfile]"
+          git push
