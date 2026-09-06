@@ -39,15 +39,23 @@ const processes = [
 ];
 
 console.log("Totem Phase 1 development stack");
-console.log(`  core:      http://${env.TOTEM_HOST || "127.0.0.1"}:${env.TOTEM_PORT || "3000"}`);
+console.log(
+  `  core:      http://${env.TOTEM_HOST || "127.0.0.1"}:${env.TOTEM_PORT || "3000"}`,
+);
 console.log("  dashboard: http://127.0.0.1:5173");
 console.log("  display:   http://127.0.0.1:5174");
-console.log("  provider:  deterministic MockAgentProvider is local/in-process; no credentials required");
+console.log(
+  "  provider:  deterministic MockAgentProvider is local/in-process; no credentials required",
+);
 if (env.TOTEM_EXTENSION_ROOTS) {
-  console.log(`  extension roots: ${env.TOTEM_EXTENSION_ROOTS.split(delimiter).join(", ")}`);
+  console.log(
+    `  extension roots: ${env.TOTEM_EXTENSION_ROOTS.split(delimiter).join(", ")}`,
+  );
 }
 if (env.TOTEM_THEME_ROOTS) {
-  console.log(`  theme roots:     ${env.TOTEM_THEME_ROOTS.split(delimiter).join(", ")}`);
+  console.log(
+    `  theme roots:     ${env.TOTEM_THEME_ROOTS.split(delimiter).join(", ")}`,
+  );
 }
 console.log("Press Ctrl+C once to stop the complete stack.\n");
 
@@ -91,7 +99,9 @@ await Promise.all(
         child.once("exit", (code, signal) => {
           if (!stopping && code !== 0) {
             exitCode = code ?? 1;
-            console.error(`[${label}] exited unexpectedly (${signal ?? `code ${code}`}); stopping stack.`);
+            console.error(
+              `[${label}] exited unexpectedly (${signal ?? `code ${code}`}); stopping stack.`,
+            );
             stopAll();
           }
           resolveChild();
