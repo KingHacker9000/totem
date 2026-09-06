@@ -138,6 +138,8 @@ Run `corepack enable`, reopen the terminal, and retry. If Corepack is unavailabl
 
 Use Node 24.18.0 or Node 22.20.0+. Older Node 22 patch releases are outside the tested Phase 1 floor for the current `better-sqlite3` dependency. After changing Node versions, remove `node_modules` and run `pnpm install --frozen-lockfile` again.
 
+`pnpm install` prints `Ignored build scripts: better-sqlite3`. This is expected and harmless: `better-sqlite3` 13.x ships prebuilt binaries (including `win32-x64`) that load without a local compile step, so its install script is not needed.
+
 ### Port already in use
 
 Stop the process using ports 3000, 5173, or 5174. Core can instead use another port via `TOTEM_PORT`; if core moves, browser proxy configuration may also need to be adjusted for that development session. Dashboard/display Vite ports are strict by design.

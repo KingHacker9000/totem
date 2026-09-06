@@ -177,24 +177,32 @@ export class TaskOrchestrator {
     const taskId = this.#newId("task");
     const correlationId = this.#newId("corr");
 
-    const session = await this.#provider.startSession();
+    // The provider mints its own session id, which is only unique within a
+    // single provider instance (the deterministic mock restarts its counter on
+    // every core start). Core owns the durable session identity and keeps the
+    // provider's id as a reference, so restarting core cannot collide with a
+    // persisted `agent_sessions` row.
+    const providerSession = await this.#provider.startSession();
+    const providerSessionId = providerSession.id;
+    const agentSessionId = this.#newId("sess");
     await this.#taskStore.createSession({
-      id: session.id,
+      id: agentSessionId,
       providerId: this.#providerId,
+      providerSessionRef: providerSessionId,
       at: this.#timestamp(),
     });
 
     // Drain the provider's session-created event onto the hub before the task
     // exists; it carries no taskId and is not part of durable task history.
     const iterator = this.#provider
-      .streamEvents(session.id)
+      .streamEvents(providerSessionId)
       [Symbol.asyncIterator]();
     await this.#drainNonTaskEvents(iterator);
 
     const createdEvent = this.#toEvent({
       type: "task.created",
       taskId,
-      sessionId: session.id,
+      sessionId: agentSessionId,
       correlationId,
       payload: { kind, title, prompt },
       source: { kind: "core", id: "core" },
@@ -204,38 +212,41 @@ export class TaskOrchestrator {
         id: taskId,
         kind,
         title,
-        sessionId: session.id,
+        sessionId: agentSessionId,
         providerId: this.#providerId,
         correlationId,
       },
       createdEvent,
     );
     this.#hub.publish(createdEvent);
-    this.#sessionByTask.set(taskId, session.id);
+    this.#sessionByTask.set(taskId, providerSessionId);
 
     if (input.scenario && input.scenario !== "success") {
-      this.#provider.scriptNext(session.id, input.scenario);
+      this.#provider.scriptNext(providerSessionId, input.scenario);
     }
-    await this.#provider.sendMessage(session.id, {
+    await this.#provider.sendMessage(providerSessionId, {
       content: prompt,
       taskId,
       correlationId,
     });
 
-    const run = this.#consume(iterator, session.id, taskId).catch(
-      (error: unknown) => {
-        this.#logger?.error(
-          { event: "task.consume_failed", taskId, err: error },
-          "Mock task event consumption failed",
-        );
-      },
-    );
+    const run = this.#consume(
+      iterator,
+      providerSessionId,
+      agentSessionId,
+      taskId,
+    ).catch((error: unknown) => {
+      this.#logger?.error(
+        { event: "task.consume_failed", taskId, err: error },
+        "Mock task event consumption failed",
+      );
+    });
     this.#running.set(taskId, run);
     void run.finally(() => {
       if (this.#running.get(taskId) === run) this.#running.delete(taskId);
     });
 
-    return { taskId, sessionId: session.id, status: "queued" };
+    return { taskId, sessionId: agentSessionId, status: "queued" };
   }
 
   async interruptTask(taskId: string): Promise<void> {
@@ -270,7 +281,8 @@ export class TaskOrchestrator {
 
   async #consume(
     iterator: AsyncIterator<TotemEvent>,
-    sessionId: string,
+    providerSessionId: string,
+    agentSessionId: string,
     taskId: string,
   ): Promise<void> {
     try {
@@ -284,13 +296,13 @@ export class TaskOrchestrator {
     } finally {
       this.#sessionByTask.delete(taskId);
       try {
-        await this.#provider.terminate(sessionId);
+        await this.#provider.terminate(providerSessionId);
       } catch {
         // best effort
       }
       try {
         await this.#taskStore.updateSessionStatus(
-          sessionId,
+          agentSessionId,
           "closed",
           this.#timestamp(),
         );
