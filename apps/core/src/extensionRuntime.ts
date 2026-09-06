@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { DiscoveredPackageV0 } from "./discovery.js";
 
 export type ExtensionLifecycleState =
@@ -43,6 +45,11 @@ interface Phase2Manifest {
   mcp?: unknown;
 }
 
+interface RuntimeSource {
+  candidate: DiscoveredPackageV0;
+  manifest: Record<string, unknown>;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -65,6 +72,14 @@ function secretRefs(value: unknown): Array<{ id: string; required: boolean }> {
   });
 }
 
+async function readPhase2Manifest(
+  candidate: DiscoveredPackageV0,
+): Promise<Record<string, unknown>> {
+  const raw = await readFile(resolve(candidate.path, "totem-extension.json"), "utf8");
+  const parsed: unknown = JSON.parse(raw);
+  return isRecord(parsed) ? parsed : {};
+}
+
 /**
  * Security boundary for extension-owned runtime capabilities.
  *
@@ -81,6 +96,7 @@ export class ExtensionRuntime {
   constructor(
     packages: readonly DiscoveredPackageV0[],
     grants: Readonly<Record<string, readonly string[]>> = {},
+    manifests: Readonly<Record<string, Record<string, unknown>>> = {},
   ) {
     for (const candidate of packages) {
       if (
@@ -90,7 +106,8 @@ export class ExtensionRuntime {
       ) {
         continue;
       }
-      const manifest = (candidate.manifest ?? {}) as unknown as Phase2Manifest;
+      const manifest = (manifests[candidate.id] ??
+        candidate.manifest ?? {}) as unknown as Phase2Manifest;
       const requested = stringList(manifest.permissions);
       const granted = new Set(grants[candidate.id] ?? []);
       const effective = requested.filter((permission) => granted.has(permission));
@@ -107,36 +124,65 @@ export class ExtensionRuntime {
         secretRefs: secretRefs(manifest.secrets),
         mcp: records(manifest.mcp),
         diagnostics: [],
-        manifest: (candidate.manifest ?? {}) as unknown as Record<string, unknown>,
+        manifest: (manifests[candidate.id] ??
+          candidate.manifest ?? {}) as unknown as Record<string, unknown>,
       });
     }
   }
 
-  list(): ExtensionRuntimeRecord[] {
-    return [...this.#records.values()].map(({ manifest: _manifest, ...record }) =>
-      structuredClone(record),
+  /**
+   * Phase 1 discovery normalizes manifests to its old stub shape. Until T207
+   * removes that compatibility layer, reload the package-local JSON here so the
+   * Phase 2 security/runtime declarations are not silently discarded.
+   */
+  static async fromDiscovery(
+    packages: readonly DiscoveredPackageV0[],
+    grants: Readonly<Record<string, readonly string[]>> = {},
+  ): Promise<ExtensionRuntime> {
+    const sources = await Promise.all(
+      packages
+        .filter(
+          (candidate) =>
+            candidate.type === "extension" &&
+            candidate.id !== undefined &&
+            candidate.state !== "invalid",
+        )
+        .map(async (candidate): Promise<RuntimeSource | undefined> => {
+          try {
+            return { candidate, manifest: await readPhase2Manifest(candidate) };
+          } catch {
+            return undefined;
+          }
+        }),
     );
+    const manifests: Record<string, Record<string, unknown>> = {};
+    for (const source of sources) {
+      if (source?.candidate.id) manifests[source.candidate.id] = source.manifest;
+    }
+    return new ExtensionRuntime(packages, grants, manifests);
+  }
+
+  list(): ExtensionRuntimeRecord[] {
+    return [...this.#records.values()].map((record) => this.#public(record));
   }
 
   get(extensionId: string): ExtensionRuntimeRecord | undefined {
     const record = this.#records.get(extensionId);
-    if (!record) return undefined;
-    const { manifest: _manifest, ...publicRecord } = record;
-    return structuredClone(publicRecord);
+    return record ? this.#public(record) : undefined;
   }
 
   setEnabled(extensionId: string, enabled: boolean): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
     record.enabled = enabled;
     record.state = enabled ? "ready" : "disabled";
-    return this.get(extensionId) as ExtensionRuntimeRecord;
+    return this.#public(record);
   }
 
   markRunning(extensionId: string): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
     if (!record.enabled) throw new Error(`Extension '${extensionId}' is disabled`);
     record.state = "running";
-    return this.get(extensionId) as ExtensionRuntimeRecord;
+    return this.#public(record);
   }
 
   markFailed(extensionId: string, error: unknown): ExtensionRuntimeRecord {
@@ -146,7 +192,7 @@ export class ExtensionRuntime {
       code: "extension_runtime_failed",
       message: error instanceof Error ? error.message : String(error),
     });
-    return this.get(extensionId) as ExtensionRuntimeRecord;
+    return this.#public(record);
   }
 
   assertPermission(extensionId: string, permission: string): void {
@@ -171,6 +217,23 @@ export class ExtensionRuntime {
 
   publicSnapshot(): ExtensionRuntimeRecord[] {
     return this.list();
+  }
+
+  #public(
+    record: ExtensionRuntimeRecord & { manifest: Record<string, unknown> },
+  ): ExtensionRuntimeRecord {
+    return structuredClone({
+      id: record.id,
+      enabled: record.enabled,
+      state: record.state,
+      requestedPermissions: record.requestedPermissions,
+      grantedPermissions: record.grantedPermissions,
+      contributions: record.contributions,
+      settings: record.settings,
+      secretRefs: record.secretRefs,
+      mcp: record.mcp,
+      diagnostics: record.diagnostics,
+    });
   }
 
   #require(
