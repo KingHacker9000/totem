@@ -15,7 +15,7 @@ function extension(
     path: `/extensions/${String(manifest.id)}`,
     state: enabled ? "enabled" : "disabled",
     enabled,
-    manifest: manifest as DiscoveredPackageV0["manifest"],
+    manifest: manifest as unknown as DiscoveredPackageV0["manifest"],
     errors: [],
   };
 }
