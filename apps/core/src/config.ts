@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 
 export const LOG_LEVELS = [
   "fatal",
@@ -21,12 +21,19 @@ export interface TotemDataPaths {
   logs: string;
 }
 
+export interface TotemDiscoveryConfig {
+  extensionRoots: string[];
+  themeRoots: string[];
+  activeThemeId?: string;
+}
+
 export interface TotemConfig {
   host: string;
   port: number;
   logLevel: LogLevel;
   environment: "development" | "test" | "production";
   paths: TotemDataPaths;
+  discovery: TotemDiscoveryConfig;
 }
 
 export class ConfigError extends Error {
@@ -126,6 +133,41 @@ function parseDataDir(
   return resolve(candidate);
 }
 
+function parseDiscoveryRoots(
+  raw: string | undefined,
+  fallback: string,
+  field: string,
+  issues: string[],
+): string[] {
+  if (raw === undefined || raw.trim() === "") return [fallback];
+
+  const roots = raw
+    .split(delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => resolve(entry));
+
+  if (roots.length === 0) {
+    issues.push(`${field} must contain at least one path`);
+    return [fallback];
+  }
+  if (roots.some((entry) => entry.includes("\0"))) {
+    issues.push(`${field} must not contain NUL characters`);
+    return [fallback];
+  }
+  return roots;
+}
+
+function parseActiveThemeId(raw: string | undefined, issues: string[]): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
+    issues.push("TOTEM_ACTIVE_THEME must be a valid package id");
+    return undefined;
+  }
+  return value;
+}
+
 export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
@@ -135,18 +177,36 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
   if (homeDir.trim() === "") issues.push("home directory must not be empty");
 
   const root = parseDataDir(env.TOTEM_DATA_DIR, env, platform, homeDir, issues);
+  const paths: TotemDataPaths = {
+    root,
+    state: join(root, "state"),
+    extensions: join(root, "extensions"),
+    themes: join(root, "themes"),
+    logs: join(root, "logs"),
+  };
 
   const config: TotemConfig = {
     host: parseHost(env.TOTEM_HOST, issues),
     port: parsePort(env.TOTEM_PORT, issues),
     logLevel: parseLogLevel(env.TOTEM_LOG_LEVEL, issues),
     environment: parseEnvironment(env.TOTEM_ENV ?? env.NODE_ENV, issues),
-    paths: {
-      root,
-      state: join(root, "state"),
-      extensions: join(root, "extensions"),
-      themes: join(root, "themes"),
-      logs: join(root, "logs"),
+    paths,
+    discovery: {
+      extensionRoots: parseDiscoveryRoots(
+        env.TOTEM_EXTENSION_ROOTS,
+        paths.extensions,
+        "TOTEM_EXTENSION_ROOTS",
+        issues,
+      ),
+      themeRoots: parseDiscoveryRoots(
+        env.TOTEM_THEME_ROOTS,
+        paths.themes,
+        "TOTEM_THEME_ROOTS",
+        issues,
+      ),
+      ...(parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues) === undefined
+        ? {}
+        : { activeThemeId: parseActiveThemeId(env.TOTEM_ACTIVE_THEME, issues) }),
     },
   };
 
