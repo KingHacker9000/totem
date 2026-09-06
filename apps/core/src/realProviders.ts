@@ -109,7 +109,10 @@ export class RealProviderCoordinator {
   }> {
     const prompt = input.prompt.trim();
     if (!prompt) {
-      throw new RealProviderError("prompt_required", "prompt must not be empty");
+      throw new RealProviderError(
+        "prompt_required",
+        "prompt must not be empty",
+      );
     }
 
     const provider = this.#providers.get(input.providerId);
@@ -203,17 +206,14 @@ export class RealProviderCoordinator {
       correlationId,
     });
 
-    const run = this.#consume(
-      iterator,
-      active,
-      taskId,
-      correlationId,
-    ).catch((error: unknown) => {
-      this.#logger?.error(
-        { event: "provider_task.consume_failed", taskId, err: error },
-        "Real provider task event consumption failed",
-      );
-    });
+    const run = this.#consume(iterator, active, taskId, correlationId).catch(
+      (error: unknown) => {
+        this.#logger?.error(
+          { event: "provider_task.consume_failed", taskId, err: error },
+          "Real provider task event consumption failed",
+        );
+      },
+    );
     this.#running.set(taskId, run);
     void run.finally(() => {
       if (this.#running.get(taskId) === run) this.#running.delete(taskId);
@@ -278,7 +278,10 @@ export class RealProviderCoordinator {
       taskId,
       sessionId: durableSessionId,
       correlationId: draft.correlationId ?? correlationId,
-      source: { kind: "provider", id: this.#active.get(taskId)?.provider.id ?? "agent" },
+      source: {
+        kind: "provider",
+        id: this.#active.get(taskId)?.provider.id ?? "agent",
+      },
       payload: draft.payload,
     });
   }
@@ -336,11 +339,7 @@ export class RealProviderCoordinator {
           break;
         }
         if (value.type === "agent.interrupted") {
-          await this.#cancel(
-            taskId,
-            active.durableSessionId,
-            correlationId,
-          );
+          await this.#cancel(taskId, active.durableSessionId, correlationId);
           break;
         }
       }
@@ -382,7 +381,9 @@ export class RealProviderCoordinator {
       source: { kind: "core", id: "agent-orchestrator" },
       payload: { result },
     });
-    await this.#taskStore.transitionTask(taskId, "succeeded", event, { result });
+    await this.#taskStore.transitionTask(taskId, "succeeded", event, {
+      result,
+    });
     this.#hub.publish(event);
   }
 
@@ -396,9 +397,7 @@ export class RealProviderCoordinator {
     if (!task || TERMINAL_STATUSES.has(task.status)) return;
     const failure: NormalizedFailure = {
       code:
-        typeof payload.code === "string"
-          ? payload.code
-          : "provider_failure",
+        typeof payload.code === "string" ? payload.code : "provider_failure",
       message:
         typeof payload.message === "string"
           ? payload.message
