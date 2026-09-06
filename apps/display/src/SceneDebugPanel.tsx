@@ -104,7 +104,11 @@ export function SceneDebugPanel() {
         <button
           type="button"
           onClick={() =>
-            setLedState({ semantic: "idle", effect: "breathe", intensity: 0.35 })
+            setLedState({
+              semantic: "idle",
+              effect: "breathe",
+              intensity: 0.35,
+            })
           }
         >
           Idle
@@ -124,7 +128,11 @@ export function SceneDebugPanel() {
         <button
           type="button"
           onClick={() =>
-            setLedState({ semantic: "success", effect: "solid", intensity: 0.7 })
+            setLedState({
+              semantic: "success",
+              effect: "solid",
+              intensity: 0.7,
+            })
           }
         >
           Success
@@ -132,7 +140,8 @@ export function SceneDebugPanel() {
       </div>
       <p className="muted event-note">
         Changes emit normalized <code>display.scene_changed</code> and{" "}
-        <code>display.led_changed</code> events on the local simulator event seam.
+        <code>display.led_changed</code> events on the local simulator event
+        seam.
       </p>
     </section>
   );
