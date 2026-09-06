@@ -9,7 +9,8 @@
     "pnpm": ">=10 <11"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm -r build",
     "lint": "biome lint .",
     "format": "biome format --write .",
