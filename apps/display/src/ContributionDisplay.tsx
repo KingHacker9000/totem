@@ -217,7 +217,8 @@ export function ContributionDisplay() {
                     <div className="touch-readout">
                       <strong>No granted display contributions</strong>
                       <span>
-                        Grant display.present to an enabled compatible extension.
+                        Grant display.present to an enabled compatible
+                        extension.
                       </span>
                     </div>
                   ) : (
@@ -244,7 +245,9 @@ export function ContributionDisplay() {
               {display.contentSafeArea.width} × {display.contentSafeArea.height}
               at ({display.contentSafeArea.x}, {display.contentSafeArea.y}).
             </p>
-            <p>{views.length} display contribution(s) currently granted by core.</p>
+            <p>
+              {views.length} display contribution(s) currently granted by core.
+            </p>
           </aside>
         </div>
       ) : null}

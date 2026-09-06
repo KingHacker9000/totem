@@ -65,7 +65,9 @@ function ContributionCard({ view }: { view: ContributionView }) {
         <h3>{view.title}</h3>
       </div>
       {view.data === undefined ? (
-        <p className="muted">No presentation snapshot is currently available.</p>
+        <p className="muted">
+          No presentation snapshot is currently available.
+        </p>
       ) : (
         <dl className="contribution-fields">
           {fields.map(([key, value]) => (
@@ -178,8 +180,8 @@ export function ContributionConsole() {
         </div>
         <p>
           Display contributions appear only with an effective{" "}
-          <code>display.present</code> grant. The simulator consumes the same API
-          and safe-area contract.
+          <code>display.present</code> grant. The simulator consumes the same
+          API and safe-area contract.
         </p>
       </section>
     </main>

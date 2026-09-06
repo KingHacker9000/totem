@@ -203,7 +203,9 @@ export class ExtensionBackendHost {
    * other backend capability. Snapshot failures are isolated and never expose
    * backend error details to UI callers.
    */
-  async contributionSnapshot(extensionId: string): Promise<unknown | undefined> {
+  async contributionSnapshot(
+    extensionId: string,
+  ): Promise<unknown | undefined> {
     const record = this.#runtime.get(extensionId);
     if (!record?.enabled || record.state === "failed") return undefined;
     if (!this.#loaded.has(extensionId)) await this.start(extensionId);
@@ -216,7 +218,8 @@ export class ExtensionBackendHost {
       this.#diagnostics.push({
         extensionId,
         code: "extension_contribution_snapshot_failed",
-        message: "Extension contribution snapshot failed; error details withheld",
+        message:
+          "Extension contribution snapshot failed; error details withheld",
       });
       return undefined;
     }

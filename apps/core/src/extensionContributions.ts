@@ -28,7 +28,10 @@ function declarations(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
-function titleOf(entry: Record<string, unknown>, contributionId: string): string {
+function titleOf(
+  entry: Record<string, unknown>,
+  contributionId: string,
+): string {
   return typeof entry.title === "string" && entry.title.trim() !== ""
     ? entry.title
     : contributionId;
