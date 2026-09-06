@@ -23,7 +23,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseSettings(raw: string): PersistedSettings {
   const parsed: unknown = JSON.parse(raw);
-  if (!isRecord(parsed) || parsed.version !== 1 || !isRecord(parsed.extensions)) {
+  if (
+    !isRecord(parsed) ||
+    parsed.version !== 1 ||
+    !isRecord(parsed.extensions)
+  ) {
     throw new Error("Invalid extension settings file");
   }
 
@@ -84,7 +88,9 @@ export class JsonExtensionSettingsStore implements ExtensionSettingsStore {
 }
 
 /** Secret provider whose values remain process-local and are never serialized. */
-export class InMemoryExtensionSecretProvider implements ExtensionSecretProvider {
+export class InMemoryExtensionSecretProvider
+  implements ExtensionSecretProvider
+{
   readonly #values: Readonly<Record<string, Readonly<Record<string, string>>>>;
 
   constructor(
@@ -93,7 +99,10 @@ export class InMemoryExtensionSecretProvider implements ExtensionSecretProvider 
     this.#values = values;
   }
 
-  async get(extensionId: string, secretId: string): Promise<string | undefined> {
+  async get(
+    extensionId: string,
+    secretId: string,
+  ): Promise<string | undefined> {
     return this.#values[extensionId]?.[secretId];
   }
 }
