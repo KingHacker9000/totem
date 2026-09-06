@@ -1,5 +1,7 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
   color: #e8edf2;
   background: #0b0f14;
   font-synthesis: none;
@@ -136,7 +138,12 @@ input {
   place-content: center;
   justify-items: center;
   text-align: center;
-  background: radial-gradient(circle at 50% 45%, #1c334a, #111923 54%, #0a0f15 100%);
+  background: radial-gradient(
+    circle at 50% 45%,
+    #1c334a,
+    #111923 54%,
+    #0a0f15 100%
+  );
 }
 
 .ambient-scene h2 {
@@ -154,7 +161,13 @@ input {
   width: 86px;
   height: 86px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #e9f5ff, #84b9e8 24%, #3f74a6 53%, #17324a 78%);
+  background: radial-gradient(
+    circle at 35% 30%,
+    #e9f5ff,
+    #84b9e8 24%,
+    #3f74a6 53%,
+    #17324a 78%
+  );
   box-shadow: 0 0 70px rgba(86, 156, 219, 0.5);
   margin-bottom: 20px;
 }
