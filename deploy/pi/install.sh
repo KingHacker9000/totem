@@ -25,9 +25,13 @@ require_root
 require_command systemctl
 require_command node
 require_command pnpm
+require_command tar
 
-node_major=$(node -p 'process.versions.node.split(".")[0]')
-if (( node_major < 22 )); then
+if ! node -e '
+const [major, minor, patch] = process.versions.node.split(".").map(Number);
+const ok = major > 22 || (major === 22 && (minor > 20 || (minor === 20 && patch >= 0)));
+process.exit(ok ? 0 : 1);
+'; then
   echo "Totem requires Node >=22.20.0; found $(node --version)." >&2
   exit 1
 fi
@@ -38,11 +42,18 @@ fi
 
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 0750 "$STATE_DIR"
 install -d -o root -g "$SERVICE_USER" -m 0750 "$CONFIG_DIR"
-install -d -o root -g root -m 0755 "$PREFIX"
+install -d -o root -g root -m 0755 "$PREFIX/releases"
 
 release="$PREFIX/releases/$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -o root -g root -m 0755 "$release"
-cp -a "$SOURCE_DIR/." "$release/"
+
+tar \
+  --exclude=.git \
+  --exclude=node_modules \
+  --exclude='*/node_modules' \
+  --exclude=dist \
+  --exclude='*/dist' \
+  -C "$SOURCE_DIR" -cf - . | tar -C "$release" -xf -
 
 cd "$release"
 pnpm install --frozen-lockfile
@@ -61,6 +72,6 @@ systemctl restart totem.service
 
 echo "Totem installed at $release"
 echo "Current release: $(readlink -f "$PREFIX/current")"
-echo "State directory: $STATE_DIR"
+echo "State directory prepared by installer: $STATE_DIR"
 echo "Configuration: $CONFIG_DIR/totem.env"
 echo "Status: systemctl status totem --no-pager"
