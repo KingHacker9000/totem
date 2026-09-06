@@ -73,7 +73,12 @@ export interface DeviceDrivers {
   led: LedDriver;
 }
 
-const status = (kind: DriverKind, id: string, available: boolean, detail?: string): DriverStatus => ({
+const status = (
+  kind: DriverKind,
+  id: string,
+  available: boolean,
+  detail?: string,
+): DriverStatus => ({
   kind,
   id,
   available,
@@ -85,7 +90,12 @@ export class HeadlessDisplayDriver implements DisplayDriver {
   readonly id = "headless";
 
   async status(): Promise<DriverStatus> {
-    return status(this.kind, this.id, true, "Frames are intentionally discarded");
+    return status(
+      this.kind,
+      this.id,
+      true,
+      "Frames are intentionally discarded",
+    );
   }
 
   async present(_frame: DisplayFrame): Promise<void> {}
@@ -131,11 +141,20 @@ export class VirtualLedDriver implements LedDriver {
   #state: LedState = { effect: "off", intensity: 0 };
 
   async status(): Promise<DriverStatus> {
-    return status(this.kind, this.id, true, `Virtual LED effect: ${this.#state.effect}`);
+    return status(
+      this.kind,
+      this.id,
+      true,
+      `Virtual LED effect: ${this.#state.effect}`,
+    );
   }
 
   async set(state: LedState): Promise<void> {
-    if (!Number.isFinite(state.intensity) || state.intensity < 0 || state.intensity > 1) {
+    if (
+      !Number.isFinite(state.intensity) ||
+      state.intensity < 0 ||
+      state.intensity > 1
+    ) {
       throw new RangeError("LED intensity must be between 0 and 1");
     }
     this.#state = { ...state };
