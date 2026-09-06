@@ -83,6 +83,19 @@ if (process.platform === "linux") {
   );
 }
 
+const drivers = {
+  display: process.env.TOTEM_DISPLAY_DRIVER ?? "headless",
+  touch: process.env.TOTEM_TOUCH_DRIVER ?? "none",
+  audio: process.env.TOTEM_AUDIO_DRIVER ?? "none",
+  led: process.env.TOTEM_LED_DRIVER ?? "virtual",
+};
+add(
+  "drivers",
+  "PASS",
+  "Device-driver selections resolved without requiring physical hardware",
+  drivers,
+);
+
 try {
   await mkdir(stateDir, { recursive: true });
   await access(stateDir, constants.R_OK | constants.W_OK);
@@ -201,6 +214,16 @@ if (!offline) {
     status,
   );
 
+  const database = await probeJson("/api/tasks");
+  add(
+    "database",
+    database.ok ? "PASS" : "FAIL",
+    database.ok
+      ? "Durable task-store read succeeded"
+      : "Durable task-store read failed; verify SQLite/native module and state permissions",
+    database,
+  );
+
   for (const [id, route] of [
     ["extensions", "/api/extensions/runtime"],
     ["themes", "/api/themes/runtime"],
@@ -238,6 +261,7 @@ if (!offline) {
   for (const id of [
     "health",
     "core_status",
+    "database",
     "extensions",
     "themes",
     "providers",
