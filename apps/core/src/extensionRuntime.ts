@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { DiscoveredPackageV0 } from "./discovery.js";
+import type {
+  ExtensionSecretProvider,
+  ExtensionSettingsStore,
+} from "./extensionServices.js";
 
 export type ExtensionLifecycleState =
   | "disabled"
@@ -26,6 +30,11 @@ export interface ExtensionRuntimeRecord {
   diagnostics: ExtensionRuntimeDiagnostic[];
 }
 
+export interface ExtensionRuntimeServices {
+  settings?: ExtensionSettingsStore;
+  secrets?: ExtensionSecretProvider;
+}
+
 export class ExtensionPermissionError extends Error {
   constructor(
     readonly extensionId: string,
@@ -33,6 +42,20 @@ export class ExtensionPermissionError extends Error {
   ) {
     super(`Extension '${extensionId}' is not granted '${permission}'`);
     this.name = "ExtensionPermissionError";
+  }
+}
+
+export class ExtensionSettingsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExtensionSettingsError";
+  }
+}
+
+export class ExtensionSecretError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExtensionSecretError";
   }
 }
 
@@ -72,6 +95,39 @@ function secretRefs(value: unknown): Array<{ id: string; required: boolean }> {
   });
 }
 
+function settingDefinitions(value: unknown): Record<string, Record<string, unknown>> {
+  if (!isRecord(value)) return {};
+  const definitions: Record<string, Record<string, unknown>> = {};
+  for (const [key, definition] of Object.entries(value)) {
+    if (isRecord(definition)) definitions[key] = definition;
+  }
+  return definitions;
+}
+
+function validateSettingValue(
+  extensionId: string,
+  key: string,
+  definition: Record<string, unknown>,
+  value: unknown,
+): void {
+  const type = definition.type;
+  const valid =
+    (type === "string" && typeof value === "string") ||
+    (type === "boolean" && typeof value === "boolean") ||
+    (type === "number" && typeof value === "number" && Number.isFinite(value)) ||
+    (type === "integer" && typeof value === "number" && Number.isInteger(value));
+  if (!valid) {
+    throw new ExtensionSettingsError(
+      `Setting '${extensionId}.${key}' must be of type '${String(type)}'`,
+    );
+  }
+  if (Array.isArray(definition.enum) && !definition.enum.includes(value)) {
+    throw new ExtensionSettingsError(
+      `Setting '${extensionId}.${key}' is not one of its allowed values`,
+    );
+  }
+}
+
 async function readPhase2Manifest(
   candidate: DiscoveredPackageV0,
 ): Promise<Record<string, unknown>> {
@@ -88,19 +144,23 @@ async function readPhase2Manifest(
  *
  * A manifest only requests authority. Effective grants are supplied separately,
  * making revocation possible without rewriting package metadata. Secret values
- * are intentionally absent from this runtime: it stores references only.
+ * are intentionally absent from snapshots and are resolved only through the
+ * permission-gated secret broker.
  */
 export class ExtensionRuntime {
   readonly #records = new Map<
     string,
     ExtensionRuntimeRecord & { manifest: Record<string, unknown> }
   >();
+  readonly #services: ExtensionRuntimeServices;
 
   constructor(
     packages: readonly DiscoveredPackageV0[],
     grants: Readonly<Record<string, readonly string[]>> = {},
     manifests: Readonly<Record<string, Record<string, unknown>>> = {},
+    services: ExtensionRuntimeServices = {},
   ) {
+    this.#services = services;
     for (const candidate of packages) {
       if (
         candidate.type !== "extension" ||
@@ -114,9 +174,7 @@ export class ExtensionRuntime {
         {}) as unknown as Phase2Manifest;
       const requested = stringList(manifest.permissions);
       const granted = new Set(grants[candidate.id] ?? []);
-      const effective = requested.filter((permission) =>
-        granted.has(permission),
-      );
+      const effective = requested.filter((permission) => granted.has(permission));
       this.#records.set(candidate.id, {
         id: candidate.id,
         enabled: candidate.enabled,
@@ -145,6 +203,7 @@ export class ExtensionRuntime {
   static async fromDiscovery(
     packages: readonly DiscoveredPackageV0[],
     grants: Readonly<Record<string, readonly string[]>> = {},
+    services: ExtensionRuntimeServices = {},
   ): Promise<ExtensionRuntime> {
     const sources = await Promise.all(
       packages
@@ -164,10 +223,9 @@ export class ExtensionRuntime {
     );
     const manifests: Record<string, Record<string, unknown>> = {};
     for (const source of sources) {
-      if (source?.candidate.id)
-        manifests[source.candidate.id] = source.manifest;
+      if (source?.candidate.id) manifests[source.candidate.id] = source.manifest;
     }
-    return new ExtensionRuntime(packages, grants, manifests);
+    return new ExtensionRuntime(packages, grants, manifests, services);
   }
 
   list(): ExtensionRuntimeRecord[] {
@@ -188,8 +246,7 @@ export class ExtensionRuntime {
 
   markRunning(extensionId: string): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
-    if (!record.enabled)
-      throw new Error(`Extension '${extensionId}' is disabled`);
+    if (!record.enabled) throw new Error(`Extension '${extensionId}' is disabled`);
     record.state = "running";
     return this.#public(record);
   }
@@ -222,6 +279,74 @@ export class ExtensionRuntime {
       publish.includes(eventType) &&
       eventType.startsWith(`extension.${extensionId}.`)
     );
+  }
+
+  async getSettings(extensionId: string): Promise<Record<string, unknown>> {
+    const record = this.#require(extensionId);
+    const definitions = settingDefinitions(record.settings);
+    const values = this.#services.settings
+      ? await this.#services.settings.get(extensionId)
+      : {};
+    const resolved: Record<string, unknown> = {};
+    for (const [key, definition] of Object.entries(definitions)) {
+      if (Object.hasOwn(values, key)) {
+        validateSettingValue(extensionId, key, definition, values[key]);
+        resolved[key] = structuredClone(values[key]);
+      } else if (Object.hasOwn(definition, "default")) {
+        validateSettingValue(extensionId, key, definition, definition.default);
+        resolved[key] = structuredClone(definition.default);
+      }
+    }
+    return resolved;
+  }
+
+  async setSetting(
+    extensionId: string,
+    key: string,
+    value: unknown,
+  ): Promise<Record<string, unknown>> {
+    const record = this.#require(extensionId);
+    const definitions = settingDefinitions(record.settings);
+    const definition = definitions[key];
+    if (!definition) {
+      throw new ExtensionSettingsError(
+        `Extension '${extensionId}' does not declare setting '${key}'`,
+      );
+    }
+    validateSettingValue(extensionId, key, definition, value);
+    if (!this.#services.settings) {
+      throw new ExtensionSettingsError("Extension settings storage is unavailable");
+    }
+    await this.#services.settings.set(extensionId, key, value);
+    return this.getSettings(extensionId);
+  }
+
+  async resolveSecret(extensionId: string, secretId: string): Promise<string> {
+    const record = this.#require(extensionId);
+    if (!record.secretRefs.some((secret) => secret.id === secretId)) {
+      throw new ExtensionSecretError(
+        `Extension '${extensionId}' does not declare secret '${secretId}'`,
+      );
+    }
+    this.assertPermission(extensionId, `secrets.read:${secretId}`);
+    const value = await this.#services.secrets?.get(extensionId, secretId);
+    if (value === undefined) {
+      throw new ExtensionSecretError(
+        `Secret '${secretId}' is not configured for extension '${extensionId}'`,
+      );
+    }
+    return value;
+  }
+
+  displayContributions(extensionId: string): Array<Record<string, unknown>> {
+    this.assertPermission(extensionId, "display.present");
+    const record = this.#require(extensionId);
+    return records(record.contributions.display).map((entry) => structuredClone(entry));
+  }
+
+  mcpRegistrations(extensionId: string): Array<Record<string, unknown>> {
+    this.assertPermission(extensionId, "mcp.register");
+    return this.#require(extensionId).mcp.map((entry) => structuredClone(entry));
   }
 
   publicSnapshot(): ExtensionRuntimeRecord[] {
