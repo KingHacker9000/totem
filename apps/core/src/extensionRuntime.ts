@@ -35,8 +35,8 @@ export class ExtensionPermissionError extends Error {
 }
 
 interface Phase2Manifest {
-  id?: unknown;
   permissions?: unknown;
+  events?: unknown;
   contributions?: unknown;
   settings?: unknown;
   secrets?: unknown;
@@ -69,19 +69,19 @@ function secretRefs(value: unknown): Array<{ id: string; required: boolean }> {
  * Security boundary for extension-owned runtime capabilities.
  *
  * A manifest only requests authority. Effective grants are supplied separately,
- * making revocation possible without rewriting package metadata. This broker is
- * deliberately independent of extension process execution so every privileged
- * core surface can share the same fail-closed permission check.
+ * making revocation possible without rewriting package metadata. Secret values
+ * are intentionally absent from this runtime: it stores references only.
  */
 export class ExtensionRuntime {
-  readonly #records = new Map<string, ExtensionRuntimeRecord>();
-  readonly #grants: Readonly<Record<string, readonly string[]>>;
+  readonly #records = new Map<
+    string,
+    ExtensionRuntimeRecord & { manifest: Record<string, unknown> }
+  >();
 
   constructor(
     packages: readonly DiscoveredPackageV0[],
     grants: Readonly<Record<string, readonly string[]>> = {},
   ) {
-    this.#grants = grants;
     for (const candidate of packages) {
       if (
         candidate.type !== "extension" ||
@@ -90,7 +90,7 @@ export class ExtensionRuntime {
       ) {
         continue;
       }
-      const manifest = (candidate.manifest ?? {}) as Phase2Manifest;
+      const manifest = (candidate.manifest ?? {}) as unknown as Phase2Manifest;
       const requested = stringList(manifest.permissions);
       const granted = new Set(grants[candidate.id] ?? []);
       const effective = requested.filter((permission) => granted.has(permission));
@@ -107,31 +107,36 @@ export class ExtensionRuntime {
         secretRefs: secretRefs(manifest.secrets),
         mcp: records(manifest.mcp),
         diagnostics: [],
+        manifest: (candidate.manifest ?? {}) as unknown as Record<string, unknown>,
       });
     }
   }
 
   list(): ExtensionRuntimeRecord[] {
-    return [...this.#records.values()].map((record) => structuredClone(record));
+    return [...this.#records.values()].map(({ manifest: _manifest, ...record }) =>
+      structuredClone(record),
+    );
   }
 
   get(extensionId: string): ExtensionRuntimeRecord | undefined {
     const record = this.#records.get(extensionId);
-    return record ? structuredClone(record) : undefined;
+    if (!record) return undefined;
+    const { manifest: _manifest, ...publicRecord } = record;
+    return structuredClone(publicRecord);
   }
 
   setEnabled(extensionId: string, enabled: boolean): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
     record.enabled = enabled;
     record.state = enabled ? "ready" : "disabled";
-    return structuredClone(record);
+    return this.get(extensionId) as ExtensionRuntimeRecord;
   }
 
   markRunning(extensionId: string): ExtensionRuntimeRecord {
     const record = this.#require(extensionId);
     if (!record.enabled) throw new Error(`Extension '${extensionId}' is disabled`);
     record.state = "running";
-    return structuredClone(record);
+    return this.get(extensionId) as ExtensionRuntimeRecord;
   }
 
   markFailed(extensionId: string, error: unknown): ExtensionRuntimeRecord {
@@ -141,7 +146,7 @@ export class ExtensionRuntime {
       code: "extension_runtime_failed",
       message: error instanceof Error ? error.message : String(error),
     });
-    return structuredClone(record);
+    return this.get(extensionId) as ExtensionRuntimeRecord;
   }
 
   assertPermission(extensionId: string, permission: string): void {
@@ -153,7 +158,7 @@ export class ExtensionRuntime {
 
   canPublish(extensionId: string, eventType: string): boolean {
     const record = this.#require(extensionId);
-    const manifest = this.#manifest(extensionId);
+    const manifest = record.manifest as Phase2Manifest;
     const publish = isRecord(manifest.events)
       ? stringList(manifest.events.publish)
       : [];
@@ -165,39 +170,14 @@ export class ExtensionRuntime {
   }
 
   publicSnapshot(): ExtensionRuntimeRecord[] {
-    // Runtime records contain references/IDs only. Secret values are never held
-    // here, so this snapshot is safe for normal management/status APIs.
     return this.list();
   }
 
-  #manifest(extensionId: string): Record<string, unknown> {
-    const record = this.#records.get(extensionId);
-    if (!record) return {};
-    // Reconstruct only the declaration needed by runtime checks. Event
-    // declarations are attached lazily by fromDiscovery below.
-    return (record as ExtensionRuntimeRecord & {
-      __manifest?: Record<string, unknown>;
-    }).__manifest ?? {};
-  }
-
-  #require(extensionId: string): ExtensionRuntimeRecord {
+  #require(
+    extensionId: string,
+  ): ExtensionRuntimeRecord & { manifest: Record<string, unknown> } {
     const record = this.#records.get(extensionId);
     if (!record) throw new Error(`Unknown extension '${extensionId}'`);
     return record;
-  }
-
-  static fromDiscovery(
-    packages: readonly DiscoveredPackageV0[],
-    grants: Readonly<Record<string, readonly string[]>> = {},
-  ): ExtensionRuntime {
-    const runtime = new ExtensionRuntime(packages, grants);
-    for (const candidate of packages) {
-      if (!candidate.id || !candidate.manifest) continue;
-      const record = runtime.#records.get(candidate.id) as
-        | (ExtensionRuntimeRecord & { __manifest?: Record<string, unknown> })
-        | undefined;
-      if (record) record.__manifest = candidate.manifest as unknown as Record<string, unknown>;
-    }
-    return runtime;
   }
 }
