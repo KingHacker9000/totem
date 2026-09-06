@@ -15,6 +15,7 @@ import { ExtensionRuntime } from "./extensionRuntime.js";
 import { RuntimeEventHub } from "./events.js";
 import { JsonExtensionSettingsStore } from "./extensionServices.js";
 import { TaskOrchestrator } from "./orchestrator.js";
+import { registerOperatorRoutes } from "./operatorRoutes.js";
 import { registerProviderRoutes } from "./providerRoutes.js";
 import { RealProviderCoordinator } from "./realProviders.js";
 import { ensureDataDirectories } from "./runtime.js";
@@ -95,6 +96,7 @@ try {
     extensionBackendHost,
   );
   registerThemeRoutes(app, themeRuntime);
+  registerOperatorRoutes(app, { config });
 
   const registry = new RegistryManager({
     stateDir: config.paths.state,
