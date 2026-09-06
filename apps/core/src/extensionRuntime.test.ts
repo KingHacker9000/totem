@@ -111,7 +111,11 @@ describe("ExtensionRuntime", () => {
         extension({
           id: "weather",
           settings: {
-            units: { type: "string", default: "metric", enum: ["metric", "imperial"] },
+            units: {
+              type: "string",
+              default: "metric",
+              enum: ["metric", "imperial"],
+            },
             offline: { type: "boolean", default: false },
           },
         }),
@@ -125,16 +129,18 @@ describe("ExtensionRuntime", () => {
       units: "metric",
       offline: false,
     });
-    await expect(runtime.setSetting("weather", "units", "imperial")).resolves.toEqual({
+    await expect(
+      runtime.setSetting("weather", "units", "imperial"),
+    ).resolves.toEqual({
       units: "imperial",
       offline: false,
     });
-    await expect(runtime.setSetting("weather", "units", "kelvin")).rejects.toThrow(
-      ExtensionSettingsError,
-    );
-    await expect(runtime.setSetting("weather", "missing", true)).rejects.toThrow(
-      ExtensionSettingsError,
-    );
+    await expect(
+      runtime.setSetting("weather", "units", "kelvin"),
+    ).rejects.toThrow(ExtensionSettingsError);
+    await expect(
+      runtime.setSetting("weather", "missing", true),
+    ).rejects.toThrow(ExtensionSettingsError);
   });
 
   it("resolves only declared and granted secrets without exposing them in snapshots", async () => {
@@ -158,10 +164,12 @@ describe("ExtensionRuntime", () => {
     await expect(runtime.resolveSecret("github", "github-token")).resolves.toBe(
       "top-secret-token",
     );
-    await expect(runtime.resolveSecret("github", "other-token")).rejects.toThrow(
-      ExtensionSecretError,
+    await expect(
+      runtime.resolveSecret("github", "other-token"),
+    ).rejects.toThrow(ExtensionSecretError);
+    expect(JSON.stringify(runtime.publicSnapshot())).not.toContain(
+      "top-secret-token",
     );
-    expect(JSON.stringify(runtime.publicSnapshot())).not.toContain("top-secret-token");
   });
 
   it("permission-gates display contributions and MCP registrations", () => {
@@ -171,10 +179,9 @@ describe("ExtensionRuntime", () => {
       contributions: { display: [{ id: "panel" }] },
       mcp: [{ id: "tools-mcp" }],
     });
-    const allowed = new ExtensionRuntime(
-      [candidate],
-      { tools: ["display.present", "mcp.register"] },
-    );
+    const allowed = new ExtensionRuntime([candidate], {
+      tools: ["display.present", "mcp.register"],
+    });
     expect(allowed.displayContributions("tools")).toEqual([{ id: "panel" }]);
     expect(allowed.mcpRegistrations("tools")).toEqual([{ id: "tools-mcp" }]);
 
