@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { loadConfig, type TotemConfig } from "./config.js";
 import { discoverPackages } from "./discovery.js";
+import type { ExtensionBackendHost } from "./extensionBackendHost.js";
 import {
   ExtensionRuntime,
   ExtensionSettingsError,
@@ -25,6 +26,8 @@ export interface CreateAppOptions {
   orchestrator?: TaskOrchestrator;
   extensionGrants?: Readonly<Record<string, readonly string[]>>;
   extensionServices?: ExtensionRuntimeServices;
+  extensionRuntime?: ExtensionRuntime;
+  extensionBackendHost?: ExtensionBackendHost;
   /**
    * Late-bound orchestrator accessor. The orchestrator needs the Fastify logger,
    * which only exists after {@link createApp} returns, so `main` wires it in
@@ -42,6 +45,10 @@ interface StartTaskBody {
 
 interface ExtensionSettingBody {
   value?: unknown;
+}
+
+interface ExtensionEnabledBody {
+  enabled?: unknown;
 }
 
 const MOCK_SCENARIOS = new Set(["success", "failure", "wait"]);
@@ -70,6 +77,7 @@ export function createApp(options: CreateAppOptions = {}) {
     });
 
   const extensionRuntime = async () => {
+    if (options.extensionRuntime) return options.extensionRuntime;
     const snapshot = await discover();
     return ExtensionRuntime.fromDiscovery(
       snapshot.extensions,
@@ -223,11 +231,35 @@ export function createApp(options: CreateAppOptions = {}) {
     const runtime = await extensionRuntime();
     return {
       extensions: runtime.publicSnapshot(),
+      backendDiagnostics: options.extensionBackendHost?.diagnostics() ?? [],
       security: {
         defaultGrantPolicy: "deny",
         secretValuesExposed: false,
       },
     };
+  });
+
+  app.put<{
+    Params: { extensionId: string };
+    Body: ExtensionEnabledBody;
+  }>("/api/extensions/:extensionId/enabled", async (request, reply) => {
+    if (typeof request.body?.enabled !== "boolean") {
+      return reply.code(400).send({
+        error: "invalid_request",
+        message: "'enabled' is required and must be boolean.",
+      });
+    }
+
+    const runtime = await extensionRuntime();
+    if (options.extensionBackendHost) {
+      await options.extensionBackendHost.setEnabled(
+        request.params.extensionId,
+        request.body.enabled,
+      );
+    } else {
+      runtime.setEnabled(request.params.extensionId, request.body.enabled);
+    }
+    return { extension: runtime.get(request.params.extensionId) };
   });
 
   app.get<{ Params: { extensionId: string } }>(
