@@ -5,6 +5,7 @@ import { ContributionConsole } from "./ContributionConsole";
 import { ManagementConsole } from "./ManagementConsole";
 import { OperatorConsole } from "./OperatorConsole";
 import { ProviderConsole } from "./ProviderConsole";
+import { SpeechConsole } from "./SpeechConsole";
 import "./style.css";
 
 const root = document.getElementById("root");
@@ -20,6 +21,8 @@ const surface =
     <OperatorConsole />
   ) : pathname === "/contributions" ? (
     <ContributionConsole />
+  ) : pathname === "/speech" ? (
+    <SpeechConsole />
   ) : (
     <App />
   );

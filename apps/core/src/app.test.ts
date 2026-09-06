@@ -21,6 +21,12 @@ const testConfig: TotemConfig = {
     extensionRoots: ["/tmp/totem-test/extensions"],
     themeRoots: ["/tmp/totem-test/themes"],
   },
+  speech: {
+    stt: { provider: "none" },
+    tts: { provider: "none" },
+    agentProviderId: "mock",
+    vadThreshold: 0.015,
+  },
 };
 
 const durableTask = {

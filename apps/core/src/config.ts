@@ -27,6 +27,19 @@ export interface TotemDiscoveryConfig {
   activeThemeId?: string;
 }
 
+export interface TotemSpeechEngineConfig {
+  provider: "none" | "whisper.cpp" | "piper";
+  executablePath?: string;
+  modelPath?: string;
+}
+
+export interface TotemSpeechConfig {
+  stt: TotemSpeechEngineConfig;
+  tts: TotemSpeechEngineConfig;
+  agentProviderId: string;
+  vadThreshold: number;
+}
+
 export interface TotemConfig {
   host: string;
   port: number;
@@ -34,6 +47,7 @@ export interface TotemConfig {
   environment: "development" | "test" | "production";
   paths: TotemDataPaths;
   discovery: TotemDiscoveryConfig;
+  speech: TotemSpeechConfig;
   /** Effective extension permission grants. Omitted means deny all. */
   extensionGrants?: Readonly<Record<string, readonly string[]>>;
 }
@@ -215,6 +229,94 @@ function parseExtensionGrants(
   return grants;
 }
 
+function parseSpeechProvider(
+  raw: string | undefined,
+  field: string,
+  allowed: readonly string[],
+  issues: string[],
+): string {
+  const value = raw?.trim().toLowerCase() || "none";
+  if (!allowed.includes(value)) {
+    issues.push(`${field} must be one of: ${allowed.join(", ")}`);
+    return "none";
+  }
+  return value;
+}
+
+function parseOptionalPath(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  return resolve(value);
+}
+
+function parseSpeechAgentProvider(
+  raw: string | undefined,
+  issues: string[],
+): string {
+  const value = raw?.trim() || "mock";
+  if (value !== "mock" && !PACKAGE_ID_PATTERN.test(value)) {
+    issues.push(
+      "TOTEM_SPEECH_AGENT_PROVIDER must be 'mock' or a valid provider id",
+    );
+    return "mock";
+  }
+  return value;
+}
+
+function parseVadThreshold(raw: string | undefined, issues: string[]): number {
+  if (raw === undefined || raw.trim() === "") return 0.015;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    issues.push("TOTEM_SPEECH_VAD_THRESHOLD must be a number between 0 and 1");
+    return 0.015;
+  }
+  return value;
+}
+
+function parseSpeechConfig(
+  env: NodeJS.ProcessEnv,
+  issues: string[],
+): TotemSpeechConfig {
+  const sttProvider = parseSpeechProvider(
+    env.TOTEM_STT_PROVIDER,
+    "TOTEM_STT_PROVIDER",
+    ["none", "whisper.cpp"],
+    issues,
+  ) as TotemSpeechEngineConfig["provider"];
+  const ttsProvider = parseSpeechProvider(
+    env.TOTEM_TTS_PROVIDER,
+    "TOTEM_TTS_PROVIDER",
+    ["none", "piper"],
+    issues,
+  ) as TotemSpeechEngineConfig["provider"];
+
+  return {
+    stt: {
+      provider: sttProvider,
+      ...(parseOptionalPath(env.TOTEM_STT_EXECUTABLE)
+        ? { executablePath: parseOptionalPath(env.TOTEM_STT_EXECUTABLE) }
+        : {}),
+      ...(parseOptionalPath(env.TOTEM_STT_MODEL)
+        ? { modelPath: parseOptionalPath(env.TOTEM_STT_MODEL) }
+        : {}),
+    },
+    tts: {
+      provider: ttsProvider,
+      ...(parseOptionalPath(env.TOTEM_TTS_EXECUTABLE)
+        ? { executablePath: parseOptionalPath(env.TOTEM_TTS_EXECUTABLE) }
+        : {}),
+      ...(parseOptionalPath(env.TOTEM_TTS_MODEL)
+        ? { modelPath: parseOptionalPath(env.TOTEM_TTS_MODEL) }
+        : {}),
+    },
+    agentProviderId: parseSpeechAgentProvider(
+      env.TOTEM_SPEECH_AGENT_PROVIDER,
+      issues,
+    ),
+    vadThreshold: parseVadThreshold(env.TOTEM_SPEECH_VAD_THRESHOLD, issues),
+  };
+}
+
 export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
@@ -258,6 +360,7 @@ export function loadConfig(options: LoadConfigOptions = {}): TotemConfig {
       ),
       ...(activeThemeId === undefined ? {} : { activeThemeId }),
     },
+    speech: parseSpeechConfig(env, issues),
     ...(extensionGrants === undefined ? {} : { extensionGrants }),
   };
 

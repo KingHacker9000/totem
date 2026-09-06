@@ -19,6 +19,12 @@ describe("loadConfig", () => {
       extensionRoots: [config.paths.extensions],
       themeRoots: [config.paths.themes],
     });
+    expect(config.speech).toEqual({
+      stt: { provider: "none" },
+      tts: { provider: "none" },
+      agentProviderId: "mock",
+      vadThreshold: 0.015,
+    });
   });
 
   it("accepts explicit portable overrides", () => {
@@ -35,6 +41,14 @@ describe("loadConfig", () => {
         ].join(delimiter),
         TOTEM_THEME_ROOTS: "./fixtures/themes",
         TOTEM_ACTIVE_THEME: "minimal",
+        TOTEM_STT_PROVIDER: "whisper.cpp",
+        TOTEM_STT_EXECUTABLE: "./bin/whisper-cli",
+        TOTEM_STT_MODEL: "./models/whisper.bin",
+        TOTEM_TTS_PROVIDER: "piper",
+        TOTEM_TTS_EXECUTABLE: "./bin/piper",
+        TOTEM_TTS_MODEL: "./models/voice.onnx",
+        TOTEM_SPEECH_AGENT_PROVIDER: "codex-cli",
+        TOTEM_SPEECH_VAD_THRESHOLD: "0.02",
       },
     });
 
@@ -51,6 +65,20 @@ describe("loadConfig", () => {
         themeRoots: [resolve("./fixtures/themes")],
         activeThemeId: "minimal",
       },
+      speech: {
+        stt: {
+          provider: "whisper.cpp",
+          executablePath: resolve("./bin/whisper-cli"),
+          modelPath: resolve("./models/whisper.bin"),
+        },
+        tts: {
+          provider: "piper",
+          executablePath: resolve("./bin/piper"),
+          modelPath: resolve("./models/voice.onnx"),
+        },
+        agentProviderId: "codex-cli",
+        vadThreshold: 0.02,
+      },
     });
     expect(config.paths.root).toBe(resolve("./var/totem-test"));
   });
@@ -64,6 +92,10 @@ describe("loadConfig", () => {
           TOTEM_LOG_LEVEL: "verbose",
           TOTEM_ENV: "qa",
           TOTEM_ACTIVE_THEME: "Invalid Theme",
+          TOTEM_STT_PROVIDER: "cloud",
+          TOTEM_TTS_PROVIDER: "cloud",
+          TOTEM_SPEECH_AGENT_PROVIDER: "Invalid Provider",
+          TOTEM_SPEECH_VAD_THRESHOLD: "2",
         },
       });
       throw new Error("expected loadConfig to fail");
@@ -75,6 +107,10 @@ describe("loadConfig", () => {
         "TOTEM_PORT must be an integer between 1 and 65535",
         "TOTEM_LOG_LEVEL must be one of: fatal, error, warn, info, debug, trace, silent",
         "TOTEM_ENV must be development, test, or production",
+        "TOTEM_STT_PROVIDER must be one of: none, whisper.cpp",
+        "TOTEM_TTS_PROVIDER must be one of: none, piper",
+        "TOTEM_SPEECH_AGENT_PROVIDER must be 'mock' or a valid provider id",
+        "TOTEM_SPEECH_VAD_THRESHOLD must be a number between 0 and 1",
       ]);
     }
   });

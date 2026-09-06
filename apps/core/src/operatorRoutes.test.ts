@@ -30,6 +30,12 @@ function makeConfig(root: string, host = "127.0.0.1"): TotemConfig {
       extensionRoots: [join(root, "extensions")],
       themeRoots: [join(root, "themes")],
     },
+    speech: {
+      stt: { provider: "none" },
+      tts: { provider: "none" },
+      agentProviderId: "mock",
+      vadThreshold: 0.015,
+    },
   };
 }
 

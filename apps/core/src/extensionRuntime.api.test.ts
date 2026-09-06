@@ -44,6 +44,12 @@ describe("extension runtime HTTP surface", () => {
         logs: join(root, "logs"),
       },
       discovery: { extensionRoots: [extensions], themeRoots: [themes] },
+      speech: {
+        stt: { provider: "none" },
+        tts: { provider: "none" },
+        agentProviderId: "mock",
+        vadThreshold: 0.015,
+      },
     };
     const app = createApp({
       config,

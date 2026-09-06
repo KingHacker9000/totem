@@ -17,6 +17,14 @@ The authoritative startup values currently come from environment variables. Inva
 | `TOTEM_THEME_ROOTS` | `<TOTEM_DATA_DIR>/themes` | Ordered local theme discovery roots, using the same path-list delimiter. |
 | `TOTEM_ACTIVE_THEME` | unset | Optional preferred enabled theme id. If unavailable/invalid, discovery falls back to enabled `default`, then the built-in fallback presentation. |
 | `TOTEM_EXTENSION_GRANTS` | unset / deny all | JSON object mapping extension IDs to explicitly granted permission strings, for example `{"weather":["network.internet","display.present"]}`. This is runtime authority, separate from manifest requests. |
+| `TOTEM_STT_PROVIDER` | `none` | Local STT provider: `none` or `whisper.cpp`. |
+| `TOTEM_STT_EXECUTABLE` | unset | Path to the external `whisper-cli` executable when `whisper.cpp` is selected. |
+| `TOTEM_STT_MODEL` | unset | Path to the local whisper.cpp model file. |
+| `TOTEM_TTS_PROVIDER` | `none` | Local TTS provider: `none` or `piper`. |
+| `TOTEM_TTS_EXECUTABLE` | unset | Path to the external Piper executable. |
+| `TOTEM_TTS_MODEL` | unset | Path to the local Piper voice model. |
+| `TOTEM_SPEECH_AGENT_PROVIDER` | `mock` | Provider id used for durable tasks created from typed/transcribed speech. |
+| `TOTEM_SPEECH_VAD_THRESHOLD` | `0.015` | Energy VAD threshold, number from `0` to `1`. |
 
 The default data root is platform-friendly rather than Pi-specific:
 
@@ -82,6 +90,36 @@ TOTEM_ACTIVE_THEME=default \
 TOTEM_EXTENSION_GRANTS='{"weather":["network.internet","display.present"]}' \
 pnpm --filter @totem/core dev
 ```
+
+## Speech configuration and status
+
+Speech engines are optional and external. Totem does not download model weights or speech binaries. With the defaults, STT and TTS report unavailable while typed task input remains functional.
+
+To enable the production PC baseline, configure `whisper.cpp` and/or Piper explicitly. Paths are resolved at startup and missing executables/models are surfaced through speech capability status rather than causing an implicit download.
+
+PowerShell example:
+
+```powershell
+$env:TOTEM_STT_PROVIDER = "whisper.cpp"
+$env:TOTEM_STT_EXECUTABLE = "C:\Tools\whisper.cpp\whisper-cli.exe"
+$env:TOTEM_STT_MODEL = "D:\TotemModels\ggml-base.en.bin"
+$env:TOTEM_TTS_PROVIDER = "piper"
+$env:TOTEM_TTS_EXECUTABLE = "C:\Tools\piper\piper.exe"
+$env:TOTEM_TTS_MODEL = "D:\TotemModels\en_US-lessac-medium.onnx"
+$env:TOTEM_SPEECH_AGENT_PROVIDER = "mock"
+```
+
+Speech management/runtime endpoints are:
+
+```text
+GET  /api/speech/status
+POST /api/speech/text
+POST /api/speech/audio
+POST /api/speech/synthesize
+POST /api/speech/barge-in
+```
+
+The dashboard `/speech` route provides the PC push-to-talk baseline. Browser microphone capture produces PCM16 WAV for core STT; local core TTS returns WAV for playback through the browser/PC speaker. See [`SPEECH.md`](SPEECH.md) for the complete contract and live-validation boundary.
 
 ## Health and status
 
