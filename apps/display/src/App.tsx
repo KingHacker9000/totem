@@ -149,9 +149,12 @@ export function App() {
         <div className="workspace">
           <section className="stage">
             <div
+              aria-label="Simulated touch display"
               className="panel-frame"
               ref={panelRef}
+              role="application"
               style={panelStyle}
+              tabIndex={0}
               onPointerMove={handlePointer}
               onPointerDown={handlePointer}
             >
