@@ -28,5 +28,35 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.get("/api/status", async () => createRuntimeStatus(config, startedAt));
 
+  app.get("/api/events", async (request, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "content-type": "text/event-stream; charset=utf-8",
+      "x-accel-buffering": "no",
+    });
+
+    const writeStatus = () => {
+      const event = {
+        type: "core.status",
+        occurredAt: new Date().toISOString(),
+        data: createRuntimeStatus(config, startedAt),
+      };
+      reply.raw.write(`event: core.status\ndata: ${JSON.stringify(event)}\n\n`);
+    };
+
+    writeStatus();
+    const heartbeat = setInterval(writeStatus, 15_000);
+    heartbeat.unref();
+
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      if (!reply.raw.writableEnded) {
+        reply.raw.end();
+      }
+    });
+  });
+
   return app;
 }
