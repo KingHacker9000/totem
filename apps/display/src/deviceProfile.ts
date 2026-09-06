@@ -102,12 +102,13 @@ export function pointInVisibleRegion(
 }
 
 function rectInsideVisible(region: VisibleRegion, rect: Rect): boolean {
-  return [
+  const corners: Array<[number, number]> = [
     [rect.x, rect.y],
     [rect.x + rect.width, rect.y],
     [rect.x, rect.y + rect.height],
     [rect.x + rect.width, rect.y + rect.height],
-  ].every(([x, y]) => pointInVisibleRegion(region, x, y));
+  ];
+  return corners.every(([x, y]) => pointInVisibleRegion(region, x, y));
 }
 
 export function mapTouchPoint(
