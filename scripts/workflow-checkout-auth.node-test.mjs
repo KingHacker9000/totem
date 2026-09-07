@@ -17,11 +17,15 @@ test("rejects default credential persistence", () => {
     ".github/workflows/ci.yml",
   );
   assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0], /must explicitly set persist-credentials: false/);
+  assert.match(
+    result.failures[0],
+    /must explicitly set persist-credentials: false/,
+  );
 });
 
 test("rejects true or expression-valued credential persistence", () => {
-  for (const value of ["true", "${{ github.event_name == 'push' }}"]) {
+  const githubExpression = "$" + "{{ github.event_name == 'push' }}";
+  for (const value of ["true", githubExpression]) {
     const result = inspectWorkflowCheckoutCredentials(
       `jobs:\n  check:\n    steps:\n      - uses: actions/checkout@0123456789012345678901234567890123456789\n        with:\n          persist-credentials: ${value}\n`,
     );
@@ -36,5 +40,8 @@ test("validates each checkout independently and rejects duplicates", () => {
   );
   assert.equal(result.entries.length, 2);
   assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0], /duplicate actions\/checkout persist-credentials/);
+  assert.match(
+    result.failures[0],
+    /duplicate actions\/checkout persist-credentials/,
+  );
 });
