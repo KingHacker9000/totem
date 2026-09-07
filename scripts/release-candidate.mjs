@@ -84,7 +84,9 @@ export function buildCandidateDocument({
 
 export function validateCandidateDocument(document) {
   if (document?.schema !== SCHEMA) {
-    throw new Error(`unsupported release candidate schema: ${document?.schema}`);
+    throw new Error(
+      `unsupported release candidate schema: ${document?.schema}`,
+    );
   }
   if (document.algorithm !== "sha256") {
     throw new Error("release candidate algorithm must be sha256");
