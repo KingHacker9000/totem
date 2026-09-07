@@ -22,6 +22,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Validate release configuration contract
         run: pnpm release:config:check
+      - name: Validate public repository-family declaration
+        run: pnpm release:repos:check
+      - name: Validate public repository-family remote drift
+        if: runner.os == 'Linux' && matrix.node == '22.20.0'
+        run: pnpm release:repos:check:remote
       - name: Validate pinned public workflow actions
         shell: bash
         run: |
