@@ -16,9 +16,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check integrity implementation formatting
-        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs
-      - name: Test detached integrity, archive, and reproducibility validators
-        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-reproducibility.node-test.mjs
+        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs
+      - name: Test detached integrity, archive, candidate, and reproducibility validators
+        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.node-test.mjs
       - name: Prove bundle reproducibility across clean worktrees
         run: pnpm release:bundle:reproducibility
       - name: Build and verify public bundle integrity
@@ -31,6 +31,10 @@ jobs:
           pnpm release:archive:create
           pnpm release:archive:verify
           pnpm release:archive:smoke
+      - name: Bind and verify final release candidate identity
+        run: |
+          pnpm release:candidate:generate
+          pnpm release:candidate:verify
       - name: Upload exact public release handoff set
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -39,6 +43,7 @@ jobs:
             dist/release/totem-public/
             dist/release/totem-public.integrity.json
             dist/release/totem-public.tar.gz
+            dist/release/totem-public.candidate.json
           if-no-files-found: error
           # The generated bundle is already fail-closed privacy/integrity validated;
           # preserve legitimate dotfiles exactly across the artifact boundary.
@@ -59,6 +64,7 @@ jobs:
         run: |
           test -f dist/handoff/totem-public.integrity.json
           test -f dist/handoff/totem-public.tar.gz
+          test -f dist/handoff/totem-public.candidate.json
           test -f dist/handoff/totem-public/release-manifest.json
           node scripts/release-integrity.mjs verify \
             --bundle dist/handoff/totem-public \
@@ -66,3 +72,8 @@ jobs:
           node scripts/release-archive.mjs verify \
             --bundle dist/handoff/totem-public \
             --archive dist/handoff/totem-public.tar.gz
+          node scripts/release-candidate.mjs verify \
+            --bundle dist/handoff/totem-public \
+            --integrity dist/handoff/totem-public.integrity.json \
+            --archive dist/handoff/totem-public.tar.gz \
+            --candidate dist/handoff/totem-public.candidate.json
