@@ -9,7 +9,7 @@ function fixtures() {
     repository: "KingHacker9000/totem",
     source: {
       revision: "0123456789abcdef0123456789abcdef01234567",
-      tree: "a".repeat(64),
+      tree: "a".repeat(40),
     },
     digest: { algorithm: "sha256", value: "b".repeat(64) },
   };
