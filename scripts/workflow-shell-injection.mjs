@@ -159,7 +159,8 @@ export function main(argv = process.argv.slice(2)) {
       console.log(
         `${repository.root}: ${repository.workflows} workflows, ${repository.run_blocks} run blocks`,
       );
-      for (const failure of repository.failures) console.error(`  FAIL ${failure}`);
+      for (const failure of repository.failures)
+        console.error(`  FAIL ${failure}`);
     }
     console.log(
       `workflow shell injection: ${summary.overall} (${workflowCount} workflows, ${runBlockCount} run blocks, ${expressionCount} expressions, ${failureCount} failures)`,
