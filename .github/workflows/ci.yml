@@ -20,6 +20,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate release toolchain contract and effective runtime
+        run: pnpm release:toolchain:runtime
       - name: Validate release configuration contract
         run: pnpm release:config:check
       - name: Validate public repository-family declaration
