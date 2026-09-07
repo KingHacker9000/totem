@@ -164,3 +164,15 @@ jobs:
           pnpm --filter @totem/core exec tsx scripts/theme-integration.ts \
             "$theme_root/totem-base-themes" \
             "$revision"
+      - name: Validate pinned public base-extension host integration
+        shell: bash
+        run: |
+          extension_root="$RUNNER_TEMP/totem-extension-host-integration"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$extension_root" \
+            --repo KingHacker9000/totem-base-extensions
+          revision="$(git -C "$extension_root/totem-base-extensions" rev-parse HEAD)"
+          test "$revision" = "6844e5b4bbc0c4b369a24e43c3ca5202e1685312"
+          pnpm --filter @totem/core exec tsx scripts/base-extension-integration.ts \
+            "$extension_root/totem-base-extensions" \
+            "$revision"
