@@ -22,12 +22,7 @@ test("rejects case-fold collisions", () => {
 });
 
 test("rejects Windows reserved device names including extensions", () => {
-  for (const path of [
-    "CON",
-    "docs/aux.txt",
-    "config/COM1.json",
-    "Lpt9.md",
-  ]) {
+  for (const path of ["CON", "docs/aux.txt", "config/COM1.json", "Lpt9.md"]) {
     assert.throws(
       () => assertPortableReleasePath(path),
       /Windows-reserved device name/,
