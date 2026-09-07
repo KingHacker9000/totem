@@ -56,11 +56,10 @@ test("source-map files and references fail closed", async () => {
   await assert.rejects(scanArtifactDirectory(root), /source-map artifact/);
 
   const second = await fixture();
+  const sourceMapMarker = ["//# source", "MappingURL=bundle.js.map"].join("");
   await writeFile(
     join(second, "apps/core/main.js"),
-    ["console.log('totem')", "//# source", "MappingURL=bundle.js.map", ""].join(
-      "\n",
-    ),
+    ["console.log('totem')", sourceMapMarker, ""].join("\n"),
   );
   await assert.rejects(scanArtifactDirectory(second), /source-map reference/);
 });
