@@ -40,7 +40,9 @@ jobs:
             dist/release/totem-public.integrity.json
             dist/release/totem-public.tar.gz
           if-no-files-found: error
-          include-hidden-files: false
+          # The generated bundle is already fail-closed privacy/integrity validated;
+          # preserve legitimate dotfiles exactly across the artifact boundary.
+          include-hidden-files: true
           retention-days: 1
 
   artifact-handoff:
