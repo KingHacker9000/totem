@@ -110,7 +110,8 @@ export async function validateToolchainMetadata(root) {
 export async function effectiveToolchainIdentity(root) {
   const metadata = await validateToolchainMetadata(root);
   const node = process.version.replace(/^v/, "");
-  const pnpm = execFileSync("pnpm", ["--version"], {
+  const pnpmExecutable = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  const pnpm = execFileSync(pnpmExecutable, ["--version"], {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
