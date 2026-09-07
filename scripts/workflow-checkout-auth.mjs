@@ -79,7 +79,13 @@ export function validateRepository(root) {
   const absoluteRoot = resolve(root);
   const workflowsRoot = join(absoluteRoot, ".github", "workflows");
   if (!existsSync(workflowsRoot)) {
-    return { root: absoluteRoot, workflows: 0, checkouts: 0, results: [], failures: [] };
+    return {
+      root: absoluteRoot,
+      workflows: 0,
+      checkouts: 0,
+      results: [],
+      failures: [],
+    };
   }
 
   const files = readdirSync(workflowsRoot, { withFileTypes: true })
@@ -157,7 +163,8 @@ export function main(argv = process.argv.slice(2)) {
       console.log(
         `${repository.root}: ${repository.workflows} workflows, ${repository.checkouts} checkout steps`,
       );
-      for (const failure of repository.failures) console.error(`  FAIL ${failure}`);
+      for (const failure of repository.failures)
+        console.error(`  FAIL ${failure}`);
     }
     console.log(
       `workflow checkout credentials: ${summary.overall} (${checkoutCount} checkouts, ${failureCount} failures)`,
@@ -167,5 +174,6 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 const isEntryPoint =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
