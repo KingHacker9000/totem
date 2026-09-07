@@ -146,10 +146,16 @@ test("tar parser rejects truncated headers, payloads, and end markers", () => {
   const payloadTruncated = tar([
     { path: "README.md", body: "x".repeat(600) },
   ]).subarray(0, 512 + 599);
-  assert.throws(() => parseTarEntries(payloadTruncated), /truncated tar payload/);
+  assert.throws(
+    () => parseTarEntries(payloadTruncated),
+    /truncated tar payload/,
+  );
 
   const endMarkerTruncated = tar([]).subarray(0, 512);
-  assert.throws(() => parseTarEntries(endMarkerTruncated), /truncated tar end marker/);
+  assert.throws(
+    () => parseTarEntries(endMarkerTruncated),
+    /truncated tar end marker/,
+  );
 });
 
 test("tar parser rejects malformed terminators and trailing garbage", () => {
@@ -158,7 +164,10 @@ test("tar parser rejects malformed terminators and trailing garbage", () => {
   assert.throws(() => parseTarEntries(malformedEnd), /non-zero tar end marker/);
 
   const trailingGarbage = Buffer.concat([tar([]), Buffer.from([1])]);
-  assert.throws(() => parseTarEntries(trailingGarbage), /non-zero tar trailing data/);
+  assert.throws(
+    () => parseTarEntries(trailingGarbage),
+    /non-zero tar trailing data/,
+  );
 });
 
 test("tar parser rejects non-zero entry padding and missing terminator", () => {
@@ -167,5 +176,8 @@ test("tar parser rejects non-zero entry padding and missing terminator", () => {
   assert.throws(() => parseTarEntries(padding), /non-zero tar entry padding/);
 
   const missingEnd = tar([{ path: "README.md", body: "" }]).subarray(0, 512);
-  assert.throws(() => parseTarEntries(missingEnd), /tar archive missing end marker/);
+  assert.throws(
+    () => parseTarEntries(missingEnd),
+    /tar archive missing end marker/,
+  );
 });
