@@ -1,9 +1,23 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const IGNORED_DIRS = new Set([".git", "node_modules", "dist", "coverage", ".turbo"]);
+const IGNORED_DIRS = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "coverage",
+  ".turbo",
+]);
 const PNPM_BUILTINS = new Set([
   "add",
   "audit",
@@ -67,39 +81,57 @@ function cleanLinkTarget(raw) {
   const withoutTitle = target.match(/^(?:[^\s]+|<[^>]+>)/)?.[0] ?? target;
   const hash = withoutTitle.indexOf("#");
   const query = withoutTitle.indexOf("?");
-  const end = [hash, query].filter((index) => index >= 0).sort((a, b) => a - b)[0];
-  return decodeURIComponent(end === undefined ? withoutTitle : withoutTitle.slice(0, end));
+  const end = [hash, query]
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b)[0];
+  return decodeURIComponent(
+    end === undefined ? withoutTitle : withoutTitle.slice(0, end),
+  );
 }
 
 function validateLinks(root, markdownFile, text, failures) {
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/g;
   for (const match of text.matchAll(linkPattern)) {
     const rawTarget = match[1];
-    const privateRepo = PRIVATE_PORTAL_REPOS.find((name) => rawTarget.includes(name));
+    const privateRepo = PRIVATE_PORTAL_REPOS.find((name) =>
+      rawTarget.includes(name),
+    );
     if (privateRepo) {
-      failures.push(`${relative(root, markdownFile)}: public documentation links to private repository ${privateRepo}`);
+      failures.push(
+        `${relative(root, markdownFile)}: public documentation links to private repository ${privateRepo}`,
+      );
       continue;
     }
     const target = cleanLinkTarget(rawTarget);
     if (!target) continue;
-    const resolved = isAbsolute(target) ? join(root, target) : resolve(dirname(markdownFile), target);
+    const resolved = isAbsolute(target)
+      ? join(root, target)
+      : resolve(dirname(markdownFile), target);
     const normalizedRoot = `${normalize(root)}${process.platform === "win32" ? "\\" : "/"}`;
     const normalizedTarget = normalize(resolved);
     if (
       normalizedTarget !== normalize(root) &&
-      !`${normalizedTarget}${process.platform === "win32" ? "\\" : "/"}`.startsWith(normalizedRoot) &&
+      !`${normalizedTarget}${process.platform === "win32" ? "\\" : "/"}`.startsWith(
+        normalizedRoot,
+      ) &&
       !normalizedTarget.startsWith(normalizedRoot)
     ) {
-      failures.push(`${relative(root, markdownFile)}: relative link escapes repository: ${rawTarget}`);
+      failures.push(
+        `${relative(root, markdownFile)}: relative link escapes repository: ${rawTarget}`,
+      );
       continue;
     }
-    if (!existsSync(resolved)) failures.push(`${relative(root, markdownFile)}: broken relative link: ${rawTarget}`);
+    if (!existsSync(resolved))
+      failures.push(
+        `${relative(root, markdownFile)}: broken relative link: ${rawTarget}`,
+      );
   }
 }
 
 function fencedShellBlocks(text) {
   const blocks = [];
-  const pattern = /```(?:bash|sh|shell|zsh|powershell|pwsh)?\s*\n([\s\S]*?)```/gi;
+  const pattern =
+    /```(?:bash|sh|shell|zsh|powershell|pwsh)?\s*\n([\s\S]*?)```/gi;
   for (const match of text.matchAll(pattern)) blocks.push(match[1]);
   return blocks;
 }
@@ -113,7 +145,9 @@ function validateCommands(root, markdownFile, text, scripts, failures) {
       const npmRun = line.match(/^npm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
       if (
         npmRun &&
-        !["install", "ci", "exec", "init", "pack", "publish"].includes(npmRun[1]) &&
+        !["install", "ci", "exec", "init", "pack", "publish"].includes(
+          npmRun[1],
+        ) &&
         !scripts.has(npmRun[1])
       ) {
         failures.push(
@@ -121,7 +155,9 @@ function validateCommands(root, markdownFile, text, scripts, failures) {
         );
       }
 
-      const pnpmRun = line.match(/^pnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
+      const pnpmRun = line.match(
+        /^pnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/,
+      );
       if (
         pnpmRun &&
         !pnpmRun[1].startsWith("-") &&
@@ -148,14 +184,21 @@ export function validateRepository(root) {
   }
 
   const scripts = packageScripts(absoluteRoot);
-  const markdown = walk(absoluteRoot).filter((file) => extname(file).toLowerCase() === ".md");
+  const markdown = walk(absoluteRoot).filter(
+    (file) => extname(file).toLowerCase() === ".md",
+  );
   const failures = [];
   for (const file of markdown) {
     const text = readFileSync(file, "utf8");
     validateLinks(absoluteRoot, file, text, failures);
     validateCommands(absoluteRoot, file, text, scripts, failures);
   }
-  return { root: absoluteRoot, markdownFiles: markdown.length, scripts: scripts.size, failures };
+  return {
+    root: absoluteRoot,
+    markdownFiles: markdown.length,
+    scripts: scripts.size,
+    failures,
+  };
 }
 
 function parseArgs(argv) {
@@ -177,7 +220,10 @@ function parseArgs(argv) {
 export function main(argv = process.argv.slice(2)) {
   const { repos, json } = parseArgs(argv);
   const results = repos.map(validateRepository);
-  const failureCount = results.reduce((sum, result) => sum + result.failures.length, 0);
+  const failureCount = results.reduce(
+    (sum, result) => sum + result.failures.length,
+    0,
+  );
   const summary = {
     schema: "totem.release-docs/v1",
     repositories: results.map((result) => ({
@@ -193,13 +239,19 @@ export function main(argv = process.argv.slice(2)) {
   if (json) console.log(JSON.stringify(summary, null, 2));
   else {
     for (const result of results) {
-      console.log(`${result.root}: ${result.markdownFiles} markdown files, ${result.scripts} package scripts`);
+      console.log(
+        `${result.root}: ${result.markdownFiles} markdown files, ${result.scripts} package scripts`,
+      );
       for (const failure of result.failures) console.error(`  FAIL ${failure}`);
     }
-    console.log(`release documentation validation: ${summary.overall} (${failureCount} failures)`);
+    console.log(
+      `release documentation validation: ${summary.overall} (${failureCount} failures)`,
+    );
   }
   return failureCount === 0 ? 0 : 1;
 }
 
-const isEntryPoint = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isEntryPoint =
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
