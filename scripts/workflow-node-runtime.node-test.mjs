@@ -8,7 +8,7 @@ function inspect(body) {
   return inspectReleaseWorkflowRuntime(body, allowed, "release-integrity.yml");
 }
 
-test("accepts repository JS only after an allowed explicit setup-node runtime", () => {
+test("accepts allowed explicit setup-node runtimes", () => {
   const result = inspect(`jobs:
   integrity:
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ test("rejects runner-default Node execution", () => {
   assert.match(result.failures[0], /without actions\/setup-node/);
 });
 
-test("rejects a Node version outside the release toolchain contract", () => {
+test("rejects Node outside the release toolchain contract", () => {
   const result = inspect(`jobs:
   handoff:
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ test("rejects a Node version outside the release toolchain contract", () => {
   assert.match(result.failures[0], /not allowed by the release toolchain contract/);
 });
 
-test("rejects setup-node that occurs after repository JavaScript", () => {
+test("rejects setup-node after repository JavaScript", () => {
   const result = inspect(`jobs:
   handoff:
     runs-on: ubuntu-latest
@@ -68,7 +68,7 @@ test("rejects setup-node that occurs after repository JavaScript", () => {
   assert.match(result.failures[0], /before actions\/setup-node/);
 });
 
-test("rejects setup-node without an explicit node-version", () => {
+test("rejects setup-node without node-version", () => {
   const result = inspect(`jobs:
   handoff:
     runs-on: ubuntu-latest
@@ -80,7 +80,7 @@ test("rejects setup-node without an explicit node-version", () => {
   assert.match(result.failures[0], /must declare node-version explicitly/);
 });
 
-test("ignores jobs that do not execute repository JavaScript", () => {
+test("ignores jobs without repository JavaScript", () => {
   const result = inspect(`jobs:
   upload-only:
     runs-on: ubuntu-latest
