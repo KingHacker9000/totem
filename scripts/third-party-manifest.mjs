@@ -2,9 +2,9 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
 export const SCHEMA = "totem.third-party-release-manifest/v1";
 export const ARTIFACT_KIND = "totem.pi-source-release/v1";
@@ -68,6 +68,7 @@ function run(command, args, cwd) {
   return execFileSync(command, args, {
     cwd,
     encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 }
