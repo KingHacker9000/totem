@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { effectiveToolchainIdentity } from "./release-toolchain.mjs";
 
 export const SCHEMA = "totem.release-provenance/v1";
 const PUBLIC_REPOSITORY = "KingHacker9000/totem";
@@ -210,6 +211,7 @@ export async function generateProvenance({
       tree: git(rootReal, ["rev-parse", "HEAD^{tree}"]),
     },
     workspace: await workspaceIdentity(rootReal),
+    toolchain: await effectiveToolchainIdentity(rootReal),
     build: { profile, command: buildCommand },
     artifacts: artifactRecords.sort((a, b) => a.path.localeCompare(b.path)),
     boundary: {
@@ -254,6 +256,10 @@ export async function verifyProvenance({ root, output }) {
   const workspace = await workspaceIdentity(rootReal);
   if (JSON.stringify(document.workspace) !== JSON.stringify(workspace)) {
     throw new Error("provenance workspace/lockfile identity is stale");
+  }
+  const toolchain = await effectiveToolchainIdentity(rootReal);
+  if (JSON.stringify(document.toolchain) !== JSON.stringify(toolchain)) {
+    throw new Error("provenance release toolchain identity is stale");
   }
   if (!document.boundary?.publicRepositoryOnly) {
     throw new Error("public/private release boundary is not asserted");
