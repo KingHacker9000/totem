@@ -1,0 +1,13 @@
+{
+  "schema": "totem.release-toolchain/v1",
+  "node": {
+    "default": "24.18.0",
+    "ci": ["22.20.0", "24.18.0"],
+    "engine": ">=22.20.0"
+  },
+  "pnpm": {
+    "pinned": "10.28.0",
+    "engine": ">=10 <11"
+  },
+  "workflow": ".github/workflows/ci.yml"
+}
