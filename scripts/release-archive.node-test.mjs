@@ -61,19 +61,29 @@ test("tar parser and validator accept the exact portable contract", () => {
     { path: "./deploy/pi/install.sh", mode: 0o755, body: "#!/bin/sh\n" },
     { path: "./release-manifest.json", mode: 0o644, body: "{}\n" },
   ]);
-  validateArchiveEntries(parseTarEntries(bytes), expectedArchiveContract(manifest));
+  validateArchiveEntries(
+    parseTarEntries(bytes),
+    expectedArchiveContract(manifest),
+  );
 });
 
 test("unsafe paths fail closed", () => {
   assert.throws(() => normalizeArchivePath("../secret"), /unsafe archive path/);
-  assert.throws(() => normalizeArchivePath("/etc/passwd"), /unsafe archive path/);
+  assert.throws(
+    () => normalizeArchivePath("/etc/passwd"),
+    /unsafe archive path/,
+  );
   assert.throws(() => normalizeArchivePath("C:/secret"), /unsafe archive path/);
 });
 
 test("special files and unexpected files fail closed", () => {
   const contract = expectedArchiveContract(manifest);
   assert.throws(
-    () => validateArchiveEntries([{ path: "README.md", mode: 0o644, size: 0, type: "2" }], contract),
+    () =>
+      validateArchiveEntries(
+        [{ path: "README.md", mode: 0o644, size: 0, type: "2" }],
+        contract,
+      ),
     /unsupported archive entry type/,
   );
   assert.throws(
@@ -114,7 +124,11 @@ test("missing required files and writable directories fail closed", () => {
     /archive missing required file/,
   );
   assert.throws(
-    () => validateArchiveEntries([{ path: "tmp", mode: 0o777, size: 0, type: "5" }], new Map()),
+    () =>
+      validateArchiveEntries(
+        [{ path: "tmp", mode: 0o777, size: 0, type: "5" }],
+        new Map(),
+      ),
     /group\/world writable/,
   );
 });
