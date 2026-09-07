@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { lstat, readdir, readlink, realpath, rm, stat, statfs } from "node:fs/promises";
+import {
+  lstat,
+  readdir,
+  readlink,
+  realpath,
+  rm,
+  stat,
+  statfs,
+} from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,20 +20,32 @@ export function parsePositiveInteger(value, fallback, name) {
   if (value === undefined || value === null || value === "") return fallback;
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new Error(`${name} must be a non-negative integer; received ${value}`);
+    throw new Error(
+      `${name} must be a non-negative integer; received ${value}`,
+    );
   }
   return parsed;
 }
 
-export function chooseRetention({ releases, current, retain = DEFAULT_RETENTION }) {
+export function chooseRetention({
+  releases,
+  current,
+  retain = DEFAULT_RETENTION,
+}) {
   if (!Number.isSafeInteger(retain) || retain < 2) {
-    throw new Error("release retention must be at least 2 (current + rollback)");
+    throw new Error(
+      "release retention must be at least 2 (current + rollback)",
+    );
   }
 
-  const ordered = [...releases].sort((a, b) => b.mtimeMs - a.mtimeMs || b.path.localeCompare(a.path));
+  const ordered = [...releases].sort(
+    (a, b) => b.mtimeMs - a.mtimeMs || b.path.localeCompare(a.path),
+  );
   const currentEntry = ordered.find((entry) => entry.path === current);
   const rollback = ordered.find((entry) => entry.path !== current);
-  const protectedPaths = new Set([currentEntry?.path, rollback?.path].filter(Boolean));
+  const protectedPaths = new Set(
+    [currentEntry?.path, rollback?.path].filter(Boolean),
+  );
 
   for (const entry of ordered) {
     if (protectedPaths.size >= retain) break;
@@ -39,7 +59,11 @@ export function chooseRetention({ releases, current, retain = DEFAULT_RETENTION 
   };
 }
 
-export function assertFreeSpace({ availableBytes, minFreeBytes, estimatedReleaseBytes = 0 }) {
+export function assertFreeSpace({
+  availableBytes,
+  minFreeBytes,
+  estimatedReleaseBytes = 0,
+}) {
   const required = minFreeBytes + estimatedReleaseBytes;
   if (availableBytes < required) {
     const availableMiB = Math.floor(availableBytes / MIB);
@@ -82,7 +106,11 @@ async function listReleases(prefix) {
   for (const name of names) {
     const releasePath = path.join(releasesDir, name);
     const info = await stat(releasePath);
-    if (info.isDirectory()) releases.push({ path: await realpath(releasePath), mtimeMs: info.mtimeMs });
+    if (info.isDirectory())
+      releases.push({
+        path: await realpath(releasePath),
+        mtimeMs: info.mtimeMs,
+      });
   }
   return releases;
 }
@@ -125,7 +153,8 @@ async function prune(prefix, retain, dryRun = false) {
   const plan = chooseRetention({ releases, current, retain });
 
   for (const entry of plan.prune) {
-    if (entry.path === current) throw new Error(`refusing to prune active release ${entry.path}`);
+    if (entry.path === current)
+      throw new Error(`refusing to prune active release ${entry.path}`);
     if (!dryRun) await rm(entry.path, { recursive: true, force: false });
     console.log(`${dryRun ? "would prune" : "pruned"}: ${entry.path}`);
   }
@@ -164,8 +193,12 @@ async function report(prefix) {
         `${formatMiB(size.allocatedBytes)} allocated`,
     );
   }
-  console.log(`release total: ${formatMiB(totalApparent)} apparent / ${formatMiB(totalAllocated)} allocated`);
-  console.log("Allocated size is the disk-usage signal; apparent size can overstate hard-linked pnpm content.");
+  console.log(
+    `release total: ${formatMiB(totalApparent)} apparent / ${formatMiB(totalAllocated)} allocated`,
+  );
+  console.log(
+    "Allocated size is the disk-usage signal; apparent size can overstate hard-linked pnpm content.",
+  );
 }
 
 async function main(argv) {
@@ -205,7 +238,9 @@ async function main(argv) {
   );
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isMain =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
   main(process.argv.slice(2)).catch((error) => {
     console.error(`release policy error: ${error.message}`);
