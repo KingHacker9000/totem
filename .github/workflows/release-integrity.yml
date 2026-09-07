@@ -16,9 +16,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check integrity implementation formatting
-        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs
-      - name: Test detached integrity, archive, candidate, and reproducibility validators
-        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.node-test.mjs
+        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.mjs scripts/release-publication.node-test.mjs
+      - name: Test detached integrity, archive, candidate, reproducibility, and publication validators
+        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.node-test.mjs
       - name: Prove bundle reproducibility across clean worktrees
         run: pnpm release:bundle:reproducibility
       - name: Build and verify public bundle integrity
@@ -36,6 +36,12 @@ jobs:
         run: |
           pnpm release:candidate:generate
           pnpm release:candidate:verify
+      - name: Rehearse release-tag publication identity
+        run: |
+          rehearsal_tag="totem-publication-rehearsal-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git tag "$rehearsal_tag" HEAD
+          trap 'git tag -d "$rehearsal_tag" >/dev/null 2>&1 || true' EXIT
+          node scripts/release-publication.mjs --ref "$rehearsal_tag"
       - name: Upload exact public release handoff set
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
