@@ -26,9 +26,13 @@ jobs:
         run: pnpm release:repos:check
       - name: Validate public repository-family remote drift
         if: runner.os == 'Linux' && matrix.node == '22.20.0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: pnpm release:repos:check:remote
       - name: Validate public repository-family clean checkouts
         if: runner.os == 'Linux' && matrix.node == '22.20.0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: pnpm release:repos:validate
       - name: Validate pinned public workflow actions
         shell: bash
@@ -88,6 +92,9 @@ jobs:
         run: |
           pnpm release:bundle:build
           pnpm release:bundle:verify
+      - name: Validate isolated public release artifact
+        if: runner.os == 'Linux' && matrix.node == '22.20.0'
+        run: node scripts/release-artifact-smoke.mjs --bundle dist/release/totem-public
       - name: Scan public release artifact content boundary
         run: pnpm release:artifact:scan
       - name: Generate and verify deterministic CycloneDX release SBOM
