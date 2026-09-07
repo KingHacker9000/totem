@@ -40,7 +40,15 @@ jobs:
         shell: bash
         run: |
           workflow_root="$RUNNER_TEMP/totem-workflow-policy"
-          mkdir -p "$workflow_root"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$workflow_root" \
+            --repo KingHacker9000/totem-hardware \
+            --repo KingHacker9000/totem-extension-sdk \
+            --repo KingHacker9000/totem-theme-sdk \
+            --repo KingHacker9000/totem-base-extensions \
+            --repo KingHacker9000/totem-base-themes \
+            --repo KingHacker9000/totem-agent-providers \
+            --repo KingHacker9000/totem-registry
           args=(--repo .)
           for repo in \
             totem-hardware \
@@ -51,7 +59,6 @@ jobs:
             totem-agent-providers \
             totem-registry
           do
-            git clone --depth 1 "https://github.com/KingHacker9000/${repo}.git" "$workflow_root/$repo"
             args+=(--repo "$workflow_root/$repo")
           done
           node scripts/workflow-actions.mjs "${args[@]}"
@@ -61,7 +68,14 @@ jobs:
         shell: bash
         run: |
           docs_root="$RUNNER_TEMP/totem-release-docs"
-          mkdir -p "$docs_root"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$docs_root" \
+            --repo KingHacker9000/totem-extension-sdk \
+            --repo KingHacker9000/totem-theme-sdk \
+            --repo KingHacker9000/totem-base-extensions \
+            --repo KingHacker9000/totem-base-themes \
+            --repo KingHacker9000/totem-agent-providers \
+            --repo KingHacker9000/totem-registry
           args=(--repo .)
           for repo in \
             totem-extension-sdk \
@@ -71,7 +85,6 @@ jobs:
             totem-agent-providers \
             totem-registry
           do
-            git clone --depth 1 "https://github.com/KingHacker9000/${repo}.git" "$docs_root/$repo"
             args+=(--repo "$docs_root/$repo")
           done
           node scripts/release-docs.mjs "${args[@]}"

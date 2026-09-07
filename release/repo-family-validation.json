@@ -18,7 +18,7 @@
     },
     {
       "repo": "KingHacker9000/totem-hardware",
-      "revision": "f5e65acb2c70942d2228e18205e7f9aadf0ce456",
+      "revision": "b9d55922981363d10849284c99f8065fe306a112",
       "kind": "python-hardware",
       "runtime": {
         "python": "3.11+ (CAD); 3.12 supported for schema validation"
@@ -65,7 +65,7 @@
     },
     {
       "repo": "KingHacker9000/totem-extension-sdk",
-      "revision": "d6f7cfd56900c51df9af8488d387a0f45c7f33bf",
+      "revision": "b12fbb392387484b838571f00dd61dd6e6addcff",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -75,7 +75,7 @@
     },
     {
       "repo": "KingHacker9000/totem-theme-sdk",
-      "revision": "3146fd063afb8dab62c46ebea67fe7dea350de20",
+      "revision": "30f38e2c739ab344c9e7a795fb552b7d2e6a5b96",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -85,7 +85,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-extensions",
-      "revision": "028804bac39f5162c6eb15b8fd1fdcb94a16675d",
+      "revision": "6844e5b4bbc0c4b369a24e43c3ca5202e1685312",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -95,7 +95,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-themes",
-      "revision": "1203e7f4723c39969ed01e83ef1c9da7f91416be",
+      "revision": "f89089fdc58ba01a2c5f11609e3d515b96dcf4bc",
       "kind": "content",
       "runtime": null,
       "metadata": ["README.md", "default", "minimal", "retro-terminal"],
@@ -105,7 +105,7 @@
     },
     {
       "repo": "KingHacker9000/totem-agent-providers",
-      "revision": "706051d6535259f20d7d3351d189282980668d06",
+      "revision": "1825666ac0c12479b70d948c03eafd926c7ac87b",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -115,7 +115,7 @@
     },
     {
       "repo": "KingHacker9000/totem-registry",
-      "revision": "54d8757fb73f5733792a8678b7f3aefdbbdd7b28",
+      "revision": "1543d2e3c3f5c7c42baf89e0182cc51a2c69ce77",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
