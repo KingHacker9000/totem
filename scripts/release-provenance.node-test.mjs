@@ -10,6 +10,8 @@ import {
   verifyProvenance,
 } from "./release-provenance.mjs";
 
+const MATRIX_EXPRESSION = "node-version: $" + "{{ matrix.node }}";
+
 function git(root, ...args) {
   return execFileSync("git", ["-C", root, ...args], {
     encoding: "utf8",
@@ -50,21 +52,25 @@ async function fixture() {
   await writeFile(join(root, ".nvmrc"), "24.18.0\n", "utf8");
   await writeFile(
     join(root, "config", "release-toolchain.json"),
-    `${JSON.stringify({
-      schema: "totem.release-toolchain/v1",
-      node: {
-        default: "24.18.0",
-        ci: ["22.20.0", "24.18.0"],
-        engine: ">=22.20.0",
+    `${JSON.stringify(
+      {
+        schema: "totem.release-toolchain/v1",
+        node: {
+          default: "24.18.0",
+          ci: ["22.20.0", "24.18.0"],
+          engine: ">=22.20.0",
+        },
+        pnpm: { pinned: "10.28.0", engine: ">=10 <11" },
+        workflow: ".github/workflows/ci.yml",
       },
-      pnpm: { pinned: "10.28.0", engine: ">=10 <11" },
-      workflow: ".github/workflows/ci.yml",
-    }, null, 2)}\n`,
+      null,
+      2,
+    )}\n`,
     "utf8",
   );
   await writeFile(
     join(root, ".github", "workflows", "ci.yml"),
-    "matrix:\n  node: [22.20.0, 24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      node-version: ${{ matrix.node }}\n",
+    `matrix:\n  node: [22.20.0, 24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      ${MATRIX_EXPRESSION}\n`,
     "utf8",
   );
   await writeFile(
