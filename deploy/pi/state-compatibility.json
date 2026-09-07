@@ -1,0 +1,9 @@
+{
+  "schema": "totem.state-compatibility/v1",
+  "stateFormat": "opaque-v0",
+  "reads": ["opaque-v0"],
+  "writes": "opaque-v0",
+  "migration": "none",
+  "legacyUnversionedFormat": "opaque-v0",
+  "notes": "Current Totem durable state is preserved as an opaque directory with no in-place migration. Releases without this descriptor that predate the contract are treated as opaque-v0 until an explicit state-format change is introduced."
+}
