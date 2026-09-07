@@ -15,6 +15,17 @@ jobs:
           node-version: 22.20.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Produce canonical T949 formatting diagnostic
+        run: pnpm exec biome format --write scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs
+      - name: Upload canonical T949 formatting diagnostic
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: t949-biome-formatted
+          path: |
+            scripts/release-candidate.mjs
+            scripts/release-candidate.node-test.mjs
+          if-no-files-found: error
+          retention-days: 1
       - name: Check integrity implementation formatting
         run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs
       - name: Test detached integrity, archive, candidate, and reproducibility validators
