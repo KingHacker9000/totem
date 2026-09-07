@@ -8,7 +8,9 @@ import {
   buildReleaseBundle,
   DEFAULT_OUTPUT as DEFAULT_BUNDLE,
 } from "./release-bundle.mjs";
-import { buildManifest as buildThirdPartyManifest } from "./third-party-manifest.mjs";
+import {
+  buildManifest as buildThirdPartyManifest,
+} from "./third-party-manifest.mjs";
 
 export const FORMAT = "CycloneDX";
 export const SPEC_VERSION = "1.6";
