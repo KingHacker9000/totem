@@ -53,14 +53,18 @@ async function collectFiles(root) {
       const absolute = join(current, entry.name);
       const item = await lstat(absolute);
       if (item.isSymbolicLink()) {
-        throw new Error(`Backup state contains unsupported symbolic link: ${absolute}`);
+        throw new Error(
+          `Backup state contains unsupported symbolic link: ${absolute}`,
+        );
       }
       if (item.isDirectory()) {
         await visit(absolute);
         continue;
       }
       if (!item.isFile()) {
-        throw new Error(`Backup state contains unsupported filesystem entry: ${absolute}`);
+        throw new Error(
+          `Backup state contains unsupported filesystem entry: ${absolute}`,
+        );
       }
       files.push({
         path: relative(root, absolute).replaceAll("\\", "/"),
@@ -76,7 +80,9 @@ async function collectFiles(root) {
 
 function validateManifestShape(manifest) {
   if (!manifest || manifest.schema !== MANIFEST_SCHEMA) {
-    throw new Error(`Unsupported backup manifest schema; expected ${MANIFEST_SCHEMA}.`);
+    throw new Error(
+      `Unsupported backup manifest schema; expected ${MANIFEST_SCHEMA}.`,
+    );
   }
   if (!BACKUP_ID_PATTERN.test(manifest.id ?? "")) {
     throw new Error("Backup manifest has an invalid id.");
@@ -95,7 +101,9 @@ function validateManifestShape(manifest) {
       typeof file.size !== "number" ||
       !/^[a-f0-9]{64}$/.test(file.sha256 ?? "")
     ) {
-      throw new Error("Backup manifest contains an invalid file inventory entry.");
+      throw new Error(
+        "Backup manifest contains an invalid file inventory entry.",
+      );
     }
   }
 }
@@ -120,9 +128,13 @@ export async function verifyBackupDirectory(backupDir) {
     throw new Error("Backup snapshot state directory is missing.");
   }
   const actual = await collectFiles(snapshotDir);
-  const expected = [...manifest.files].sort((a, b) => a.path.localeCompare(b.path));
+  const expected = [...manifest.files].sort((a, b) =>
+    a.path.localeCompare(b.path),
+  );
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error("Backup integrity verification failed: snapshot contents differ from manifest.");
+    throw new Error(
+      "Backup integrity verification failed: snapshot contents differ from manifest.",
+    );
   }
 
   const totalBytes = actual.reduce((sum, file) => sum + file.size, 0);
@@ -131,22 +143,34 @@ export async function verifyBackupDirectory(backupDir) {
     manifest.integrity?.fileCount !== actual.length ||
     manifest.integrity?.totalBytes !== totalBytes
   ) {
-    throw new Error("Backup integrity summary does not match snapshot contents.");
+    throw new Error(
+      "Backup integrity summary does not match snapshot contents.",
+    );
   }
   return manifest;
 }
 
-export async function assertSystemdServiceStopped(serviceName = "totem.service") {
+export async function assertSystemdServiceStopped(
+  serviceName = "totem.service",
+) {
   try {
-    const { stdout } = await execFileAsync("systemctl", ["is-active", serviceName]);
+    const { stdout } = await execFileAsync("systemctl", [
+      "is-active",
+      serviceName,
+    ]);
     const state = stdout.trim();
-    throw new Error(`Refusing recovery operation: ${serviceName} is ${state || "active"}.`);
+    throw new Error(
+      `Refusing recovery operation: ${serviceName} is ${state || "active"}.`,
+    );
   } catch (error) {
     const stdout = typeof error?.stdout === "string" ? error.stdout.trim() : "";
     if (stdout === "inactive" || stdout === "failed") {
       return;
     }
-    if (error instanceof Error && error.message.startsWith("Refusing recovery operation:")) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Refusing recovery operation:")
+    ) {
       throw error;
     }
     throw new Error(
@@ -190,7 +214,11 @@ export async function createQuiescedBackup({
       totalBytes,
     },
   };
-  await writeFile(join(backupDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(
+    join(backupDir, "manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
   await verifyBackupDirectory(backupDir);
   return { backupDir, manifest };
 }
@@ -210,9 +238,14 @@ export async function restoreVerifiedBackup({
   const preserved = `${stateDir}.pre-restore.${suffix}`;
   await rm(staging, { recursive: true, force: true });
   if (await pathExists(preserved)) {
-    throw new Error(`Pre-restore preservation path already exists: ${preserved}`);
+    throw new Error(
+      `Pre-restore preservation path already exists: ${preserved}`,
+    );
   }
-  await cp(join(backupDir, "state"), staging, { recursive: true, force: false });
+  await cp(join(backupDir, "state"), staging, {
+    recursive: true,
+    force: false,
+  });
 
   const hadLiveState = await pathExists(stateDir);
   try {
@@ -222,7 +255,11 @@ export async function restoreVerifiedBackup({
     await rename(staging, stateDir);
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
-    if (hadLiveState && !(await pathExists(stateDir)) && (await pathExists(preserved))) {
+    if (
+      hadLiveState &&
+      !(await pathExists(stateDir)) &&
+      (await pathExists(preserved))
+    ) {
       await rename(preserved, stateDir);
     }
     throw error;
@@ -258,36 +295,47 @@ function parseArgs(argv) {
 async function main() {
   const { command, options } = parseArgs(process.argv.slice(2));
   if (command === "verify") {
-    if (!options.backup) throw new Error("verify requires --backup <directory>.");
+    if (!options.backup)
+      throw new Error("verify requires --backup <directory>.");
     const manifest = await verifyBackupDirectory(options.backup);
     console.log(JSON.stringify({ ok: true, backupId: manifest.id }, null, 2));
     return;
   }
   if (command === "backup") {
     if (!options.root || !options.state) {
-      throw new Error("backup requires --root <Totem root> --state <state directory>.");
+      throw new Error(
+        "backup requires --root <Totem root> --state <state directory>.",
+      );
     }
     const result = await createQuiescedBackup({
       root: options.root,
       stateDir: options.state,
-      assertStopped: () => assertSystemdServiceStopped(options.service ?? "totem.service"),
+      assertStopped: () =>
+        assertSystemdServiceStopped(options.service ?? "totem.service"),
     });
-    console.log(JSON.stringify({ ok: true, backup: result.backupDir }, null, 2));
+    console.log(
+      JSON.stringify({ ok: true, backup: result.backupDir }, null, 2),
+    );
     return;
   }
   if (command === "restore") {
     if (!options.backup || !options.state) {
-      throw new Error("restore requires --backup <directory> --state <state directory>.");
+      throw new Error(
+        "restore requires --backup <directory> --state <state directory>.",
+      );
     }
     const result = await restoreVerifiedBackup({
       backupDir: options.backup,
       stateDir: options.state,
-      assertStopped: () => assertSystemdServiceStopped(options.service ?? "totem.service"),
+      assertStopped: () =>
+        assertSystemdServiceStopped(options.service ?? "totem.service"),
     });
     console.log(JSON.stringify({ ok: true, result }, null, 2));
     return;
   }
-  throw new Error("Usage: state-recovery.mjs <backup|verify|restore> [options]");
+  throw new Error(
+    "Usage: state-recovery.mjs <backup|verify|restore> [options]",
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
