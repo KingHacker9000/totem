@@ -17,29 +17,43 @@ export function inspectWorkflowCheckoutCredentials(text, file = "<workflow>") {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (!CHECKOUT_RE.test(line)) continue;
+
     const stepIndent = indentOf(line);
-    const entry = { line: index + 1, persistCredentials: null, persistCredentialsLine: null };
+    const entry = {
+      line: index + 1,
+      persistCredentials: null,
+      persistCredentialsLine: null,
+    };
     let withIndent = null;
 
     for (let child = index + 1; child < lines.length; child += 1) {
       const raw = lines[child];
       if (!raw.trim() || /^\s*#/.test(raw)) continue;
       const indent = indentOf(raw);
+
       if (indent <= stepIndent) break;
       if (withIndent === null) {
-        if (indent === stepIndent + 2 && /^\s*with:\s*(?:#.*)?$/.test(raw)) withIndent = indent;
+        if (indent === stepIndent + 2 && /^\s*with:\s*(?:#.*)?$/.test(raw)) {
+          withIndent = indent;
+        }
         continue;
       }
+
       if (indent <= withIndent) {
         withIndent = null;
         if (indent <= stepIndent) break;
-        if (indent === stepIndent + 2 && /^\s*with:\s*(?:#.*)?$/.test(raw)) withIndent = indent;
+        if (indent === stepIndent + 2 && /^\s*with:\s*(?:#.*)?$/.test(raw)) {
+          withIndent = indent;
+        }
         continue;
       }
+
       const match = raw.match(/^\s*persist-credentials:\s*(.*?)\s*$/);
       if (!match) continue;
       if (entry.persistCredentialsLine !== null) {
-        failures.push(`${file}:${child + 1}: duplicate actions/checkout persist-credentials declaration`);
+        failures.push(
+          `${file}:${child + 1}: duplicate actions/checkout persist-credentials declaration`,
+        );
         continue;
       }
       entry.persistCredentials = match[1].replace(/\s+#.*$/, "").trim();
@@ -47,8 +61,15 @@ export function inspectWorkflowCheckoutCredentials(text, file = "<workflow>") {
     }
 
     entries.push(entry);
-    if (entry.persistCredentialsLine === null) failures.push(`${file}:${entry.line}: actions/checkout must explicitly set persist-credentials: false`);
-    else if (entry.persistCredentials !== "false") failures.push(`${file}:${entry.persistCredentialsLine}: actions/checkout persist-credentials must be false`);
+    if (entry.persistCredentialsLine === null) {
+      failures.push(
+        `${file}:${entry.line}: actions/checkout must explicitly set persist-credentials: false`,
+      );
+    } else if (entry.persistCredentials !== "false") {
+      failures.push(
+        `${file}:${entry.persistCredentialsLine}: actions/checkout persist-credentials must be false`,
+      );
+    }
   }
 
   return { entries, failures };
@@ -57,19 +78,36 @@ export function inspectWorkflowCheckoutCredentials(text, file = "<workflow>") {
 export function validateRepository(root) {
   const absoluteRoot = resolve(root);
   const workflowsRoot = join(absoluteRoot, ".github", "workflows");
-  if (!existsSync(workflowsRoot)) return { root: absoluteRoot, workflows: 0, checkouts: 0, results: [], failures: [] };
-  const files = readdirSync(workflowsRoot, { withFileTypes: true }).filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name)).map((entry) => join(workflowsRoot, entry.name)).sort();
+  if (!existsSync(workflowsRoot)) {
+    return { root: absoluteRoot, workflows: 0, checkouts: 0, results: [], failures: [] };
+  }
+
+  const files = readdirSync(workflowsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
+    .map((entry) => join(workflowsRoot, entry.name))
+    .sort();
   const results = [];
   const failures = [];
   let checkouts = 0;
+
   for (const file of files) {
     const relativeFile = relative(absoluteRoot, file);
-    const inspected = inspectWorkflowCheckoutCredentials(readFileSync(file, "utf8"), relativeFile);
+    const inspected = inspectWorkflowCheckoutCredentials(
+      readFileSync(file, "utf8"),
+      relativeFile,
+    );
     results.push({ file: relativeFile, ...inspected });
     checkouts += inspected.entries.length;
     failures.push(...inspected.failures);
   }
-  return { root: absoluteRoot, workflows: files.length, checkouts, results, failures };
+
+  return {
+    root: absoluteRoot,
+    workflows: files.length,
+    checkouts,
+    results,
+    failures,
+  };
 }
 
 function parseArgs(argv) {
@@ -91,20 +129,43 @@ function parseArgs(argv) {
 export function main(argv = process.argv.slice(2)) {
   const { repos, json } = parseArgs(argv);
   const repositories = repos.map(validateRepository);
-  const failureCount = repositories.reduce((sum, repository) => sum + repository.failures.length, 0);
-  const workflowCount = repositories.reduce((sum, repository) => sum + repository.workflows, 0);
-  const checkoutCount = repositories.reduce((sum, repository) => sum + repository.checkouts, 0);
-  const summary = { schema: "totem.workflow-checkout-credentials/v1", policy: { "persist-credentials": false }, repositories, workflow_count: workflowCount, checkout_count: checkoutCount, failure_count: failureCount, overall: failureCount === 0 ? "PASS" : "FAIL" };
+  const failureCount = repositories.reduce(
+    (sum, repository) => sum + repository.failures.length,
+    0,
+  );
+  const workflowCount = repositories.reduce(
+    (sum, repository) => sum + repository.workflows,
+    0,
+  );
+  const checkoutCount = repositories.reduce(
+    (sum, repository) => sum + repository.checkouts,
+    0,
+  );
+  const summary = {
+    schema: "totem.workflow-checkout-credentials/v1",
+    policy: { "persist-credentials": false },
+    repositories,
+    workflow_count: workflowCount,
+    checkout_count: checkoutCount,
+    failure_count: failureCount,
+    overall: failureCount === 0 ? "PASS" : "FAIL",
+  };
+
   if (json) console.log(JSON.stringify(summary, null, 2));
   else {
     for (const repository of repositories) {
-      console.log(`${repository.root}: ${repository.workflows} workflows, ${repository.checkouts} checkout steps`);
+      console.log(
+        `${repository.root}: ${repository.workflows} workflows, ${repository.checkouts} checkout steps`,
+      );
       for (const failure of repository.failures) console.error(`  FAIL ${failure}`);
     }
-    console.log(`workflow checkout credentials: ${summary.overall} (${checkoutCount} checkouts, ${failureCount} failures)`);
+    console.log(
+      `workflow checkout credentials: ${summary.overall} (${checkoutCount} checkouts, ${failureCount} failures)`,
+    );
   }
   return failureCount === 0 ? 0 : 1;
 }
 
-const isEntryPoint = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isEntryPoint =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
