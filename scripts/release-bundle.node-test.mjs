@@ -22,6 +22,7 @@ async function fixture() {
   git(root, ["config", "user.name", "Totem CI"]);
   git(root, ["config", "user.email", "totem@example.invalid"]);
   await mkdir(join(root, "apps/core/src"), { recursive: true });
+  await mkdir(join(root, "config"), { recursive: true });
   await mkdir(join(root, "deploy/pi"), { recursive: true });
   await mkdir(join(root, "docs"), { recursive: true });
   await mkdir(join(root, "scripts"), { recursive: true });
@@ -34,6 +35,10 @@ async function fixture() {
   await writeFile(
     join(root, "apps/core/src/main.ts"),
     'console.log("totem")\n',
+  );
+  await writeFile(
+    join(root, "config/release-config.json"),
+    '{"schema":"totem.release-config/v1"}\n',
   );
   await writeFile(
     join(root, "deploy/pi/totem.env.example"),
@@ -49,6 +54,7 @@ async function fixture() {
 
 test("release policy rejects private, state, and secret paths", () => {
   assert.equal(releasePolicy("apps/core/src/main.ts").include, true);
+  assert.equal(releasePolicy("config/release-config.json").include, true);
   assert.equal(releasePolicy("deploy/pi/totem.env.example").include, true);
   assert.equal(releasePolicy(".github/workflows/ci.yml").include, false);
   assert.equal(releasePolicy("logs/runtime.log").fatal, false);
@@ -75,6 +81,7 @@ test("bundle generation is deterministic and verifiable", async () => {
     first.files.map((entry) => entry.path),
     [
       "apps/core/src/main.ts",
+      "config/release-config.json",
       "deploy/pi/totem.env.example",
       "docs/README.md",
       "package.json",
