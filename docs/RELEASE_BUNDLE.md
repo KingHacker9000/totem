@@ -10,12 +10,15 @@ From a clean public `KingHacker9000/totem` checkout:
 pnpm install --frozen-lockfile
 pnpm release:bundle:build
 pnpm release:bundle:verify
+pnpm release:bundle:reproducibility
 pnpm release:artifact:scan
 ```
 
 The default output is `dist/release/totem-public`. It contains the allowlisted public source/deployment files plus `release-manifest.json`. The manifest uses schema `totem.public-release-bundle/v1`, records the exact Git revision/tree, every bundled file path, Git file mode, byte count, SHA-256 digest, and one aggregate SHA-256 digest over the ordered file set.
 
 Identical tracked inputs at the same source revision produce identical manifest bytes and bundle file bytes. File timestamps are intentionally not part of the identity.
+
+`release:bundle:reproducibility` proves that statement from two detached clean worktrees of the exact same revision. The harness deliberately varies checkout path, source mtimes, process umask, timezone, and a supported C/C.UTF-8 locale pair, then requires the complete release manifest (source identity, policy, ordered file set, modes, byte counts, per-file SHA-256 values, and aggregate digest) to remain identical. Reproducibility drift fails closed with a stable JSON-path diagnostic. This is a bundle-tree/source-identity guarantee; archive path/type/mode and extraction portability remain the separate `release:archive:*` contract.
 
 `release:artifact:scan` first verifies that manifest/source integrity and then scans the actual bundle directory with schema `totem.release-artifact-content-scan/v1`. It fails closed on high-confidence credential/token material, private-key blocks, developer home/workspace paths, private Portal repository identifiers outside a narrow policy-reference allowlist, source maps/source-map references, symlinks, unsupported filesystem entries, and files above the bounded per-file scan limit. Binary files are classified by NUL bytes and still receive ASCII-compatible content checks rather than being silently skipped.
 
@@ -48,7 +51,7 @@ Forbidden tracked secret/state/private-Portal inputs fail the build rather than 
 
 Generated `dist/` output is deliberately excluded from the public bundle. The bundle is the reproducible source/deployment artifact: `pnpm install --frozen-lockfile` followed by `pnpm build` produces platform-relevant generated output after extraction. This matches the Raspberry Pi install model and avoids treating stale local build products as release inputs.
 
-CI proves this contract on every supported OS/Node combination by building and verifying the bundle after the repository build, scanning the resulting bundle content boundary, and then attesting the completed public bundle directory with the source-to-artifact provenance check. T925/T937/T914 can therefore identify both the exact release artifact and the content-privacy evidence rather than unrelated workspace output.
+CI proves this contract on every supported OS/Node combination by building and verifying the bundle after the repository build, scanning the resulting bundle content boundary, and then attesting the completed public bundle directory with the source-to-artifact provenance check. The dedicated hosted Linux release-integrity job additionally runs the two-clean-worktree reproducibility harness before archive validation. T925/T937/T944/T914 can therefore identify the exact release artifact, content-privacy evidence, and environment-independent bundle identity rather than unrelated workspace output.
 
 The scanner is intentionally a release-boundary guard, not a general-purpose secret-scanning product. It uses high-confidence token/key signatures plus explicit private/workspace/debug checks to avoid claiming exhaustive detection of every possible credential format. Real provider credentials remain outside the release artifact and are covered by the separate release-configuration/security controls.
 
