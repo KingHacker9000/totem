@@ -67,7 +67,7 @@ jobs:
           node scripts/workflow-permissions.mjs "${args[@]}"
           node scripts/workflow-trust.mjs "${args[@]}"
           node scripts/workflow-shell-injection.mjs "${args[@]}"
-          node scripts/workflow-checkout-credentials.mjs "${args[@]}"
+          node scripts/workflow-checkout-auth.mjs "${args[@]}"
       - name: Validate public release documentation drift
         shell: bash
         run: |
