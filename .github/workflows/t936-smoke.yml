@@ -3,7 +3,7 @@ on:
   push:
     branches: [t936-release-artifact-smoke]
 permissions:
-  contents: read
+  contents: write
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -15,6 +15,17 @@ jobs:
           node-version: 22.20.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Apply pinned formatter on branch
+        shell: bash
+        run: |
+          pnpm format
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add scripts/release-artifact-smoke.mjs docs/RELEASE_ARTIFACT_SMOKE.md .github/workflows/ci.yml
+            git commit -m "style: apply pinned formatter for T936"
+            git push
+          fi
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
