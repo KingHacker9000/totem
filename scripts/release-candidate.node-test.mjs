@@ -16,9 +16,7 @@ const integrityDocument = {
   releaseBundleDigest: DIGEST_A,
   files: [{ path: "package.json", bytes: 2, sha256: DIGEST_B }],
 };
-const integrityBytes = Buffer.from(
-  '{"schema":"totem.release-integrity/v1"}\n',
-);
+const integrityBytes = Buffer.from('{"schema":"totem.release-integrity/v1"}\n');
 const archiveBytes = Buffer.from("archive bytes\n");
 
 function candidate() {
@@ -31,23 +29,20 @@ function candidate() {
   });
 }
 
-test(
-  "buildCandidateDocument deterministically binds source, integrity, and archive bytes",
-  () => {
-    const first = candidate();
-    const second = candidate();
-    assert.deepEqual(first, second);
-    assert.equal(first.schema, "totem.release-candidate/v1");
-    assert.equal(first.algorithm, "sha256");
-    assert.equal(first.repository, "KingHacker9000/totem");
-    assert.deepEqual(first.source, { revision: "abc123", tree: "def456" });
-    assert.equal(first.releaseBundleDigest, DIGEST_A);
-    assert.equal(first.integrity.bytes, integrityBytes.length);
-    assert.equal(first.archive.bytes, archiveBytes.length);
-    assert.match(first.integrity.sha256, /^[0-9a-f]{64}$/);
-    assert.match(first.archive.sha256, /^[0-9a-f]{64}$/);
-  },
-);
+test("buildCandidateDocument deterministically binds source, integrity, and archive bytes", () => {
+  const first = candidate();
+  const second = candidate();
+  assert.deepEqual(first, second);
+  assert.equal(first.schema, "totem.release-candidate/v1");
+  assert.equal(first.algorithm, "sha256");
+  assert.equal(first.repository, "KingHacker9000/totem");
+  assert.deepEqual(first.source, { revision: "abc123", tree: "def456" });
+  assert.equal(first.releaseBundleDigest, DIGEST_A);
+  assert.equal(first.integrity.bytes, integrityBytes.length);
+  assert.equal(first.archive.bytes, archiveBytes.length);
+  assert.match(first.integrity.sha256, /^[0-9a-f]{64}$/);
+  assert.match(first.archive.sha256, /^[0-9a-f]{64}$/);
+});
 
 test("assertCandidateMatches rejects tampered archive bytes", () => {
   assert.throws(
