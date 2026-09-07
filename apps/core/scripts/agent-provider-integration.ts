@@ -69,7 +69,8 @@ function fail(message: string): never {
 }
 
 function assertProviderModule(value: unknown): asserts value is ProviderModule {
-  if (!value || typeof value !== "object") fail("provider module is not an object");
+  if (!value || typeof value !== "object")
+    fail("provider module is not an object");
   const candidate = value as Record<string, unknown>;
   for (const exportName of ["CodexCliProvider", "ClaudeCodeCliProvider"]) {
     if (typeof candidate[exportName] !== "function") {
@@ -82,25 +83,40 @@ async function* emptyLines(): AsyncIterable<string> {}
 
 const providerRoot = path.resolve(process.argv[2] ?? "");
 const expectedRevision = process.argv[3];
-if (!process.argv[2] || !expectedRevision || !/^[0-9a-f]{40}$/.test(expectedRevision)) {
-  fail("usage: agent-provider-integration.ts <provider-root> <40-char-revision>");
+if (
+  !process.argv[2] ||
+  !expectedRevision ||
+  !/^[0-9a-f]{40}$/.test(expectedRevision)
+) {
+  fail(
+    "usage: agent-provider-integration.ts <provider-root> <40-char-revision>",
+  );
 }
 
-const actualRevision = execFileSync("git", ["-C", providerRoot, "rev-parse", "HEAD"], {
-  encoding: "utf8",
-}).trim();
+const actualRevision = execFileSync(
+  "git",
+  ["-C", providerRoot, "rev-parse", "HEAD"],
+  { encoding: "utf8" },
+).trim();
 if (actualRevision !== expectedRevision) {
-  fail(`provider revision mismatch: expected ${expectedRevision}, got ${actualRevision}`);
+  fail(
+    `provider revision mismatch: expected ${expectedRevision}, got ${actualRevision}`,
+  );
 }
 
 const packageJson = JSON.parse(
   await readFile(path.join(providerRoot, "package.json"), "utf8"),
 ) as Record<string, unknown>;
-if (packageJson.name !== "@totem/agent-providers") fail("unexpected package identity");
-if (packageJson.exports !== "./dist/index.js") fail("unexpected package runtime export");
-if (packageJson.types !== "./dist/index.d.ts") fail("unexpected package type export");
+if (packageJson.name !== "@totem/agent-providers")
+  fail("unexpected package identity");
+if (packageJson.exports !== "./dist/index.js")
+  fail("unexpected package runtime export");
+if (packageJson.types !== "./dist/index.d.ts")
+  fail("unexpected package type export");
 
-const moduleUrl = pathToFileURL(path.join(providerRoot, "dist", "index.js")).href;
+const moduleUrl = pathToFileURL(
+  path.join(providerRoot, "dist", "index.js"),
+).href;
 const loaded: unknown = await import(moduleUrl);
 assertProviderModule(loaded);
 
@@ -139,9 +155,16 @@ if (JSON.stringify(ids) !== JSON.stringify(["claude-code", "codex"])) {
 }
 
 for (const provider of [codex, claude]) {
-  if (registry.get(provider.id) !== provider) fail(`registry lookup failed for ${provider.id}`);
+  if (registry.get(provider.id) !== provider)
+    fail(`registry lookup failed for ${provider.id}`);
   const capabilities = await provider.probeCapabilities();
-  for (const capability of ["streaming", "resume", "interrupt", "workspaces", "mcp"] as const) {
+  for (const capability of [
+    "streaming",
+    "resume",
+    "interrupt",
+    "workspaces",
+    "mcp",
+  ] as const) {
     if (capabilities[capability] !== true) {
       fail(`${provider.id} capability ${capability} is not enabled`);
     }
@@ -152,7 +175,9 @@ for (const provider of [codex, claude]) {
   }
   const session = await provider.startSession({
     workspace: { path: providerRoot, access: "read-only" },
-    mcpServers: [{ id: "fixture", command: "fixture-mcp", args: ["--offline"] }],
+    mcpServers: [
+      { id: "fixture", command: "fixture-mcp", args: ["--offline"] },
+    ],
   });
   if (session.providerId !== provider.id || session.status !== "active") {
     fail(`${provider.id} session contract mismatch`);
@@ -160,9 +185,15 @@ for (const provider of [codex, claude]) {
   await provider.terminate(session.id);
 }
 
-if (invocations.length !== 2) fail(`expected two status probes, got ${invocations.length}`);
-if (invocations[0]?.command !== "codex" || invocations[1]?.command !== "claude") {
-  fail(`unexpected probe commands: ${invocations.map((entry) => entry.command).join(", ")}`);
+if (invocations.length !== 2)
+  fail(`expected two status probes, got ${invocations.length}`);
+if (
+  invocations[0]?.command !== "codex" ||
+  invocations[1]?.command !== "claude"
+) {
+  fail(
+    `unexpected probe commands: ${invocations.map((entry) => entry.command).join(", ")}`,
+  );
 }
 
 console.log(
