@@ -12,15 +12,26 @@ const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packagePath = path.join(root, "package.json");
 
-const secretKeyPattern = /(token|secret|password|passwd|api[_-]?key|private[_-]?key|authorization|cookie|session|credential)/i;
-const privatePathPattern = /(?:^|[\\/])(?:\.ssh|\.gnupg|\.aws|\.config[\\/](?:gcloud|gh)|portal(?:-theme|-hardware)?)(?:[\\/]|$)/i;
+const secretKeyPattern =
+  /(token|secret|password|passwd|api[_-]?key|private[_-]?key|authorization|cookie|session|credential)/i;
+const privatePathPattern =
+  /(?:^|[\\/])(?:\.ssh|\.gnupg|\.aws|\.config[\\/](?:gcloud|gh)|portal(?:-theme|-hardware)?)(?:[\\/]|$)/i;
 
 export function redactString(value) {
   if (typeof value !== "string") return value;
   let result = value;
-  result = result.replace(/\b(?:bearer\s+)?[A-Za-z0-9_-]{24,}\b/gi, "[REDACTED]");
-  result = result.replace(/(?:sk|pk|ghp|github_pat|xox[baprs])[-_A-Za-z0-9]{12,}/gi, "[REDACTED]");
-  result = result.replace(/([?&](?:token|key|secret|password)=)[^&\s]+/gi, "$1[REDACTED]");
+  result = result.replace(
+    /\b(?:bearer\s+)?[A-Za-z0-9_-]{24,}\b/gi,
+    "[REDACTED]",
+  );
+  result = result.replace(
+    /(?:sk|pk|ghp|github_pat|xox[baprs])[-_A-Za-z0-9]{12,}/gi,
+    "[REDACTED]",
+  );
+  result = result.replace(
+    /([?&](?:token|key|secret|password)=)[^&\s]+/gi,
+    "$1[REDACTED]",
+  );
   return result;
 }
 
@@ -42,13 +53,16 @@ function configShape(contract, env) {
       scope: entry.scope,
       class: entry.class,
       secret: entry.secret,
-      present: Object.hasOwn(env, entry.name) && String(env[entry.name] ?? "") !== "",
+      present:
+        Object.hasOwn(env, entry.name) && String(env[entry.name] ?? "") !== "",
     }));
   const declaredNames = new Set(declared.map((entry) => entry.name));
   const unknownTotem = Object.keys(env).filter(
     (name) => name.startsWith("TOTEM_") && !declaredNames.has(name),
   );
-  const ambientSensitive = Object.keys(env).filter((name) => secretKeyPattern.test(name));
+  const ambientSensitive = Object.keys(env).filter((name) =>
+    secretKeyPattern.test(name),
+  );
   return {
     schema: contract.schema,
     declared,
@@ -61,41 +75,87 @@ function configShape(contract, env) {
 async function gitIdentity() {
   const result = { revision: null, dirty: null };
   try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+    });
     const revision = stdout.trim();
     result.revision = /^[0-9a-f]{40}$/i.test(revision) ? revision : null;
   } catch {}
   try {
-    const { stdout } = await execFileAsync("git", ["status", "--porcelain"], { cwd: root });
+    const { stdout } = await execFileAsync("git", ["status", "--porcelain"], {
+      cwd: root,
+    });
     result.dirty = stdout.trim().length > 0;
   } catch {}
   return result;
 }
 
 async function serviceStatus() {
-  if (process.platform !== "linux") return { manager: "systemd", available: false, active: null };
+  if (process.platform !== "linux") {
+    return { manager: "systemd", available: false, active: null };
+  }
   try {
-    const { stdout } = await execFileAsync("systemctl", ["is-active", "totem.service"]);
+    const { stdout } = await execFileAsync("systemctl", [
+      "is-active",
+      "totem.service",
+    ]);
     const status = stdout.trim();
-    return { manager: "systemd", available: true, active: status === "active", status: ["active", "inactive", "failed", "activating", "deactivating"].includes(status) ? status : "unknown" };
+    const allowed = [
+      "active",
+      "inactive",
+      "failed",
+      "activating",
+      "deactivating",
+    ];
+    return {
+      manager: "systemd",
+      available: true,
+      active: status === "active",
+      status: allowed.includes(status) ? status : "unknown",
+    };
   } catch (error) {
-    const stdout = typeof error?.stdout === "string" ? error.stdout.trim() : "";
-    const status = ["active", "inactive", "failed", "activating", "deactivating"].includes(stdout) ? stdout : "unknown";
-    return { manager: "systemd", available: stdout.length > 0, active: false, status };
+    const stdout =
+      typeof error?.stdout === "string" ? error.stdout.trim() : "";
+    const allowed = [
+      "active",
+      "inactive",
+      "failed",
+      "activating",
+      "deactivating",
+    ];
+    const status = allowed.includes(stdout) ? stdout : "unknown";
+    return {
+      manager: "systemd",
+      available: stdout.length > 0,
+      active: false,
+      status,
+    };
   }
 }
 
 async function healthProbe(baseUrl) {
   try {
-    const response = await fetch(new URL("/health", baseUrl), { signal: AbortSignal.timeout(2000) });
+    const response = await fetch(new URL("/health", baseUrl), {
+      signal: AbortSignal.timeout(2000),
+    });
     let status = null;
     try {
       const body = await response.json();
       if (body?.status === "ok") status = "ok";
     } catch {}
-    return { attempted: true, reachable: true, http_status: response.status, status };
+    return {
+      attempted: true,
+      reachable: true,
+      http_status: response.status,
+      status,
+    };
   } catch {
-    return { attempted: true, reachable: false, http_status: null, status: null };
+    return {
+      attempted: true,
+      reachable: false,
+      http_status: null,
+      status: null,
+    };
   }
 }
 
@@ -114,7 +174,11 @@ export function assertNoKnownSecretValues(bundle, env) {
     if (!value || value.length < 4 || !secretKeyPattern.test(name)) continue;
     if (serialized.includes(value)) leaked.push(name);
   }
-  if (leaked.length) throw new Error(`support diagnostics leaked sensitive environment values: ${leaked.join(", ")}`);
+  if (leaked.length) {
+    throw new Error(
+      `support diagnostics leaked sensitive environment values: ${leaked.join(", ")}`,
+    );
+  }
 }
 
 export async function buildSupportBundle({ env = process.env, baseUrl } = {}) {
@@ -124,7 +188,10 @@ export async function buildSupportBundle({ env = process.env, baseUrl } = {}) {
     gitIdentity(),
     serviceStatus(),
   ]);
-  const configuredBase = baseUrl ?? env.TOTEM_BASE_URL ?? `http://127.0.0.1:${env.TOTEM_PORT ?? "3000"}`;
+  const configuredBase =
+    baseUrl ??
+    env.TOTEM_BASE_URL ??
+    `http://127.0.0.1:${env.TOTEM_PORT ?? "3000"}`;
   const bundle = sortObject({
     schema: "totem.support-diagnostics/v1",
     privacy: {
@@ -146,7 +213,10 @@ export async function buildSupportBundle({ env = process.env, baseUrl } = {}) {
       cpus: os.cpus().length,
       total_memory_mib: Math.round(os.totalmem() / 1024 / 1024),
       free_memory_mib: Math.round(os.freemem() / 1024 / 1024),
-      load_average: process.platform === "win32" ? [] : os.loadavg().map((value) => Number(value.toFixed(2))),
+      load_average:
+        process.platform === "win32"
+          ? []
+          : os.loadavg().map((value) => Number(value.toFixed(2))),
     },
     configuration: configShape(contract, env),
     service,
@@ -163,17 +233,30 @@ async function main() {
   const output = outputIndex >= 0 ? args[outputIndex + 1] : null;
   const baseIndex = args.indexOf("--base-url");
   const baseUrl = baseIndex >= 0 ? args[baseIndex + 1] : undefined;
-  if (outputIndex >= 0 && !output) throw new Error("--output requires a path");
-  if (baseIndex >= 0 && !baseUrl) throw new Error("--base-url requires a URL");
+  if (outputIndex >= 0 && !output) {
+    throw new Error("--output requires a path");
+  }
+  if (baseIndex >= 0 && !baseUrl) {
+    throw new Error("--base-url requires a URL");
+  }
   const bundle = await buildSupportBundle({ baseUrl });
   const text = `${JSON.stringify(bundle, null, 2)}\n`;
-  if (output) await writeFile(path.resolve(output), text, { mode: 0o600 });
-  else process.stdout.write(text);
+  if (output) {
+    await writeFile(path.resolve(output), text, { mode: 0o600 });
+  } else {
+    process.stdout.write(text);
+  }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1]).replaceAll("\\", "/")}`).href) {
+if (
+  process.argv[1] &&
+  import.meta.url ===
+    new URL(`file://${path.resolve(process.argv[1]).replaceAll("\\", "/")}`).href
+) {
   main().catch((error) => {
-    console.error(redactString(error instanceof Error ? error.message : String(error)));
+    console.error(
+      redactString(error instanceof Error ? error.message : String(error)),
+    );
     process.exitCode = 1;
   });
 }
