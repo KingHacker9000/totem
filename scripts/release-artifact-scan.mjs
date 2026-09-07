@@ -21,11 +21,15 @@ const PRIVATE_REFERENCE_ALLOWLIST = new Set([
   "release/repo-family-validation.json",
   "scripts/release-artifact-scan.mjs",
   "scripts/release-bundle.mjs",
+  "scripts/release-bundle.node-test.mjs",
   "scripts/release-docs.mjs",
+  "scripts/release-docs.node-test.mjs",
   "scripts/release-provenance.mjs",
+  "scripts/release-provenance.node-test.mjs",
   "scripts/release-repository-metadata.mjs",
   "scripts/repo-family-validation.mjs",
   "scripts/third-party-manifest.mjs",
+  "scripts/third-party-manifest.node-test.mjs",
 ]);
 const SYNTHETIC_TEST_HOME = ["", "home", "tester"].join("/");
 const SAFE_ABSOLUTE_PATH_LITERALS = new Map([
