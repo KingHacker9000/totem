@@ -6,7 +6,9 @@ import { discoverPackages } from "../src/discovery.js";
 const root = process.argv[2];
 const expectedRevision = process.argv[3];
 if (!root || !expectedRevision) {
-  throw new Error("usage: theme-integration.ts <base-themes-root> <expected-revision>");
+  throw new Error(
+    "usage: theme-integration.ts <base-themes-root> <expected-revision>",
+  );
 }
 
 const snapshot = await discoverPackages({
@@ -16,7 +18,9 @@ const snapshot = await discoverPackages({
 });
 
 if (snapshot.rootDiagnostics.length !== 0) {
-  throw new Error(`theme root diagnostics: ${JSON.stringify(snapshot.rootDiagnostics)}`);
+  throw new Error(
+    `theme root diagnostics: ${JSON.stringify(snapshot.rootDiagnostics)}`,
+  );
 }
 
 const expectedIds = ["default", "minimal", "retro-terminal"];
@@ -25,18 +29,33 @@ const actualIds = snapshot.themes
   .map((theme) => theme.id)
   .sort();
 if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) {
-  throw new Error(`expected themes ${expectedIds.join(",")}, got ${actualIds.join(",")}`);
+  throw new Error(
+    `expected themes ${expectedIds.join(",")}, got ${actualIds.join(",")}`,
+  );
 }
 for (const theme of snapshot.themes) {
-  if (theme.state === "invalid" || theme.errors.length !== 0 || !theme.manifest) {
-    throw new Error(`invalid public theme ${theme.id ?? theme.path}: ${JSON.stringify(theme.errors)}`);
+  if (
+    theme.state === "invalid" ||
+    theme.errors.length !== 0 ||
+    !theme.manifest
+  ) {
+    throw new Error(
+      `invalid public theme ${theme.id ?? theme.path}: ${JSON.stringify(theme.errors)}`,
+    );
   }
 }
-if (snapshot.activeTheme.id !== "minimal" || snapshot.activeTheme.source !== "configured") {
-  throw new Error(`configured theme selection failed: ${JSON.stringify(snapshot.activeTheme)}`);
+if (
+  snapshot.activeTheme.id !== "minimal" ||
+  snapshot.activeTheme.source !== "configured"
+) {
+  throw new Error(
+    `configured theme selection failed: ${JSON.stringify(snapshot.activeTheme)}`,
+  );
 }
 
-const invalidRoot = await mkdtemp(join(tmpdir(), "totem-theme-integration-invalid-"));
+const invalidRoot = await mkdtemp(
+  join(tmpdir(), "totem-theme-integration-invalid-"),
+);
 const invalidTheme = join(invalidRoot, "unsafe");
 await mkdir(invalidTheme);
 await writeFile(
@@ -57,17 +76,28 @@ const invalidSnapshot = await discoverPackages({
   activeThemeId: "unsafe",
 });
 const unsafe = invalidSnapshot.themes[0];
-if (!unsafe || unsafe.state !== "invalid" || !unsafe.errors.some((error) => error.code === "theme_privilege_field_forbidden")) {
-  throw new Error(`unsafe theme did not fail closed: ${JSON.stringify(unsafe)}`);
+if (
+  unsafe?.state !== "invalid" ||
+  !unsafe.errors.some(
+    (error) => error.code === "theme_privilege_field_forbidden",
+  )
+) {
+  throw new Error(
+    `unsafe theme did not fail closed: ${JSON.stringify(unsafe)}`,
+  );
 }
 if (invalidSnapshot.activeTheme.source !== "fallback") {
-  throw new Error(`invalid theme was selected: ${JSON.stringify(invalidSnapshot.activeTheme)}`);
+  throw new Error(
+    `invalid theme was selected: ${JSON.stringify(invalidSnapshot.activeTheme)}`,
+  );
 }
 
-console.log(JSON.stringify({
-  schema: "totem.theme-host-integration/v1",
-  baseThemesRevision: expectedRevision,
-  discoveredThemeIds: actualIds,
-  activeTheme: snapshot.activeTheme.id,
-  invalidFixture: "rejected",
-}));
+console.log(
+  JSON.stringify({
+    schema: "totem.theme-host-integration/v1",
+    baseThemesRevision: expectedRevision,
+    discoveredThemeIds: actualIds,
+    activeTheme: snapshot.activeTheme.id,
+    invalidFixture: "rejected",
+  }),
+);
