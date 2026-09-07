@@ -10,6 +10,8 @@ import {
   verifyProvenance,
 } from "./release-provenance.mjs";
 
+const MATRIX_EXPRESSION = "node-version: $" + "{{ matrix.node }}";
+
 function git(root, ...args) {
   return execFileSync("git", ["-C", root, ...args], {
     encoding: "utf8",
@@ -28,6 +30,8 @@ async function fixture() {
     "origin",
     "https://github.com/KingHacker9000/totem.git",
   );
+  await mkdir(join(root, "config"), { recursive: true });
+  await mkdir(join(root, ".github", "workflows"), { recursive: true });
   await writeFile(
     join(root, ".gitignore"),
     "artifact.bin\ntotem-portal-theme/\nprovenance.json\n",
@@ -40,8 +44,33 @@ async function fixture() {
       version: "0.0.0",
       private: true,
       packageManager: "pnpm@10.28.0",
-      engines: { node: ">=22.20.0" },
+      engines: { node: ">=22.20.0", pnpm: ">=10 <11" },
     }),
+    "utf8",
+  );
+  await writeFile(join(root, ".node-version"), "24.18.0\n", "utf8");
+  await writeFile(join(root, ".nvmrc"), "24.18.0\n", "utf8");
+  await writeFile(
+    join(root, "config", "release-toolchain.json"),
+    `${JSON.stringify(
+      {
+        schema: "totem.release-toolchain/v1",
+        node: {
+          default: "24.18.0",
+          ci: ["22.20.0", "24.18.0"],
+          engine: ">=22.20.0",
+        },
+        pnpm: { pinned: "10.28.0", engine: ">=10 <11" },
+        workflow: ".github/workflows/ci.yml",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    join(root, ".github", "workflows", "ci.yml"),
+    `matrix:\n  node: [22.20.0, 24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      ${MATRIX_EXPRESSION}\n`,
     "utf8",
   );
   await writeFile(
@@ -70,7 +99,7 @@ async function withFixture(run) {
   }
 }
 
-test("generates deterministic source and artifact identities and verifies them", async () => {
+test("generates deterministic source, toolchain, and artifact identities and verifies them", async () => {
   await withFixture(async (root) => {
     const first = await generateProvenance({
       root,
@@ -82,6 +111,10 @@ test("generates deterministic source and artifact identities and verifies them",
     assert.match(first.repository.tree, /^[0-9a-f]{40}$/);
     assert.equal(first.artifacts.length, 1);
     assert.equal(first.boundary.publicRepositoryOnly, true);
+    assert.equal(first.toolchain.schema, "totem.release-toolchain/v1");
+    assert.match(first.toolchain.contractSha256, /^[0-9a-f]{64}$/);
+    assert.match(first.toolchain.node, /^\d+\.\d+\.\d+$/);
+    assert.equal(first.toolchain.pnpm, "10.28.0");
     const bytes1 = await readFile(join(root, "provenance.json"), "utf8");
     await generateProvenance({
       root,
