@@ -114,8 +114,7 @@ async function serviceStatus() {
       status: allowed.includes(status) ? status : "unknown",
     };
   } catch (error) {
-    const stdout =
-      typeof error?.stdout === "string" ? error.stdout.trim() : "";
+    const stdout = typeof error?.stdout === "string" ? error.stdout.trim() : "";
     const allowed = [
       "active",
       "inactive",
@@ -251,7 +250,8 @@ async function main() {
 if (
   process.argv[1] &&
   import.meta.url ===
-    new URL(`file://${path.resolve(process.argv[1]).replaceAll("\\", "/")}`).href
+    new URL(`file://${path.resolve(process.argv[1]).replaceAll("\\", "/")}`)
+      .href
 ) {
   main().catch((error) => {
     console.error(
