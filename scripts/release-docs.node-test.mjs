@@ -29,6 +29,19 @@ test("accepts valid relative links and documented package scripts", () => {
   }
 });
 
+test("accepts pnpm option invocations without treating options as script names", () => {
+  const root = fixture();
+  try {
+    writeFileSync(
+      join(root, "README.md"),
+      "```bash\npnpm --version\npnpm --filter @totem/core test\n```\n",
+    );
+    assert.deepEqual(validateRepository(root).failures, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("reports broken relative links", () => {
   const root = fixture();
   try {
