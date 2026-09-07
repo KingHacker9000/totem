@@ -13,15 +13,34 @@ jobs:
         node: [22.20.0, 24.18.0]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Validate release configuration contract
         run: pnpm release:config:check
+      - name: Validate pinned public workflow actions
+        shell: bash
+        run: |
+          workflow_root="$RUNNER_TEMP/totem-workflow-actions"
+          mkdir -p "$workflow_root"
+          args=(--repo .)
+          for repo in \
+            totem-hardware \
+            totem-extension-sdk \
+            totem-theme-sdk \
+            totem-base-extensions \
+            totem-base-themes \
+            totem-agent-providers \
+            totem-registry
+          do
+            git clone --depth 1 "https://github.com/KingHacker9000/${repo}.git" "$workflow_root/$repo"
+            args+=(--repo "$workflow_root/$repo")
+          done
+          node scripts/workflow-actions.mjs "${args[@]}"
       - name: Validate public release documentation drift
         shell: bash
         run: |
