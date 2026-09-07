@@ -73,6 +73,9 @@ jobs:
           manifest="$RUNNER_TEMP/totem-third-party-manifest.json"
           node scripts/third-party-manifest.mjs generate --output "$manifest"
           node scripts/third-party-manifest.mjs verify --output "$manifest"
+      - name: Audit production dependency advisories
+        if: runner.os == 'Linux' && matrix.node == '22.20.0'
+        run: pnpm release:dependencies:audit
       - name: Lint
         run: pnpm lint
       - name: Format check
