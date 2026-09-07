@@ -15,12 +15,14 @@
     "validate:pi": "node deploy/pi/lifecycle-check.mjs",
     "release:third-party:generate": "node scripts/third-party-manifest.mjs generate",
     "release:third-party:verify": "node scripts/third-party-manifest.mjs verify",
+    "release:provenance:generate": "node scripts/release-provenance.mjs generate",
+    "release:provenance:verify": "node scripts/release-provenance.mjs verify",
     "build": "pnpm -r build",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
