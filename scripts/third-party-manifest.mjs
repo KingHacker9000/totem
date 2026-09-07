@@ -422,9 +422,7 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  const { command, output, sourceRevision } = parseArgs(
-    process.argv.slice(2),
-  );
+  const { command, output, sourceRevision } = parseArgs(process.argv.slice(2));
   const rootDir = process.cwd();
   const outputPath = resolve(
     rootDir,
@@ -432,7 +430,11 @@ async function main() {
   );
 
   if (command === "generate") {
-    const manifest = await buildManifest({ rootDir, outputPath, sourceRevision });
+    const manifest = await buildManifest({
+      rootDir,
+      outputPath,
+      sourceRevision,
+    });
     assertManifestShape(manifest);
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(
