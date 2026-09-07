@@ -10,13 +10,62 @@
     "node": ">=22.20.0"
   },
   "public_repositories": [
-    {"repo":"KingHacker9000/totem","package":"totem","version":"0.0.0","private":true,"node":">=22.20.0","publishable":false},
-    {"repo":"KingHacker9000/totem-extension-sdk","package":"@totem/extension-sdk","version":"0.2.0","private":false,"node":">=22.20.0","publishable":true},
-    {"repo":"KingHacker9000/totem-theme-sdk","package":"@totem/theme-sdk","version":"0.1.0","private":false,"node":">=22.20.0","publishable":true},
-    {"repo":"KingHacker9000/totem-base-extensions","package":"@totem/base-extensions","version":"0.2.0","private":true,"node":">=22.20.0","publishable":false},
-    {"repo":"KingHacker9000/totem-base-themes","package":null,"version":null,"private":null,"node":null,"publishable":false},
-    {"repo":"KingHacker9000/totem-agent-providers","package":"@totem/agent-providers","version":"0.1.0","private":true,"node":">=22.20.0","publishable":false},
-    {"repo":"KingHacker9000/totem-registry","package":"@totem/registry","version":"0.1.0","private":true,"node":">=22.20.0","publishable":false}
+    {
+      "repo": "KingHacker9000/totem",
+      "package": "totem",
+      "version": "0.0.0",
+      "private": true,
+      "node": ">=22.20.0",
+      "publishable": false
+    },
+    {
+      "repo": "KingHacker9000/totem-extension-sdk",
+      "package": "@totem/extension-sdk",
+      "version": "0.2.0",
+      "private": false,
+      "node": ">=22.20.0",
+      "publishable": true
+    },
+    {
+      "repo": "KingHacker9000/totem-theme-sdk",
+      "package": "@totem/theme-sdk",
+      "version": "0.1.0",
+      "private": false,
+      "node": ">=22.20.0",
+      "publishable": true
+    },
+    {
+      "repo": "KingHacker9000/totem-base-extensions",
+      "package": "@totem/base-extensions",
+      "version": "0.2.0",
+      "private": true,
+      "node": ">=22.20.0",
+      "publishable": false
+    },
+    {
+      "repo": "KingHacker9000/totem-base-themes",
+      "package": null,
+      "version": null,
+      "private": null,
+      "node": null,
+      "publishable": false
+    },
+    {
+      "repo": "KingHacker9000/totem-agent-providers",
+      "package": "@totem/agent-providers",
+      "version": "0.1.0",
+      "private": true,
+      "node": ">=22.20.0",
+      "publishable": false
+    },
+    {
+      "repo": "KingHacker9000/totem-registry",
+      "package": "@totem/registry",
+      "version": "0.1.0",
+      "private": true,
+      "node": ">=22.20.0",
+      "publishable": false
+    }
   ],
   "excluded_private_repositories": [
     "KingHacker9000/totem-portal-theme",
