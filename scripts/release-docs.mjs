@@ -85,7 +85,11 @@ function validateLinks(root, markdownFile, text, failures) {
     const resolved = isAbsolute(target) ? join(root, target) : resolve(dirname(markdownFile), target);
     const normalizedRoot = `${normalize(root)}${process.platform === "win32" ? "\\" : "/"}`;
     const normalizedTarget = normalize(resolved);
-    if (normalizedTarget !== normalize(root) && !`${normalizedTarget}${process.platform === "win32" ? "\\" : "/"}`.startsWith(normalizedRoot) && !normalizedTarget.startsWith(normalizedRoot)) {
+    if (
+      normalizedTarget !== normalize(root) &&
+      !`${normalizedTarget}${process.platform === "win32" ? "\\" : "/"}`.startsWith(normalizedRoot) &&
+      !normalizedTarget.startsWith(normalizedRoot)
+    ) {
       failures.push(`${relative(root, markdownFile)}: relative link escapes repository: ${rawTarget}`);
       continue;
     }
@@ -107,13 +111,26 @@ function validateCommands(root, markdownFile, text, scripts, failures) {
       if (!line || line.startsWith("#")) continue;
 
       const npmRun = line.match(/^npm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
-      if (npmRun && !["install", "ci", "exec", "init", "pack", "publish"].includes(npmRun[1]) && !scripts.has(npmRun[1])) {
-        failures.push(`${relative(root, markdownFile)}: undocumented npm script '${npmRun[1]}' is not present in any package.json`);
+      if (
+        npmRun &&
+        !["install", "ci", "exec", "init", "pack", "publish"].includes(npmRun[1]) &&
+        !scripts.has(npmRun[1])
+      ) {
+        failures.push(
+          `${relative(root, markdownFile)}: undocumented npm script '${npmRun[1]}' is not present in any package.json`,
+        );
       }
 
       const pnpmRun = line.match(/^pnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
-      if (pnpmRun && !PNPM_BUILTINS.has(pnpmRun[1]) && !scripts.has(pnpmRun[1])) {
-        failures.push(`${relative(root, markdownFile)}: undocumented pnpm script '${pnpmRun[1]}' is not present in any package.json`);
+      if (
+        pnpmRun &&
+        !pnpmRun[1].startsWith("-") &&
+        !PNPM_BUILTINS.has(pnpmRun[1]) &&
+        !scripts.has(pnpmRun[1])
+      ) {
+        failures.push(
+          `${relative(root, markdownFile)}: undocumented pnpm script '${pnpmRun[1]}' is not present in any package.json`,
+        );
       }
     }
   }
@@ -122,7 +139,12 @@ function validateCommands(root, markdownFile, text, scripts, failures) {
 export function validateRepository(root) {
   const absoluteRoot = resolve(root);
   if (!existsSync(absoluteRoot) || !statSync(absoluteRoot).isDirectory()) {
-    return { root: absoluteRoot, markdownFiles: 0, scripts: 0, failures: [`repository root does not exist: ${absoluteRoot}`] };
+    return {
+      root: absoluteRoot,
+      markdownFiles: 0,
+      scripts: 0,
+      failures: [`repository root does not exist: ${absoluteRoot}`],
+    };
   }
 
   const scripts = packageScripts(absoluteRoot);
