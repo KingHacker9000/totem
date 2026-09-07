@@ -58,22 +58,44 @@ test("allows only exact bounded exceptions and rejects stale exception drift", (
     ],
   });
   assert.deepEqual(
-    evaluateFootprint([{ path: "assets/model.bin", bytes: 700 }], budget).violations,
+    evaluateFootprint([{ path: "assets/model.bin", bytes: 700 }], budget)
+      .violations,
     [],
   );
   assert.match(
-    evaluateFootprint([{ path: "assets/other.bin", bytes: 100 }], budget).violations[0],
+    evaluateFootprint([{ path: "assets/other.bin", bytes: 100 }], budget)
+      .violations[0],
     /stale or absent/,
   );
 });
 
 test("rejects wildcard, traversal, duplicate and unjustified exceptions", () => {
   for (const exceptions of [
-    [{ path: "assets/*", maxBytes: 800, reason: "Required runtime model payload" }],
-    [{ path: "../asset", maxBytes: 800, reason: "Required runtime model payload" }],
     [
-      { path: "asset", maxBytes: 800, reason: "Required runtime model payload" },
-      { path: "asset", maxBytes: 900, reason: "Second duplicate allowance" },
+      {
+        path: "assets/*",
+        maxBytes: 800,
+        reason: "Required runtime model payload",
+      },
+    ],
+    [
+      {
+        path: "../asset",
+        maxBytes: 800,
+        reason: "Required runtime model payload",
+      },
+    ],
+    [
+      {
+        path: "asset",
+        maxBytes: 800,
+        reason: "Required runtime model payload",
+      },
+      {
+        path: "asset",
+        maxBytes: 900,
+        reason: "Second duplicate allowance",
+      },
     ],
     [{ path: "asset", maxBytes: 800, reason: "too short" }],
   ]) {
