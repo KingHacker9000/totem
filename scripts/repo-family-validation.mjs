@@ -80,8 +80,13 @@ for (const entry of entries) {
     fail(`duplicate repository: ${entry.repo}`);
   }
   entryNames.add(entry.repo);
-  if (entry.repo !== selfRepository && !fullCommitPattern.test(entry.revision ?? "")) {
-    fail(`${entry.repo} must declare an exact 40-character lowercase commit revision`);
+  if (
+    entry.repo !== selfRepository &&
+    !fullCommitPattern.test(entry.revision ?? "")
+  ) {
+    fail(
+      `${entry.repo} must declare an exact 40-character lowercase commit revision`,
+    );
   }
   assertStringArray(entry.metadata, `${entry.repo} metadata`);
   if (entry.install !== null)
@@ -155,12 +160,15 @@ async function githubCommit(repo, ref) {
 }
 
 async function validateRemoteEntry(entry) {
-  const exactRef = entry.repo === selfRepository ? manifest.default_ref : entry.revision;
+  const exactRef =
+    entry.repo === selfRepository ? manifest.default_ref : entry.revision;
   for (const metadataPath of entry.metadata) {
     try {
       await githubContent(entry.repo, metadataPath, exactRef);
     } catch (error) {
-      fail(`${entry.repo} missing ${metadataPath} at ${exactRef}: ${error.message}`);
+      fail(
+        `${entry.repo} missing ${metadataPath} at ${exactRef}: ${error.message}`,
+      );
     }
   }
 
@@ -301,7 +309,9 @@ if (execute && failures.length === 0) {
   try {
     const selfRevision = await currentSelfRevision();
     if (!fullCommitPattern.test(selfRevision)) {
-      throw new Error(`current Totem checkout did not resolve to a full commit: ${selfRevision}`);
+      throw new Error(
+        `current Totem checkout did not resolve to a full commit: ${selfRevision}`,
+      );
     }
     for (const entry of entries) {
       await executeEntry(entry, executionRoot, selfRevision);
