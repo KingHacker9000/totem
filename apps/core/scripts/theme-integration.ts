@@ -26,6 +26,7 @@ const snapshot = await discoverPackages({
   extensionRoots: [],
   themeRoots: [installationRoot],
   activeThemeId: "minimal",
+  enablement: { "theme:minimal": true },
 });
 
 if (snapshot.rootDiagnostics.length !== 0) {
