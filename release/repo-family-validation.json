@@ -13,24 +13,52 @@
       "runtime": { "node": ">=22.20.0", "package_manager": "pnpm@10.28.0" },
       "metadata": ["package.json", "pnpm-lock.yaml"],
       "install": ["pnpm", "install", "--frozen-lockfile"],
-      "commands": [
-        ["pnpm", "check"],
-        ["pnpm", "build"]
-      ],
+      "commands": [["pnpm", "check"], ["pnpm", "build"]],
       "required_package_scripts": ["check", "build"]
     },
     {
       "repo": "KingHacker9000/totem-hardware",
       "kind": "python-hardware",
-      "runtime": { "python": "3.11+ (CAD); 3.12 supported for schema validation" },
-      "metadata": ["README.md", "cad/requirements.txt", "measurements/schema/v1.schema.json", "validation/evidence.schema.json"],
-      "install": ["python", "-m", "pip", "install", "-r", "cad/requirements.txt"],
+      "runtime": {
+        "python": "3.11+ (CAD); 3.12 supported for schema validation"
+      },
+      "metadata": [
+        "README.md",
+        "cad/requirements.txt",
+        "measurements/schema/v1.schema.json",
+        "validation/evidence.schema.json"
+      ],
+      "install": [
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "cad/requirements.txt"
+      ],
       "commands": [
-        ["python", "measurements/validate.py", "measurements/prototype-v1.template.json", "measurements/examples/synthetic.json"],
-        ["python", "measurements/validate_intake.py", "measurements/prototype-v1.intake.template.json"],
+        [
+          "python",
+          "measurements/validate.py",
+          "measurements/prototype-v1.template.json",
+          "measurements/examples/synthetic.json"
+        ],
+        [
+          "python",
+          "measurements/validate_intake.py",
+          "measurements/prototype-v1.intake.template.json"
+        ],
         ["python", "-m", "pytest", "cad/tests", "-q"],
         ["python", "-m", "cad.build", "--verify-round-trip"],
-        ["python", "-m", "cad.package", "--source-revision", "repo-family-validation", "--generated-at", "1970-01-01T00:00:00Z"],
+        [
+          "python",
+          "-m",
+          "cad.package",
+          "--source-revision",
+          "repo-family-validation",
+          "--generated-at",
+          "1970-01-01T00:00:00Z"
+        ],
         ["python", "-m", "cad.package", "--verify"]
       ]
     },
@@ -49,10 +77,7 @@
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
       "install": ["npm", "install", "--no-audit", "--no-fund"],
-      "commands": [
-        ["npm", "run", "check"],
-        ["npm", "run", "build"]
-      ],
+      "commands": [["npm", "run", "check"], ["npm", "run", "build"]],
       "required_package_scripts": ["check", "build"]
     },
     {
