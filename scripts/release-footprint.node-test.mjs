@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  evaluateFootprint,
-  validateBudget,
-} from "./release-footprint.mjs";
+import { evaluateFootprint, validateBudget } from "./release-footprint.mjs";
 
 const baseBudget = {
   schema: "totem.release-footprint-budget/v1",
