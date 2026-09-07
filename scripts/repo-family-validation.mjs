@@ -122,12 +122,14 @@ async function githubContent(repo, metadataPath, ref) {
     .map((segment) => encodeURIComponent(segment))
     .join("/");
   const url = `https://api.github.com/repos/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`;
-  const response = await fetch(url, {
-    headers: {
-      accept: "application/vnd.github+json",
-      "user-agent": "totem-repo-family-validation",
-    },
-  });
+  const headers = {
+    accept: "application/vnd.github+json",
+    "user-agent": "totem-repo-family-validation",
+  };
+  if (process.env.GITHUB_TOKEN) {
+    headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+  const response = await fetch(url, { headers });
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
