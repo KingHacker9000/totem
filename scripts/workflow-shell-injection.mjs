@@ -38,7 +38,12 @@ export function inspectWorkflowShellExpressions(text, file = "<workflow>") {
     const [, indent, remainder] = run;
     const baseIndent = indent.length;
 
-    if (remainder === "|" || remainder === ">" || remainder.startsWith("|-") || remainder.startsWith(">-")) {
+    if (
+      remainder === "|" ||
+      remainder === ">" ||
+      remainder.startsWith("|-") ||
+      remainder.startsWith(">-")
+    ) {
       for (let child = index + 1; child < lines.length; child += 1) {
         const raw = lines[child];
         if (!raw.trim()) continue;
@@ -62,7 +67,14 @@ export function validateRepository(root) {
   const absoluteRoot = resolve(root);
   const workflowsRoot = join(absoluteRoot, ".github", "workflows");
   if (!existsSync(workflowsRoot)) {
-    return { root: absoluteRoot, workflows: 0, run_blocks: 0, expressions: 0, results: [], failures: [] };
+    return {
+      root: absoluteRoot,
+      workflows: 0,
+      run_blocks: 0,
+      expressions: 0,
+      results: [],
+      failures: [],
+    };
   }
 
   const files = readdirSync(workflowsRoot, { withFileTypes: true })
@@ -76,7 +88,10 @@ export function validateRepository(root) {
 
   for (const file of files) {
     const relativeFile = relative(absoluteRoot, file);
-    const inspected = inspectWorkflowShellExpressions(readFileSync(file, "utf8"), relativeFile);
+    const inspected = inspectWorkflowShellExpressions(
+      readFileSync(file, "utf8"),
+      relativeFile,
+    );
     results.push({ file: relativeFile, ...inspected });
     failures.push(...inspected.failures);
     runBlocks += inspected.runBlocks;
@@ -112,10 +127,22 @@ function parseArgs(argv) {
 export function main(argv = process.argv.slice(2)) {
   const { repos, json } = parseArgs(argv);
   const repositories = repos.map(validateRepository);
-  const failureCount = repositories.reduce((sum, repository) => sum + repository.failures.length, 0);
-  const workflowCount = repositories.reduce((sum, repository) => sum + repository.workflows, 0);
-  const runBlockCount = repositories.reduce((sum, repository) => sum + repository.run_blocks, 0);
-  const expressionCount = repositories.reduce((sum, repository) => sum + repository.expressions, 0);
+  const failureCount = repositories.reduce(
+    (sum, repository) => sum + repository.failures.length,
+    0,
+  );
+  const workflowCount = repositories.reduce(
+    (sum, repository) => sum + repository.workflows,
+    0,
+  );
+  const runBlockCount = repositories.reduce(
+    (sum, repository) => sum + repository.run_blocks,
+    0,
+  );
+  const expressionCount = repositories.reduce(
+    (sum, repository) => sum + repository.expressions,
+    0,
+  );
   const summary = {
     schema: "totem.workflow-shell-injection/v1",
     repositories,
@@ -129,7 +156,9 @@ export function main(argv = process.argv.slice(2)) {
   if (json) console.log(JSON.stringify(summary, null, 2));
   else {
     for (const repository of repositories) {
-      console.log(`${repository.root}: ${repository.workflows} workflows, ${repository.run_blocks} run blocks`);
+      console.log(
+        `${repository.root}: ${repository.workflows} workflows, ${repository.run_blocks} run blocks`,
+      );
       for (const failure of repository.failures) console.error(`  FAIL ${failure}`);
     }
     console.log(
@@ -139,5 +168,7 @@ export function main(argv = process.argv.slice(2)) {
   return failureCount === 0 ? 0 : 1;
 }
 
-const isEntryPoint = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isEntryPoint =
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
