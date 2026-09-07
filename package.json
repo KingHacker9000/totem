@@ -39,6 +39,8 @@
     "release:archive:create": "node scripts/release-archive.mjs create && pnpm release:paths:archive",
     "release:archive:verify": "node scripts/release-archive.mjs verify && pnpm release:paths:archive",
     "release:archive:smoke": "node scripts/release-archive.mjs smoke && pnpm release:paths:archive",
+    "release:candidate:generate": "node scripts/release-candidate.mjs generate",
+    "release:candidate:verify": "node scripts/release-candidate.mjs verify",
     "release:footprint:check": "node scripts/release-footprint.mjs",
     "release:artifact:scan": "node scripts/release-artifact-scan.mjs",
     "release:third-party:generate": "node scripts/third-party-manifest.mjs generate",
@@ -53,7 +55,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/readiness.test.mjs deploy/pi/decommission.test.mjs deploy/pi/state-compatibility.node-test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs scripts/release-reproducibility.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-portable-path.node-test.mjs scripts/release-artifact-scan.node-test.mjs scripts/release-sbom.node-test.mjs scripts/release-dependency-audit.node-test.mjs scripts/release-footprint.node-test.mjs scripts/release-toolchain.node-test.mjs scripts/release-config.node-test.mjs scripts/release-docs.node-test.mjs scripts/workflow-actions.node-test.mjs scripts/state-recovery.node-test.mjs scripts/support-diagnostics.node-test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs deploy/pi/decommission.test.mjs deploy/pi/state-compatibility.node-test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs scripts/release-reproducibility.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-portable-path.node-test.mjs scripts/release-artifact-scan.node-test.mjs scripts/release-sbom.node-test.mjs scripts/release-dependency-audit.node-test.mjs scripts/release-footprint.node-test.mjs scripts/release-toolchain.node-test.mjs scripts/release-config.node-test.mjs scripts/release-docs.node-test.mjs scripts/workflow-actions.node-test.mjs scripts/state-recovery.node-test.mjs scripts/support-diagnostics.node-test.mjs",
     "check": "pnpm release:toolchain:check && pnpm release:config:check && pnpm release:state:compatibility:check && pnpm release:metadata:check && pnpm release:repos:check && pnpm release:docs:check && pnpm release:workflow-actions:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
