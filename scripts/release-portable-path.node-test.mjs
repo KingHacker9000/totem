@@ -42,7 +42,12 @@ test("rejects trailing dots/spaces and Windows-invalid characters", () => {
 });
 
 test("rejects unsafe component structure and backslashes", () => {
-  for (const path of ["../secret", "docs/../secret", "docs\\file.md", "/abs/path"]) {
+  for (const path of [
+    "../secret",
+    "docs/../secret",
+    "docs\\file.md",
+    "/abs/path",
+  ]) {
     assert.throws(() => assertPortableReleasePath(path));
   }
 });
