@@ -25,13 +25,45 @@ The installer:
 
 1. verifies systemd, Node, pnpm, tar, and the supported Node version floor;
 2. creates a locked-down `totem` service account when needed;
-3. stages a clean source snapshot into `/opt/totem/releases/<timestamp>` without `.git`, `node_modules`, or previous `dist` output;
-4. runs `pnpm install --frozen-lockfile` and `pnpm build`;
-5. atomically points `/opt/totem/current` at the new release;
-6. creates `/etc/totem/totem.env` on first install;
-7. installs/enables/restarts `totem.service`.
+3. prunes releases already outside the configured retention policy while protecting the active release and newest rollback candidate;
+4. checks that free space can cover the source tree's allocated footprint plus a post-install safety reserve;
+5. stages a clean source snapshot into `/opt/totem/releases/<timestamp>` without `.git`, `node_modules`, or previous `dist` output;
+6. runs `pnpm install --frozen-lockfile` and `pnpm build`;
+7. atomically points `/opt/totem/current` at the new release;
+8. creates `/etc/totem/totem.env` on first install;
+9. installs/enables/restarts `totem.service`;
+10. prunes release history again so repeated successful updates remain bounded.
 
-No mutable application state is stored in the release directory, so release rollback does not roll back or overwrite task history/configuration.
+No mutable application state is stored in the release directory, so release rollback does not roll back or overwrite task history/configuration. If staging, dependency installation, or build fails, the incomplete timestamped release is removed automatically and the existing `current` symlink is left unchanged.
+
+### Release retention and disk safeguards
+
+The default release policy retains exactly two releases once an update succeeds: the active release and the newest distinct rollback candidate. The minimum permitted retention is two, so configuration cannot silently remove the only rollback candidate.
+
+Installer-only environment overrides:
+
+- `TOTEM_RELEASE_RETENTION` — number of release directories to retain after a successful update; default `2`, minimum `2`;
+- `TOTEM_MIN_FREE_MIB` — free-space reserve that must remain in addition to the source tree's currently allocated footprint; default `2048` MiB.
+
+Example:
+
+```bash
+sudo env \
+  TOTEM_RELEASE_RETENTION=3 \
+  TOTEM_MIN_FREE_MIB=3072 \
+  bash deploy/pi/install.sh
+```
+
+A low-space preflight fails **before** creating a new release and reports the available space, configured reserve, and estimated allocated source footprint. Increase free space or deliberately lower the reserve only after checking the Pi's storage pressure; do not use the override as a routine way to run a nearly full root filesystem.
+
+The release-policy tool can be used independently for inspection or a dry run:
+
+```bash
+sudo node deploy/pi/release-policy.mjs report --prefix /opt/totem
+sudo node deploy/pi/release-policy.mjs prune --prefix /opt/totem --retain 2 --dry-run
+```
+
+`report` shows both **apparent** and **allocated** size. Allocated size is the useful disk-pressure signal because pnpm's hard links can cause apparent per-release size to overstate actual filesystem consumption. The retention algorithm never prunes the path resolved by `/opt/totem/current`, and always protects the newest other release as rollback when one exists.
 
 ### Custom release/state locations
 
@@ -114,7 +146,9 @@ A failed application release can be rolled back without touching durable state:
 sudo bash deploy/pi/rollback.sh
 ```
 
-The helper points `/opt/totem/current` to the most recent previous release and restarts the service.
+The helper points `/opt/totem/current` to the most recent previous release and restarts the service. The default retention policy guarantees one rollback release after every successful update. If an update fails before switching `current`, its incomplete staging directory is removed and no rollback is needed.
+
+Before manually removing a release, use `release-policy.mjs report` or `prune --dry-run`. Never manually delete the release targeted by `/opt/totem/current` or the only remaining rollback candidate.
 
 If the service enters a restart loop:
 
@@ -148,7 +182,7 @@ No enclosure/cooling conclusion should be drawn from these software metrics unti
 
 ## Update/rollback contract
 
-The timestamped `releases/` directory plus atomic `current` symlink is the local primitive that later registry/update work can drive. An updater should stage and validate a new release before moving `current`; application rollback must leave `/var/lib/totem` or another configured `TOTEM_DATA_DIR` untouched.
+The timestamped `releases/` directory plus atomic `current` symlink is the local primitive that later registry/update work can drive. Updates enforce bounded retention and free-space preflight before staging. An updater should stage and validate a new release before moving `current`; application rollback must leave `/var/lib/totem` or another configured `TOTEM_DATA_DIR` untouched.
 
 ## Hardware gate
 
