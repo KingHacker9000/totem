@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { lstat, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
 import { execFileSync } from "node:child_process";
+import { lstat, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const SCHEMA = "totem.release-provenance/v1";
@@ -26,7 +26,7 @@ function normalizePath(path) {
 
 function assertInside(root, candidate, label) {
   const rel = relative(root, candidate);
-  if (rel === "" || (!rel.startsWith(`..${sep}`) && rel !== ".." && !resolve(rel).startsWith(`${sep}`))) {
+  if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !rel.startsWith(sep))) {
     return normalizePath(rel || ".");
   }
   throw new Error(`${label} must stay inside the public Totem repository: ${candidate}`);
@@ -43,11 +43,6 @@ function assertPublicRemote(root) {
   const remote = canonicalRemote(git(root, ["config", "--get", "remote.origin.url"]));
   if (!remote.endsWith(`/${PUBLIC_REPOSITORY}`)) {
     throw new Error(`origin must resolve to the public ${PUBLIC_REPOSITORY} repository; got ${remote}`);
-  }
-  for (const privateRepository of PRIVATE_REPOSITORIES) {
-    if (remote.endsWith(`/${privateRepository}`)) {
-      throw new Error(`private Portal repository is not valid for public provenance: ${remote}`);
-    }
   }
   return remote;
 }
@@ -94,11 +89,7 @@ async function hashPath(root, inputPath) {
         await walk(child);
       } else if (childInfo.isFile()) {
         const bytes = await readFile(child);
-        entries.push({
-          path: normalizePath(relative(absolute, child)),
-          bytes: bytes.length,
-          sha256: sha256(bytes),
-        });
+        entries.push({ path: normalizePath(relative(absolute, child)), bytes: bytes.length, sha256: sha256(bytes) });
       } else {
         throw new Error(`artifact contains unsupported entry: ${normalizePath(relative(root, child))}`);
       }
@@ -137,8 +128,7 @@ export async function generateProvenance({ root, artifacts, output, buildCommand
   const rootReal = await realpath(root);
   const outputAbs = resolve(rootReal, output);
   const outputRel = assertInside(rootReal, outputAbs, "provenance output");
-  const allowedUntracked = new Set([outputRel]);
-  assertCleanSource(rootReal, allowedUntracked);
+  assertCleanSource(rootReal, new Set([outputRel]));
   const remote = assertPublicRemote(rootReal);
 
   const artifactRecords = [];
@@ -163,10 +153,7 @@ export async function generateProvenance({ root, artifacts, output, buildCommand
     workspace: await workspaceIdentity(rootReal),
     build: { profile, command: buildCommand },
     artifacts: artifactRecords.sort((a, b) => a.path.localeCompare(b.path)),
-    boundary: {
-      publicRepositoryOnly: true,
-      excludedPrivateRepositories: PRIVATE_REPOSITORIES,
-    },
+    boundary: { publicRepositoryOnly: true, excludedPrivateRepositories: PRIVATE_REPOSITORIES },
   };
   await writeFile(outputAbs, `${JSON.stringify(document, null, 2)}\n`, "utf8");
   return document;
@@ -199,9 +186,7 @@ export async function verifyProvenance({ root, output }) {
   if (!Array.isArray(document.artifacts) || document.artifacts.length === 0) throw new Error("provenance has no artifacts");
   for (const expected of document.artifacts) {
     const actual = await hashPath(rootReal, expected.path);
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`artifact digest drift: ${expected.path}`);
-    }
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`artifact digest drift: ${expected.path}`);
   }
   return document;
 }
@@ -224,13 +209,9 @@ async function main() {
   const args = parseArgs(argv);
   if (!args.output) throw new Error("--output is required");
   const root = process.cwd();
-  if (command === "generate") {
-    await generateProvenance({ root, ...args });
-  } else if (command === "verify") {
-    await verifyProvenance({ root, output: args.output });
-  } else {
-    throw new Error("usage: release-provenance.mjs <generate|verify> --output <path> [--artifact <path> ...]");
-  }
+  if (command === "generate") await generateProvenance({ root, ...args });
+  else if (command === "verify") await verifyProvenance({ root, output: args.output });
+  else throw new Error("usage: release-provenance.mjs <generate|verify> --output <path> [--artifact <path> ...]");
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
