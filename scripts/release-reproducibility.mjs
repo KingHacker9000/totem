@@ -116,7 +116,12 @@ async function removeWorktree(sourceRoot, path) {
 function buildInIsolatedEnvironment(root, { lang, timezone, umask }) {
   execFileSync(
     process.execPath,
-    [resolve(root, "scripts/release-reproducibility.mjs"), "build-one"],
+    [
+      resolve(root, "scripts/release-reproducibility.mjs"),
+      "build-one",
+      "--umask",
+      umask,
+    ],
     {
       cwd: root,
       env: {
@@ -124,7 +129,6 @@ function buildInIsolatedEnvironment(root, { lang, timezone, umask }) {
         LANG: lang,
         LC_ALL: lang,
         TZ: timezone,
-        TOTEM_REPRO_UMASK: umask,
       },
       stdio: "inherit",
     },
@@ -177,17 +181,17 @@ export async function checkReleaseReproducibility({
 }
 
 async function main() {
-  const [command] = process.argv.slice(2);
+  const [command, ...args] = process.argv.slice(2);
   if (command === "build-one") {
-    const requestedUmask = process.env.TOTEM_REPRO_UMASK ?? "022";
-    if (!/^[0-7]{3}$/.test(requestedUmask))
-      throw new Error("invalid TOTEM_REPRO_UMASK");
-    process.umask(Number.parseInt(requestedUmask, 8));
+    if (args.length !== 2 || args[0] !== "--umask" || !/^[0-7]{3}$/.test(args[1])) {
+      throw new Error("usage: release-reproducibility.mjs build-one --umask <octal>");
+    }
+    process.umask(Number.parseInt(args[1], 8));
     await buildReleaseBundle({ root: process.cwd() });
     return;
   }
-  if (command !== "check") {
-    throw new Error("usage: release-reproducibility.mjs <check|build-one>");
+  if (command !== "check" || args.length !== 0) {
+    throw new Error("usage: release-reproducibility.mjs <check|build-one --umask <octal>>");
   }
   const result = await checkReleaseReproducibility();
   console.log(
