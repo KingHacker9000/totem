@@ -94,7 +94,9 @@ export async function verifyPortableBundle(bundleRoot) {
     assertInside(root, absolute, `manifest entry ${entry.path}`);
     const info = await lstat(absolute);
     if (!info.isFile() || info.isSymbolicLink()) {
-      throw new Error(`release bundle entry is not a regular file: ${entry.path}`);
+      throw new Error(
+        `release bundle entry is not a regular file: ${entry.path}`,
+      );
     }
     const bytes = await readFile(absolute);
     if (bytes.length !== entry.bytes || sha256(bytes) !== entry.sha256) {
