@@ -173,3 +173,5 @@ export const createHeadlessDeviceDrivers = (): DeviceDrivers => ({
   audio: new NoAudioDriver(),
   led: new VirtualLedDriver(),
 });
+
+export * from "./prototype.js";
