@@ -18,7 +18,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/*.test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
