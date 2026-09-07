@@ -26,8 +26,27 @@ jobs:
           manifest="$RUNNER_TEMP/totem-third-party-manifest.json"
           node scripts/third-party-manifest.mjs generate --output "$manifest"
           node scripts/third-party-manifest.mjs verify --output "$manifest"
-      - run: pnpm check
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
       - run: pnpm build
+      - name: Validate source-to-artifact release provenance
+        shell: bash
+        run: |
+          provenance="totem-provenance-ci.json"
+          node scripts/release-provenance.mjs generate \
+            --output "$provenance" \
+            --artifact apps/core/dist \
+            --artifact apps/dashboard/dist \
+            --build-command "pnpm build" \
+            --profile ci-production
+          node scripts/release-provenance.mjs verify --output "$provenance"
+          rm "$provenance"
       - name: Validate Pi self-test host-independent path
         shell: bash
         run: |
