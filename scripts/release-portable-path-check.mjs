@@ -57,7 +57,9 @@ async function main() {
       "usage: release-portable-path-check.mjs <bundle|archive> [--bundle path|--archive path]",
     );
   }
-  console.log(`[release-portable-path] ${result.kind}: ${result.count} paths PASS`);
+  console.log(
+    `[release-portable-path] ${result.kind}: ${result.count} paths PASS`,
+  );
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
