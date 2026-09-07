@@ -67,15 +67,20 @@ test("buildCycloneDx emits deterministic runtime-only CycloneDX 1.6", () => {
     first.components.map((component) => component.name),
     ["@fastify/cors", "zod"],
   );
-  assert.equal(first.components.some((component) => component.name === "typescript"), false);
   assert.equal(
-    first.components[0].purl,
-    "pkg:npm/%40fastify/cors@11.1.0",
+    first.components.some((component) => component.name === "typescript"),
+    false,
   );
-  assert.equal(first.metadata.component.version, input.bundleManifest.source.revision);
+  assert.equal(first.components[0].purl, "pkg:npm/%40fastify/cors@11.1.0");
+  assert.equal(
+    first.metadata.component.version,
+    input.bundleManifest.source.revision,
+  );
   assert.equal(
     first.metadata.component.properties.some(
-      (entry) => entry.name === "totem:release-bundle-sha256" && entry.value === "b".repeat(64),
+      (entry) =>
+        entry.name === "totem:release-bundle-sha256" &&
+        entry.value === "b".repeat(64),
     ),
     true,
   );
@@ -84,10 +89,7 @@ test("buildCycloneDx emits deterministic runtime-only CycloneDX 1.6", () => {
 test("buildCycloneDx rejects source revision drift", () => {
   const input = fixtures();
   input.thirdPartyManifest.source.revision = "f".repeat(40);
-  assert.throws(
-    () => buildCycloneDx(input),
-    /source revision differs/i,
-  );
+  assert.throws(() => buildCycloneDx(input), /source revision differs/i);
 });
 
 test("buildCycloneDx rejects missing public/private release boundary", () => {
@@ -101,7 +103,8 @@ test("buildCycloneDx rejects missing public/private release boundary", () => {
 
 test("buildCycloneDx rejects unknown package versions", () => {
   const input = fixtures();
-  input.thirdPartyManifest.dependencies.runtimeOrBundledCandidates[0].version = "unknown";
+  input.thirdPartyManifest.dependencies.runtimeOrBundledCandidates[0].version =
+    "unknown";
   assert.throws(() => buildCycloneDx(input), /unknown version/i);
 });
 
@@ -109,10 +112,14 @@ test("assertSbomMatches fails closed on artifact identity drift", () => {
   const input = fixtures();
   const expected = buildCycloneDx(input);
   const actual = structuredClone(expected);
-  actual.metadata.component.properties = actual.metadata.component.properties.map((entry) =>
-    entry.name === "totem:release-bundle-sha256"
-      ? { ...entry, value: "d".repeat(64) }
-      : entry,
+  actual.metadata.component.properties = actual.metadata.component.properties.map(
+    (entry) =>
+      entry.name === "totem:release-bundle-sha256"
+        ? { ...entry, value: "d".repeat(64) }
+        : entry,
   );
-  assert.throws(() => assertSbomMatches(expected, actual), /stale|does not match/i);
+  assert.throws(
+    () => assertSbomMatches(expected, actual),
+    /stale|does not match/i,
+  );
 });
