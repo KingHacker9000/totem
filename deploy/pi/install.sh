@@ -52,14 +52,7 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 0750 "$STATE_DIR"
 install -d -o root -g "$SERVICE_USER" -m 0750 "$CONFIG_DIR"
 install -d -o root -g root -m 0755 "$PREFIX/releases"
 
-# First discard releases that are already outside policy. The policy always
-# protects the active release plus the newest distinct rollback candidate.
 node "$RELEASE_POLICY" prune --prefix "$PREFIX" --retain "$RELEASE_RETENTION"
-
-# Fail before copying/installing when there is not enough room for the source's
-# allocated footprint plus the configured post-install safety reserve. The
-# policy reports apparent and allocated sizes separately because pnpm hard links
-# can make apparent release size materially larger than real disk consumption.
 node "$RELEASE_POLICY" preflight \
   --prefix "$PREFIX" \
   --source "$SOURCE_DIR" \
@@ -84,10 +77,6 @@ tar \
   --exclude='*/dist' \
   -C "$SOURCE_DIR" -cf - . | tar --no-same-owner -C "$release" -xf -
 
-# Source checkouts may live in private/sandboxed workspaces with restrictive
-# ownership and modes (for example 0700). Releases are immutable application
-# code and must be traversable/readable by the unprivileged service account.
-# Preserve executable bits while normalizing ownership and read/traverse access.
 chown -R root:root "$release"
 chmod -R a+rX "$release"
 
@@ -108,8 +97,10 @@ systemctl daemon-reload
 systemctl enable totem.service
 systemctl restart totem.service
 
-# Now that the new release is active, bound release history again. This leaves
-# current + at least one rollback candidate by default, even after many updates.
+# The service may be active before the HTTP listener is ready. Wait for the
+# bounded readiness contract rather than making operators race the first probe.
+node "$release/deploy/pi/lifecycle-check.mjs" --ready-only
+
 node "$RELEASE_POLICY" prune --prefix "$PREFIX" --retain "$RELEASE_RETENTION"
 node "$RELEASE_POLICY" report --prefix "$PREFIX"
 
@@ -120,3 +111,4 @@ echo "Configuration: $CONFIG_DIR/totem.env"
 echo "Release retention: $RELEASE_RETENTION (minimum 2)"
 echo "Post-install free-space reserve: ${MIN_FREE_MIB} MiB"
 echo "Status: systemctl status totem --no-pager"
+echo "Lifecycle validation: sudo node $PREFIX/current/deploy/pi/lifecycle-check.mjs --restart"

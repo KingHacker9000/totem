@@ -12,12 +12,13 @@
     "dev": "node scripts/dev.mjs",
     "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
     "validate:live": "node scripts/live-validation.mjs",
+    "validate:pi": "node deploy/pi/lifecycle-check.mjs",
     "build": "pnpm -r build",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
