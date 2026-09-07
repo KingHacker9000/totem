@@ -51,97 +51,88 @@ function systemctlRecorder() {
   };
 }
 
-test(
-  "default decommission removes runtime/service but preserves state, backups, and config",
-  async () => {
-    const f = await fixture();
-    const systemctl = systemctlRecorder();
-    const result = await performDecommission({
-      ...f,
-      runSystemctl: systemctl.run,
-    });
+test("default decommission removes runtime/service but preserves state, backups, and config", async () => {
+  const f = await fixture();
+  const systemctl = systemctlRecorder();
+  const result = await performDecommission({
+    ...f,
+    runSystemctl: systemctl.run,
+  });
 
-    assert.equal(await exists(f.prefix), false);
-    assert.equal(await exists(f.serviceFile), false);
-    assert.equal(
-      await readFile(path.join(f.stateDir, "state.db"), "utf8"),
-      "durable\n",
-    );
-    assert.equal(
-      await readFile(
-        path.join(f.stateDir, "backups", "b1", "manifest.json"),
-        "utf8",
-      ),
-      "{}\n",
-    );
-    assert.equal(
-      await readFile(path.join(f.configDir, "totem.env"), "utf8"),
-      "TOKEN=secret\n",
-    );
-    assert.equal(result.state, "preserved");
-    assert.equal(result.config, "preserved");
-    assert.deepEqual(systemctl.calls, [
-      "stop totem.service",
-      "disable totem.service",
-      "daemon-reload",
-    ]);
+  assert.equal(await exists(f.prefix), false);
+  assert.equal(await exists(f.serviceFile), false);
+  assert.equal(
+    await readFile(path.join(f.stateDir, "state.db"), "utf8"),
+    "durable\n",
+  );
+  assert.equal(
+    await readFile(
+      path.join(f.stateDir, "backups", "b1", "manifest.json"),
+      "utf8",
+    ),
+    "{}\n",
+  );
+  assert.equal(
+    await readFile(path.join(f.configDir, "totem.env"), "utf8"),
+    "TOKEN=secret\n",
+  );
+  assert.equal(result.state, "preserved");
+  assert.equal(result.config, "preserved");
+  assert.deepEqual(systemctl.calls, [
+    "stop totem.service",
+    "disable totem.service",
+    "daemon-reload",
+  ]);
 
-    // Reinstall simulation: runtime can be recreated without touching preserved state.
-    await mkdir(path.join(f.prefix, "releases", "r2"), { recursive: true });
-    assert.equal(
-      await readFile(path.join(f.stateDir, "state.db"), "utf8"),
-      "durable\n",
-    );
+  // Reinstall simulation: runtime can be recreated without touching preserved state.
+  await mkdir(path.join(f.prefix, "releases", "r2"), { recursive: true });
+  assert.equal(
+    await readFile(path.join(f.stateDir, "state.db"), "utf8"),
+    "durable\n",
+  );
 
-    // Repeated decommission is idempotent.
-    await performDecommission({ ...f, runSystemctl: systemctl.run });
-    assert.equal(await exists(f.prefix), false);
-    assert.equal(
-      await readFile(path.join(f.stateDir, "state.db"), "utf8"),
-      "durable\n",
-    );
-  },
-);
+  // Repeated decommission is idempotent.
+  await performDecommission({ ...f, runSystemctl: systemctl.run });
+  assert.equal(await exists(f.prefix), false);
+  assert.equal(
+    await readFile(path.join(f.stateDir, "state.db"), "utf8"),
+    "durable\n",
+  );
+});
 
-test(
-  "purge refuses to run without the exact destructive confirmation",
-  async () => {
-    const f = await fixture();
-    const systemctl = systemctlRecorder();
-    await assert.rejects(
-      performDecommission({
-        ...f,
-        purgeState: true,
-        runSystemctl: systemctl.run,
-      }),
-      /PURGE-TOTEM-STATE/,
-    );
-    assert.equal(
-      await readFile(path.join(f.stateDir, "state.db"), "utf8"),
-      "durable\n",
-    );
-    assert.equal(await exists(f.prefix), true);
-    assert.deepEqual(systemctl.calls, []);
-  },
-);
-
-test(
-  "explicit purge can remove state while preserving config independently",
-  async () => {
-    const f = await fixture();
-    const systemctl = systemctlRecorder();
-    const result = await performDecommission({
+test("purge refuses to run without the exact destructive confirmation", async () => {
+  const f = await fixture();
+  const systemctl = systemctlRecorder();
+  await assert.rejects(
+    performDecommission({
       ...f,
       purgeState: true,
-      confirmation: PURGE_CONFIRMATION,
       runSystemctl: systemctl.run,
-    });
-    assert.equal(await exists(f.stateDir), false);
-    assert.equal(await exists(f.configDir), true);
-    assert.equal(result.state, "purged");
-    assert.equal(result.config, "preserved");
-  },
-);
+    }),
+    /PURGE-TOTEM-STATE/,
+  );
+  assert.equal(
+    await readFile(path.join(f.stateDir, "state.db"), "utf8"),
+    "durable\n",
+  );
+  assert.equal(await exists(f.prefix), true);
+  assert.deepEqual(systemctl.calls, []);
+});
+
+test("explicit purge can remove state while preserving config independently", async () => {
+  const f = await fixture();
+  const systemctl = systemctlRecorder();
+  const result = await performDecommission({
+    ...f,
+    purgeState: true,
+    confirmation: PURGE_CONFIRMATION,
+    runSystemctl: systemctl.run,
+  });
+  assert.equal(await exists(f.stateDir), false);
+  assert.equal(await exists(f.configDir), true);
+  assert.equal(result.state, "purged");
+  assert.equal(result.config, "preserved");
+});
 
 test("dry-run makes no filesystem or systemctl changes", async () => {
   const f = await fixture();
