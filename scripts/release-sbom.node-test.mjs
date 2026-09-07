@@ -55,40 +55,37 @@ function fixtures() {
   return { bundleManifest, thirdPartyManifest };
 }
 
-test(
-  "buildCycloneDx emits deterministic runtime-only CycloneDX 1.6",
-  () => {
-    const input = fixtures();
-    const first = buildCycloneDx(input);
-    const second = buildCycloneDx(input);
+test("buildCycloneDx emits deterministic runtime-only CycloneDX 1.6", () => {
+  const input = fixtures();
+  const first = buildCycloneDx(input);
+  const second = buildCycloneDx(input);
 
-    assert.deepEqual(first, second);
-    assert.equal(first.bomFormat, "CycloneDX");
-    assert.equal(first.specVersion, "1.6");
-    assert.equal(first.components.length, 2);
-    assert.deepEqual(
-      first.components.map((component) => component.name),
-      ["@fastify/cors", "zod"],
-    );
-    assert.equal(
-      first.components.some((component) => component.name === "typescript"),
-      false,
-    );
-    assert.equal(first.components[0].purl, "pkg:npm/%40fastify/cors@11.1.0");
-    assert.equal(
-      first.metadata.component.version,
-      input.bundleManifest.source.revision,
-    );
-    assert.equal(
-      first.metadata.component.properties.some(
-        (entry) =>
-          entry.name === "totem:release-bundle-sha256" &&
-          entry.value === "b".repeat(64),
-      ),
-      true,
-    );
-  },
-);
+  assert.deepEqual(first, second);
+  assert.equal(first.bomFormat, "CycloneDX");
+  assert.equal(first.specVersion, "1.6");
+  assert.equal(first.components.length, 2);
+  assert.deepEqual(
+    first.components.map((component) => component.name),
+    ["@fastify/cors", "zod"],
+  );
+  assert.equal(
+    first.components.some((component) => component.name === "typescript"),
+    false,
+  );
+  assert.equal(first.components[0].purl, "pkg:npm/%40fastify/cors@11.1.0");
+  assert.equal(
+    first.metadata.component.version,
+    input.bundleManifest.source.revision,
+  );
+  assert.equal(
+    first.metadata.component.properties.some(
+      (entry) =>
+        entry.name === "totem:release-bundle-sha256" &&
+        entry.value === "b".repeat(64),
+    ),
+    true,
+  );
+});
 
 test("buildCycloneDx rejects source revision drift", () => {
   const input = fixtures();
@@ -116,12 +113,12 @@ test("assertSbomMatches fails closed on artifact identity drift", () => {
   const input = fixtures();
   const expected = buildCycloneDx(input);
   const actual = structuredClone(expected);
-  actual.metadata.component.properties = actual.metadata.component.properties.map(
-    (entry) =>
+  actual.metadata.component.properties =
+    actual.metadata.component.properties.map((entry) =>
       entry.name === "totem:release-bundle-sha256"
         ? { ...entry, value: "d".repeat(64) }
         : entry,
-  );
+    );
   assert.throws(
     () => assertSbomMatches(expected, actual),
     /stale|does not match/i,

@@ -8,9 +8,7 @@ import {
   buildReleaseBundle,
   DEFAULT_OUTPUT as DEFAULT_BUNDLE,
 } from "./release-bundle.mjs";
-import {
-  buildManifest as buildThirdPartyManifest,
-} from "./third-party-manifest.mjs";
+import { buildManifest as buildThirdPartyManifest } from "./third-party-manifest.mjs";
 
 export const FORMAT = "CycloneDX";
 export const SPEC_VERSION = "1.6";
@@ -89,9 +87,7 @@ export function buildCycloneDx({
       "SBOM release bundle is missing an exact SHA-256 artifact digest.",
     );
   }
-  if (
-    !/^[0-9a-f]{64}$/.test(thirdPartyManifest.source?.lockfileSha256 ?? "")
-  ) {
+  if (!/^[0-9a-f]{64}$/.test(thirdPartyManifest.source?.lockfileSha256 ?? "")) {
     throw new Error(
       "SBOM third-party manifest is missing the lockfile SHA-256 identity.",
     );
