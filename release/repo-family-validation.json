@@ -105,7 +105,7 @@
     },
     {
       "repo": "KingHacker9000/totem-agent-providers",
-      "revision": "1825666ac0c12479b70d948c03eafd926c7ac87b",
+      "revision": "032eb011ef16c862013564357095b609e5783247",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
