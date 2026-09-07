@@ -99,7 +99,9 @@ export function evaluateFootprint(files, budget) {
     const exception = exceptionMap.get(entry.path);
     const limit = exception?.maxBytes ?? budget.maxFileBytes;
     if (entry.bytes > limit) {
-      violations.push(`${entry.path} is ${entry.bytes} bytes; limit is ${limit}`);
+      violations.push(
+        `${entry.path} is ${entry.bytes} bytes; limit is ${limit}`,
+      );
     }
   }
   for (const exception of budget.exceptions) {
