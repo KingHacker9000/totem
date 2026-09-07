@@ -30,6 +30,7 @@ const ROOT_FILES = new Set([
 ]);
 const INCLUDED_PREFIXES = [
   "apps/",
+  "config/",
   "deploy/",
   "docs/",
   "packages/",
