@@ -100,9 +100,10 @@ if (remote) {
       ["version", entry.version],
       ["private", entry.private],
     ]) {
-      if (pkg[field] !== expected) {
+      const actual = field === "private" ? pkg.private === true : pkg[field];
+      if (actual !== expected) {
         fail(
-          `${entry.repo} ${field} drift: expected ${expected}, got ${pkg[field]}`,
+          `${entry.repo} ${field} drift: expected ${expected}, got ${actual}`,
         );
       }
     }
