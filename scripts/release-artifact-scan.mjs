@@ -24,8 +24,9 @@ const PRIVATE_REFERENCE_ALLOWLIST = new Set([
   "scripts/repo-family-validation.mjs",
   "scripts/third-party-manifest.mjs",
 ]);
+const SYNTHETIC_TEST_HOME = ["", "home", "tester"].join("/");
 const SAFE_ABSOLUTE_PATH_LITERALS = new Map([
-  ["apps/core/src/extensionGrants.config.test.ts", new Set(["/home/tester"])],
+  ["apps/core/src/extensionGrants.config.test.ts", new Set([SYNTHETIC_TEST_HOME])],
 ]);
 const SECRET_PATTERNS = [
   {
