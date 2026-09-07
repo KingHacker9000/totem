@@ -18,7 +18,7 @@ const releaseRepositories = JSON.parse(
 );
 
 const execute = process.argv.includes("--execute");
-const remote = execute || process.argv.includes("--remote");
+const remote = process.argv.includes("--remote");
 const keep = process.argv.includes("--keep");
 const failures = [];
 const selfRepository = "KingHacker9000/totem";
