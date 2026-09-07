@@ -16,9 +16,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check integrity implementation formatting
-        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs
-      - name: Test detached integrity and archive validators
-        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs
+        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs
+      - name: Test detached integrity, archive, and reproducibility validators
+        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-reproducibility.node-test.mjs
+      - name: Prove bundle reproducibility across clean worktrees
+        run: pnpm release:bundle:reproducibility
       - name: Build and verify public bundle integrity
         run: |
           pnpm release:bundle:build
