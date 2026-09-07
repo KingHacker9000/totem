@@ -35,15 +35,18 @@ jobs:
       - name: Test
         run: pnpm test
       - run: pnpm build
+      - name: Build and verify deterministic public release bundle
+        run: |
+          pnpm release:bundle:build
+          pnpm release:bundle:verify
       - name: Validate source-to-artifact release provenance
         shell: bash
         run: |
           provenance="totem-provenance-ci.json"
           node scripts/release-provenance.mjs generate \
             --output "$provenance" \
-            --artifact apps/core/dist \
-            --artifact apps/dashboard/dist \
-            --build-command "pnpm build" \
+            --artifact dist/release/totem-public \
+            --build-command "pnpm build && pnpm release:bundle:build" \
             --profile ci-production
           node scripts/release-provenance.mjs verify --output "$provenance"
           rm "$provenance"
