@@ -3,12 +3,13 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   lstat,
+  mkdir,
   readFile,
   readdir,
   realpath,
   writeFile,
 } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const SCHEMA = "totem.release-provenance/v1";
@@ -216,6 +217,7 @@ export async function generateProvenance({
       excludedPrivateRepositories: PRIVATE_REPOSITORIES,
     },
   };
+  await mkdir(dirname(outputAbs), { recursive: true });
   await writeFile(outputAbs, `${JSON.stringify(document, null, 2)}\n`, "utf8");
   return document;
 }
