@@ -27,12 +27,18 @@ function assertSafeRelativePath(value, label = "path") {
   if (
     normalized.startsWith("/") ||
     /^[A-Za-z]:\//.test(normalized) ||
-    normalized.split("/").some((part) => part === "" || part === "." || part === "..")
+    normalized
+      .split("/")
+      .some((part) => part === "" || part === "." || part === "..")
   ) {
     throw new Error(`unsafe ${label}: ${value}`);
   }
-  if (PRIVATE_MARKERS.some((marker) => normalized.toLowerCase().includes(marker))) {
-    throw new Error(`private Portal path is forbidden in public integrity metadata: ${value}`);
+  if (
+    PRIVATE_MARKERS.some((marker) => normalized.toLowerCase().includes(marker))
+  ) {
+    throw new Error(
+      `private Portal path is forbidden in public integrity metadata: ${value}`,
+    );
   }
   return normalized;
 }
@@ -63,7 +69,8 @@ async function listBundleFiles(bundleRoot) {
       const info = await lstat(child);
       const rel = normalizePath(relative(bundleRoot, child));
       assertSafeRelativePath(rel, "bundle entry");
-      if (info.isSymbolicLink()) throw new Error(`bundle contains symlink: ${rel}`);
+      if (info.isSymbolicLink())
+        throw new Error(`bundle contains symlink: ${rel}`);
       if (info.isDirectory()) await walk(child);
       else if (info.isFile()) files.push(rel);
       else throw new Error(`bundle contains unsupported entry: ${rel}`);
@@ -80,7 +87,10 @@ function validateReleaseManifest(document) {
   if (!document.source?.revision || !document.source?.tree) {
     throw new Error("release manifest source identity is incomplete");
   }
-  if (document.digest?.algorithm !== "sha256" || !/^[0-9a-f]{64}$/.test(document.digest?.value ?? "")) {
+  if (
+    document.digest?.algorithm !== "sha256" ||
+    !/^[0-9a-f]{64}$/.test(document.digest?.value ?? "")
+  ) {
     throw new Error("release manifest bundle digest is invalid");
   }
   if (!Array.isArray(document.files) || document.files.length === 0) {
@@ -89,39 +99,62 @@ function validateReleaseManifest(document) {
   const seen = new Set();
   for (const entry of document.files) {
     const path = assertSafeRelativePath(entry?.path, "release manifest path");
-    if (seen.has(path)) throw new Error(`duplicate release manifest path: ${path}`);
+    if (seen.has(path))
+      throw new Error(`duplicate release manifest path: ${path}`);
     seen.add(path);
-    if (!Number.isSafeInteger(entry?.bytes) || entry.bytes < 0 || !/^[0-9a-f]{64}$/.test(entry?.sha256 ?? "")) {
+    if (
+      !Number.isSafeInteger(entry?.bytes) ||
+      entry.bytes < 0 ||
+      !/^[0-9a-f]{64}$/.test(entry?.sha256 ?? "")
+    ) {
       throw new Error(`invalid release manifest file identity: ${path}`);
     }
   }
   if (seen.has(RELEASE_MANIFEST)) {
-    throw new Error(`${RELEASE_MANIFEST} must not self-reference in release manifest files`);
+    throw new Error(
+      `${RELEASE_MANIFEST} must not self-reference in release manifest files`,
+    );
   }
   return seen;
 }
 
 function validateIntegrityDocument(document) {
-  if (document?.schema !== SCHEMA) throw new Error(`unsupported integrity schema: ${document?.schema}`);
-  if (document?.algorithm !== "sha256") throw new Error("integrity algorithm must be sha256");
-  if (!document.source?.revision || !document.source?.tree) throw new Error("integrity source identity is incomplete");
-  if (!/^[0-9a-f]{64}$/.test(document.releaseBundleDigest ?? "")) throw new Error("integrity release bundle digest is invalid");
-  if (!Array.isArray(document.files) || document.files.length === 0) throw new Error("integrity manifest contains no files");
+  if (document?.schema !== SCHEMA)
+    throw new Error(`unsupported integrity schema: ${document?.schema}`);
+  if (document?.algorithm !== "sha256")
+    throw new Error("integrity algorithm must be sha256");
+  if (!document.source?.revision || !document.source?.tree)
+    throw new Error("integrity source identity is incomplete");
+  if (!/^[0-9a-f]{64}$/.test(document.releaseBundleDigest ?? ""))
+    throw new Error("integrity release bundle digest is invalid");
+  if (!Array.isArray(document.files) || document.files.length === 0)
+    throw new Error("integrity manifest contains no files");
   const seen = new Set();
   for (const entry of document.files) {
     const path = assertSafeRelativePath(entry?.path, "integrity manifest path");
-    if (seen.has(path)) throw new Error(`duplicate integrity manifest path: ${path}`);
+    if (seen.has(path))
+      throw new Error(`duplicate integrity manifest path: ${path}`);
     seen.add(path);
-    if (!Number.isSafeInteger(entry?.bytes) || entry.bytes < 0 || !/^[0-9a-f]{64}$/.test(entry?.sha256 ?? "")) {
+    if (
+      !Number.isSafeInteger(entry?.bytes) ||
+      entry.bytes < 0 ||
+      !/^[0-9a-f]{64}$/.test(entry?.sha256 ?? "")
+    ) {
       throw new Error(`invalid integrity file identity: ${path}`);
     }
   }
   return seen;
 }
 
-export async function generateIntegrity({ bundle = DEFAULT_BUNDLE, manifest = DEFAULT_MANIFEST, root = process.cwd() } = {}) {
+export async function generateIntegrity({
+  bundle = DEFAULT_BUNDLE,
+  manifest = DEFAULT_MANIFEST,
+  root = process.cwd(),
+} = {}) {
   const bundleRoot = resolve(root, bundle);
-  const releaseManifestBytes = await readFile(resolve(bundleRoot, RELEASE_MANIFEST));
+  const releaseManifestBytes = await readFile(
+    resolve(bundleRoot, RELEASE_MANIFEST),
+  );
   const release = JSON.parse(releaseManifestBytes.toString("utf8"));
   const releasePaths = validateReleaseManifest(release);
   const actualPaths = await listBundleFiles(bundleRoot);
@@ -130,7 +163,8 @@ export async function generateIntegrity({ bundle = DEFAULT_BUNDLE, manifest = DE
     throw new Error("bundle file set does not match release-manifest.json");
   }
   const files = [];
-  for (const path of actualPaths) files.push(await regularFileRecord(bundleRoot, path));
+  for (const path of actualPaths)
+    files.push(await regularFileRecord(bundleRoot, path));
   const document = {
     schema: SCHEMA,
     algorithm: "sha256",
@@ -139,17 +173,29 @@ export async function generateIntegrity({ bundle = DEFAULT_BUNDLE, manifest = DE
     releaseBundleDigest: release.digest.value,
     files,
   };
-  await writeFile(resolve(root, manifest), `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  await writeFile(
+    resolve(root, manifest),
+    `${JSON.stringify(document, null, 2)}\n`,
+    "utf8",
+  );
   return document;
 }
 
-export async function verifyIntegrity({ bundle = DEFAULT_BUNDLE, manifest = DEFAULT_MANIFEST, root = process.cwd() } = {}) {
+export async function verifyIntegrity({
+  bundle = DEFAULT_BUNDLE,
+  manifest = DEFAULT_MANIFEST,
+  root = process.cwd(),
+} = {}) {
   const bundleRoot = resolve(root, bundle);
   const document = JSON.parse(await readFile(resolve(root, manifest), "utf8"));
   const manifestPaths = validateIntegrityDocument(document);
   const actualPaths = await listBundleFiles(bundleRoot);
-  if (JSON.stringify(actualPaths) !== JSON.stringify([...manifestPaths].sort())) {
-    throw new Error("bundle contains missing or unexpected files relative to integrity manifest");
+  if (
+    JSON.stringify(actualPaths) !== JSON.stringify([...manifestPaths].sort())
+  ) {
+    throw new Error(
+      "bundle contains missing or unexpected files relative to integrity manifest",
+    );
   }
   for (const expected of document.files) {
     const actual = await regularFileRecord(bundleRoot, expected.path);
@@ -165,7 +211,9 @@ export async function verifyIntegrity({ bundle = DEFAULT_BUNDLE, manifest = DEFA
     document.repository !== release.repository ||
     document.releaseBundleDigest !== release.digest.value
   ) {
-    throw new Error("integrity metadata does not match embedded release identity");
+    throw new Error(
+      "integrity metadata does not match embedded release identity",
+    );
   }
   return document;
 }
@@ -186,12 +234,18 @@ async function main() {
   const options = parseArgs(argv);
   if (command === "generate") {
     const document = await generateIntegrity(options);
-    console.log(`${document.releaseBundleDigest}  ${options.manifest ?? DEFAULT_MANIFEST}`);
+    console.log(
+      `${document.releaseBundleDigest}  ${options.manifest ?? DEFAULT_MANIFEST}`,
+    );
   } else if (command === "verify") {
     const document = await verifyIntegrity(options);
-    console.log(`${document.releaseBundleDigest}  ${options.bundle ?? DEFAULT_BUNDLE}`);
+    console.log(
+      `${document.releaseBundleDigest}  ${options.bundle ?? DEFAULT_BUNDLE}`,
+    );
   } else {
-    throw new Error("usage: release-integrity.mjs <generate|verify> [--bundle <path>] [--manifest <path>]");
+    throw new Error(
+      "usage: release-integrity.mjs <generate|verify> [--bundle <path>] [--manifest <path>]",
+    );
   }
 }
 
