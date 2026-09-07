@@ -128,7 +128,8 @@ try {
 }
 if (!malformedRejected) fail("incompatible provider module was accepted");
 
-const invocations: Array<{ command: string; args: string[]; cwd?: string }> = [];
+const invocations: Array<{ command: string; args: string[]; cwd?: string }> =
+  [];
 const runner: ProcessRunner = (spec) => {
   invocations.push(structuredClone(spec));
   return {
