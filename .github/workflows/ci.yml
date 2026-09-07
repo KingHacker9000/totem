@@ -3,33 +3,61 @@ on:
   push:
   pull_request:
 permissions:
-  contents: write
+  contents: read
 jobs:
   check:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        node: [22.20.0]
+        os: [ubuntu-latest, windows-latest]
+        node: [22.20.0, 24.18.0]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: chatgpt/t925-release-provenance
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Normalize T925 files with pinned Biome
+      - name: Validate artifact-specific third-party release manifest
         shell: bash
         run: |
-          pnpm exec biome format --write scripts/release-provenance.mjs scripts/release-provenance.node-test.mjs package.json
-          if ! git diff --quiet -- scripts/release-provenance.mjs scripts/release-provenance.node-test.mjs package.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add scripts/release-provenance.mjs scripts/release-provenance.node-test.mjs package.json
-            git commit -m "style(release): apply pinned Biome formatting"
-            git push origin HEAD:chatgpt/t925-release-provenance
-          fi
+          manifest="$RUNNER_TEMP/totem-third-party-manifest.json"
+          node scripts/third-party-manifest.mjs generate --output "$manifest"
+          node scripts/third-party-manifest.mjs verify --output "$manifest"
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - run: pnpm build
+      - name: Validate source-to-artifact release provenance
+        shell: bash
+        run: |
+          provenance="totem-provenance-ci.json"
+          node scripts/release-provenance.mjs generate \
+            --output "$provenance" \
+            --artifact apps/core/dist \
+            --artifact apps/dashboard/dist \
+            --build-command "pnpm build" \
+            --profile ci-production
+          node scripts/release-provenance.mjs verify --output "$provenance"
+          rm "$provenance"
+      - name: Validate Pi self-test host-independent path
+        shell: bash
+        run: |
+          export TOTEM_STATE_DIR="$RUNNER_TEMP/totem-self-test-state"
+          node deploy/pi/self-test.mjs --offline --json > "$RUNNER_TEMP/totem-pi-self-test.json"
+          node -e 'const r=require(process.argv[1]); if(r.schema!=="totem.pi-self-test/v1"||r.overall!=="PASS"||r.counts.FAIL!==0) process.exit(1)' "$RUNNER_TEMP/totem-pi-self-test.json"
+      - name: Validate pinned Phase 2 extension integration
+        shell: bash
+        run: |
+          git clone https://github.com/KingHacker9000/totem-base-extensions.git "$RUNNER_TEMP/totem-base-extensions"
+          git -C "$RUNNER_TEMP/totem-base-extensions" checkout 00a5b98e18f024740da417d573ea0c3c02bc355a
+          git clone https://github.com/KingHacker9000/totem-extension-sdk.git "$RUNNER_TEMP/totem-extension-sdk"
+          git -C "$RUNNER_TEMP/totem-extension-sdk" checkout 916607a23a7a5905e0d675a1f451402b495ec3e1
+          pnpm --filter @totem/core exec tsx scripts/phase2-integration.ts "$RUNNER_TEMP/totem-base-extensions" "$RUNNER_TEMP/totem-extension-sdk"
