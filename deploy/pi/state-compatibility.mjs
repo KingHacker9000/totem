@@ -99,7 +99,10 @@ function legacyDescriptor(format, releaseDir) {
   };
 }
 
-export async function loadReleaseCompatibility(releaseDir, fallbackFormat = null) {
+export async function loadReleaseCompatibility(
+  releaseDir,
+  fallbackFormat = null,
+) {
   const loaded = await readDescriptorFile(releaseDir);
   if (loaded) return loaded;
   if (fallbackFormat) return legacyDescriptor(fallbackFormat, releaseDir);

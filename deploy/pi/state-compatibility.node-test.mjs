@@ -42,7 +42,9 @@ async function writeDescriptor(release, descriptor = {}) {
 }
 
 test.after(async () => {
-  await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots.map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 test("current descriptor is internally consistent", () => {
@@ -143,7 +145,10 @@ test("state survives simulated release reuse and verified recovery without impli
     fromRelease: oldRelease,
     toRelease: newRelease,
   });
-  assert.equal(await readFile(join(stateDir, "durable.json"), "utf8"), '{"turn":1}\n');
+  assert.equal(
+    await readFile(join(stateDir, "durable.json"), "utf8"),
+    '{"turn":1}\n',
+  );
 
   const backup = await createQuiescedBackup({
     root,
@@ -157,7 +162,10 @@ test("state survives simulated release reuse and verified recovery without impli
     fromRelease: newRelease,
     toRelease: oldRelease,
   });
-  assert.equal(await readFile(join(stateDir, "durable.json"), "utf8"), '{"turn":2}\n');
+  assert.equal(
+    await readFile(join(stateDir, "durable.json"), "utf8"),
+    '{"turn":2}\n',
+  );
 
   await restoreVerifiedBackup({
     backupDir: backup.backupDir,
@@ -165,5 +173,8 @@ test("state survives simulated release reuse and verified recovery without impli
     now: new Date("2026-09-07T08:01:00.000Z"),
     assertStopped: async () => {},
   });
-  assert.equal(await readFile(join(stateDir, "durable.json"), "utf8"), '{"turn":1}\n');
+  assert.equal(
+    await readFile(join(stateDir, "durable.json"), "utf8"),
+    '{"turn":1}\n',
+  );
 });
