@@ -31,3 +31,38 @@ jobs:
           pnpm release:archive:create
           pnpm release:archive:verify
           pnpm release:archive:smoke
+      - name: Upload exact public release handoff set
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: totem-public-release-handoff
+          path: |
+            dist/release/totem-public/
+            dist/release/totem-public.integrity.json
+            dist/release/totem-public.tar.gz
+          if-no-files-found: error
+          # The generated bundle is already fail-closed privacy/integrity validated;
+          # preserve legitimate dotfiles exactly across the artifact boundary.
+          include-hidden-files: true
+          retention-days: 1
+
+  artifact-handoff:
+    needs: integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Download public release handoff into fresh path
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: totem-public-release-handoff
+          path: dist/handoff
+      - name: Verify transferred public release bytes
+        run: |
+          test -f dist/handoff/totem-public.integrity.json
+          test -f dist/handoff/totem-public.tar.gz
+          test -f dist/handoff/totem-public/release-manifest.json
+          node scripts/release-integrity.mjs verify \
+            --bundle dist/handoff/totem-public \
+            --manifest dist/handoff/totem-public.integrity.json
+          node scripts/release-archive.mjs verify \
+            --bundle dist/handoff/totem-public \
+            --archive dist/handoff/totem-public.tar.gz
