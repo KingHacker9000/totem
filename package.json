@@ -13,6 +13,8 @@
     "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
     "validate:live": "node scripts/live-validation.mjs",
     "validate:pi": "node deploy/pi/lifecycle-check.mjs",
+    "release:bundle:build": "node scripts/release-bundle.mjs build",
+    "release:bundle:verify": "node scripts/release-bundle.mjs verify",
     "release:third-party:generate": "node scripts/third-party-manifest.mjs generate",
     "release:third-party:verify": "node scripts/third-party-manifest.mjs verify",
     "release:provenance:generate": "node scripts/release-provenance.mjs generate",
@@ -22,7 +24,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
