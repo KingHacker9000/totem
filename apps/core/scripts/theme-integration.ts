@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { discoverPackages } from "../src/discovery.js";
@@ -11,9 +11,20 @@ if (!root || !expectedRevision) {
   );
 }
 
+const expectedIds = ["default", "minimal", "retro-terminal"];
+const installationRoot = await mkdtemp(
+  join(tmpdir(), "totem-theme-integration-installation-"),
+);
+for (const id of expectedIds) {
+  await cp(join(root, id), join(installationRoot, id), {
+    recursive: true,
+    errorOnExist: true,
+  });
+}
+
 const snapshot = await discoverPackages({
   extensionRoots: [],
-  themeRoots: [root],
+  themeRoots: [installationRoot],
   activeThemeId: "minimal",
 });
 
@@ -23,7 +34,6 @@ if (snapshot.rootDiagnostics.length !== 0) {
   );
 }
 
-const expectedIds = ["default", "minimal", "retro-terminal"];
 const actualIds = snapshot.themes
   .filter((theme) => theme.state !== "invalid")
   .map((theme) => theme.id)
@@ -96,6 +106,7 @@ console.log(
   JSON.stringify({
     schema: "totem.theme-host-integration/v1",
     baseThemesRevision: expectedRevision,
+    installationRoot: "staged-public-themes",
     discoveredThemeIds: actualIds,
     activeTheme: snapshot.activeTheme.id,
     invalidFixture: "rejected",
