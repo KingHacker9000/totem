@@ -10,7 +10,10 @@ import {
 const exactRevision = "0123456789abcdef0123456789abcdef01234567";
 
 test("accepts exact lowercase 40-character revisions", () => {
-  assert.equal(assertExactRevision("KingHacker9000/example", exactRevision), exactRevision);
+  assert.equal(
+    assertExactRevision("KingHacker9000/example", exactRevision),
+    exactRevision,
+  );
 });
 
 test("rejects missing or non-exact revisions", () => {
@@ -19,7 +22,8 @@ test("rejects missing or non-exact revisions", () => {
     /exact 40-character lowercase commit revision/,
   );
   assert.throws(
-    () => assertExactRevision("KingHacker9000/example", exactRevision.toUpperCase()),
+    () =>
+      assertExactRevision("KingHacker9000/example", exactRevision.toUpperCase()),
     /exact 40-character lowercase commit revision/,
   );
   assert.throws(
@@ -30,7 +34,8 @@ test("rejects missing or non-exact revisions", () => {
 
 test("rejects requested repositories absent from the declared input set", () => {
   assert.throws(
-    () => resolvePinnedEntries({ repositories: [] }, ["KingHacker9000/missing"]),
+    () =>
+      resolvePinnedEntries({ repositories: [] }, ["KingHacker9000/missing"]),
     /not declared in repo-family validation/,
   );
 });
