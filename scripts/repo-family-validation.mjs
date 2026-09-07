@@ -4,10 +4,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-const manifestUrl = new URL("../release/repo-family-validation.json", import.meta.url);
-const releaseRepositoriesUrl = new URL("../release/public-repositories.json", import.meta.url);
+const manifestUrl = new URL(
+  "../release/repo-family-validation.json",
+  import.meta.url,
+);
+const releaseRepositoriesUrl = new URL(
+  "../release/public-repositories.json",
+  import.meta.url,
+);
 const manifest = JSON.parse(await readFile(manifestUrl, "utf8"));
-const releaseRepositories = JSON.parse(await readFile(releaseRepositoriesUrl, "utf8"));
+const releaseRepositories = JSON.parse(
+  await readFile(releaseRepositoriesUrl, "utf8"),
+);
 
 const execute = process.argv.includes("--execute");
 const remote = execute || process.argv.includes("--remote");
@@ -62,14 +70,17 @@ for (const entry of entries) {
     continue;
   }
   if (privateBoundary.has(entry.repo)) {
-    fail(`private Portal repository leaked into public validation: ${entry.repo}`);
+    fail(
+      `private Portal repository leaked into public validation: ${entry.repo}`,
+    );
   }
   if (entryNames.has(entry.repo)) {
     fail(`duplicate repository: ${entry.repo}`);
   }
   entryNames.add(entry.repo);
   assertStringArray(entry.metadata, `${entry.repo} metadata`);
-  if (entry.install !== null) assertCommand(entry.install, `${entry.repo} install`);
+  if (entry.install !== null)
+    assertCommand(entry.install, `${entry.repo} install`);
   if (!Array.isArray(entry.commands)) {
     fail(`${entry.repo} commands must be an array`);
   } else {
@@ -145,14 +156,19 @@ async function validateRemoteEntry(entry) {
     fail(`${entry.repo} package.json is not a readable file`);
     return;
   }
-  const pkg = JSON.parse(Buffer.from(payload.content, "base64").toString("utf8"));
+  const pkg = JSON.parse(
+    Buffer.from(payload.content, "base64").toString("utf8"),
+  );
   if (pkg.engines?.node !== entry.runtime.node) {
     fail(
       `${entry.repo} Node engine drift: expected ${entry.runtime.node}, got ${pkg.engines?.node}`,
     );
   }
   for (const script of entry.required_package_scripts) {
-    if (typeof pkg.scripts?.[script] !== "string" || !pkg.scripts[script].trim()) {
+    if (
+      typeof pkg.scripts?.[script] !== "string" ||
+      !pkg.scripts[script].trim()
+    ) {
       fail(`${entry.repo} missing declared package script: ${script}`);
     }
   }
@@ -170,7 +186,8 @@ function run(command, cwd) {
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (code === 0) resolve();
-      else reject(new Error(`exit=${code ?? "null"} signal=${signal ?? "none"}`));
+      else
+        reject(new Error(`exit=${code ?? "null"} signal=${signal ?? "none"}`));
     });
   });
 }
@@ -218,7 +235,11 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  const mode = execute ? "clean-checkout execution" : remote ? "remote drift" : "manifest";
+  const mode = execute
+    ? "clean-checkout execution"
+    : remote
+      ? "remote drift"
+      : "manifest";
   console.log(
     `Totem repo-family validation passed (${entries.length} public repos, ${mode}).`,
   );
