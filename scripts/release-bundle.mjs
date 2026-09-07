@@ -150,7 +150,9 @@ export function releasePolicy(path) {
   return {
     include,
     fatal: false,
-    reason: include ? "public release input" : "outside public release allowlist",
+    reason: include
+      ? "public release input"
+      : "outside public release allowlist",
   };
 }
 
@@ -221,7 +223,9 @@ export async function buildReleaseBundle({ root, output = DEFAULT_OUTPUT }) {
   const outputAbs = resolve(rootAbs, output);
   const outputRel = assertInside(rootAbs, outputAbs, "release output");
   if (releasePolicy(outputRel).include) {
-    throw new Error("release output must be outside the release source allowlist");
+    throw new Error(
+      "release output must be outside the release source allowlist",
+    );
   }
 
   const files = await collectSourceFiles(rootAbs);
@@ -319,10 +323,14 @@ async function main() {
   const root = process.cwd();
   if (command === "build") {
     const manifest = await buildReleaseBundle({ root, ...options });
-    console.log(`${manifest.digest.value}  ${options.output ?? DEFAULT_OUTPUT}`);
+    console.log(
+      `${manifest.digest.value}  ${options.output ?? DEFAULT_OUTPUT}`,
+    );
   } else if (command === "verify") {
     const manifest = await verifyReleaseBundle({ root, ...options });
-    console.log(`${manifest.digest.value}  ${options.output ?? DEFAULT_OUTPUT}`);
+    console.log(
+      `${manifest.digest.value}  ${options.output ?? DEFAULT_OUTPUT}`,
+    );
   } else {
     throw new Error(
       "usage: release-bundle.mjs <build|verify> [--output <path>]",

@@ -30,10 +30,7 @@ async function fixture() {
     '{"name":"totem","private":true}\n',
   );
   await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
-  await writeFile(
-    join(root, "pnpm-workspace.yaml"),
-    "packages:\n  - apps/*\n",
-  );
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n");
   await writeFile(
     join(root, "apps/core/src/main.ts"),
     'console.log("totem")\n',
