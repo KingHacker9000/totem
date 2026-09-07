@@ -160,8 +160,10 @@ export function evaluateAudit({ audit, policy, now = new Date() }) {
       continue;
     }
     if (
-      isoDay(exception.expiresOn, `Exception ${exception.advisoryId} expiresOn`) <
-      currentDay
+      isoDay(
+        exception.expiresOn,
+        `Exception ${exception.advisoryId} expiresOn`,
+      ) < currentDay
     ) {
       actionable.push({
         ...item,
