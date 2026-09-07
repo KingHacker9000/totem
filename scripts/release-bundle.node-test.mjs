@@ -11,7 +11,9 @@ import {
 } from "./release-bundle.mjs";
 
 function git(root, args) {
-  return execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
+  return execFileSync("git", ["-C", root, ...args], {
+    encoding: "utf8",
+  }).trim();
 }
 
 async function fixture() {
@@ -23,11 +25,23 @@ async function fixture() {
   await mkdir(join(root, "deploy/pi"), { recursive: true });
   await mkdir(join(root, "docs"), { recursive: true });
   await mkdir(join(root, "scripts"), { recursive: true });
-  await writeFile(join(root, "package.json"), '{"name":"totem","private":true}\n');
+  await writeFile(
+    join(root, "package.json"),
+    '{"name":"totem","private":true}\n',
+  );
   await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
-  await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n");
-  await writeFile(join(root, "apps/core/src/main.ts"), 'console.log("totem")\n');
-  await writeFile(join(root, "deploy/pi/totem.env.example"), "TOTEM_PORT=3000\n");
+  await writeFile(
+    join(root, "pnpm-workspace.yaml"),
+    "packages:\n  - apps/*\n",
+  );
+  await writeFile(
+    join(root, "apps/core/src/main.ts"),
+    'console.log("totem")\n',
+  );
+  await writeFile(
+    join(root, "deploy/pi/totem.env.example"),
+    "TOTEM_PORT=3000\n",
+  );
   await writeFile(join(root, "docs/README.md"), "# release docs\n");
   await writeFile(join(root, "scripts/tool.mjs"), "export const ok = true;\n");
   await writeFile(join(root, ".github-note"), "not allowlisted\n");
@@ -87,14 +101,15 @@ test("tracked secret material fails closed", async () => {
 
 test("high-confidence embedded credential fails closed", async () => {
   const root = await fixture();
+  const token = ["ghp", "abcdefghijklmnopqrstuvwxyz1234567890"].join("_");
   await writeFile(
-    join(root, "docs/credential.txt"),
-    "github token ghp_abcdefghijklmnopqrstuvwxyz1234567890\n",
+    join(root, "docs/token-sample.txt"),
+    `github token ${token}\n`,
   );
-  git(root, ["add", "docs/credential.txt"]);
+  git(root, ["add", "docs/token-sample.txt"]);
   git(root, ["commit", "-m", "bad embedded secret"]);
   await assert.rejects(
     buildReleaseBundle({ root }),
-    /credential\/secret path|high-confidence secret material/,
+    /high-confidence secret material/,
   );
 });
