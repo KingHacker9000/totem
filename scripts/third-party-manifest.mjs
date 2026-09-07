@@ -60,15 +60,12 @@ function sha256(buffer) {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
-function packageManagerBinary() {
-  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-}
-
-function run(command, args, cwd) {
+function run(command, args, cwd, shell = false) {
   return execFileSync(command, args, {
     cwd,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
+    shell,
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 }
@@ -121,7 +118,12 @@ export function flattenPnpmList(listing, workspaceNames = new Set()) {
   return result;
 }
 
-export function classifyDependencyGraphs({ runtimeListing, fullListing, workspaceNames, directSpecs }) {
+export function classifyDependencyGraphs({
+  runtimeListing,
+  fullListing,
+  workspaceNames,
+  directSpecs,
+}) {
   const runtime = flattenPnpmList(runtimeListing, workspaceNames);
   const full = flattenPnpmList(fullListing, workspaceNames);
 
@@ -179,7 +181,12 @@ async function discoverWorkspaces(rootDir) {
 export function assertPublicBoundary(packageManifests) {
   const forbidden = /totem-portal-(?:theme|hardware)/i;
   for (const { path, manifest } of packageManifests) {
-    for (const section of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+    for (const section of [
+      "dependencies",
+      "optionalDependencies",
+      "peerDependencies",
+      "devDependencies",
+    ]) {
       for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
         if (forbidden.test(name) || forbidden.test(String(spec))) {
           throw new Error(
@@ -194,7 +201,12 @@ export function assertPublicBoundary(packageManifests) {
 function collectDirectSpecs(packageManifests) {
   const specs = new Map();
   for (const { manifest } of packageManifests) {
-    for (const section of ["dependencies", "optionalDependencies", "peerDependencies", "devDependencies"]) {
+    for (const section of [
+      "dependencies",
+      "optionalDependencies",
+      "peerDependencies",
+      "devDependencies",
+    ]) {
       for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
         if (!specs.has(name)) specs.set(name, String(spec));
       }
@@ -212,7 +224,8 @@ async function hashSourceSnapshot(rootDir, outputPath) {
     const children = await readdir(directory, { withFileTypes: true });
     children.sort((a, b) => a.name.localeCompare(b.name));
     for (const child of children) {
-      if (child.isDirectory() && excludedDirectoryNames.has(child.name)) continue;
+      if (child.isDirectory() && excludedDirectoryNames.has(child.name))
+        continue;
       const absolute = resolve(directory, child.name);
       const rel = slash(relative(rootDir, absolute));
       if (rel === outputRelative) continue;
@@ -222,12 +235,18 @@ async function hashSourceSnapshot(rootDir, outputPath) {
       }
       if (!child.isFile()) continue;
       const content = await readFile(absolute);
-      entries.push({ path: rel, size: content.byteLength, sha256: sha256(content) });
+      entries.push({
+        path: rel,
+        size: content.byteLength,
+        sha256: sha256(content),
+      });
     }
   }
 
   await walk(rootDir);
-  const canonical = entries.map((entry) => `${entry.path}\0${entry.size}\0${entry.sha256}`).join("\n");
+  const canonical = entries
+    .map((entry) => `${entry.path}\0${entry.size}\0${entry.sha256}`)
+    .join("\n");
   return {
     sha256: sha256(Buffer.from(canonical, "utf8")),
     fileCount: entries.length,
@@ -240,16 +259,29 @@ function resolveSourceRevision(rootDir, override) {
     return run("git", ["rev-parse", "HEAD"], rootDir);
   } catch {
     if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
-    throw new Error("Source revision is required when git metadata is unavailable; pass --source-revision.");
+    throw new Error(
+      "Source revision is required when git metadata is unavailable; pass --source-revision.",
+    );
   }
 }
 
 function pnpmListing(rootDir, productionOnly) {
   const args = productionOnly
-    ? ["--filter", "./apps/*", "list", "--json", "--depth", "Infinity", "--prod"]
+    ? [
+        "--filter",
+        "./apps/*",
+        "list",
+        "--json",
+        "--depth",
+        "Infinity",
+        "--prod",
+      ]
     : ["list", "--recursive", "--json", "--depth", "Infinity"];
-  const raw = run(packageManagerBinary(), args, rootDir);
-  return parseJsonOutput(raw || "[]", productionOnly ? "production dependency graph" : "full dependency graph");
+  const raw = run("pnpm", args, rootDir, process.platform === "win32");
+  return parseJsonOutput(
+    raw || "[]",
+    productionOnly ? "production dependency graph" : "full dependency graph",
+  );
 }
 
 export async function buildManifest({
@@ -264,11 +296,16 @@ export async function buildManifest({
 
   const rootManifest = await readJson(resolve(rootDir, "package.json"));
   const workspaces = await discoverWorkspaces(rootDir);
-  const packageManifests = [{ path: ".", manifest: rootManifest }, ...workspaces];
+  const packageManifests = [
+    { path: ".", manifest: rootManifest },
+    ...workspaces,
+  ];
   assertPublicBoundary(packageManifests);
 
   const workspaceNames = new Set(
-    workspaces.map(({ manifest }) => manifest.name).filter((name) => typeof name === "string"),
+    workspaces
+      .map(({ manifest }) => manifest.name)
+      .filter((name) => typeof name === "string"),
   );
   const directSpecs = collectDirectSpecs(packageManifests);
   const graphs = classifyDependencyGraphs({
@@ -285,7 +322,8 @@ export async function buildManifest({
     schema: SCHEMA,
     artifact: {
       kind: ARTIFACT_KIND,
-      installBoundary: "deploy/pi/install.sh source copy excluding .git, node_modules, and dist",
+      installBoundary:
+        "deploy/pi/install.sh source copy excluding .git, node_modules, and dist",
       sourceSnapshotSha256: snapshot.sha256,
       sourceFileCount: snapshot.fileCount,
     },
@@ -316,28 +354,41 @@ export async function buildManifest({
 }
 
 export function assertManifestShape(manifest) {
-  if (!manifest || manifest.schema !== SCHEMA) throw new Error(`Expected schema ${SCHEMA}.`);
-  if (manifest.artifact?.kind !== ARTIFACT_KIND) throw new Error(`Expected artifact kind ${ARTIFACT_KIND}.`);
+  if (!manifest || manifest.schema !== SCHEMA)
+    throw new Error(`Expected schema ${SCHEMA}.`);
+  if (manifest.artifact?.kind !== ARTIFACT_KIND)
+    throw new Error(`Expected artifact kind ${ARTIFACT_KIND}.`);
   if (!/^[0-9a-f]{64}$/.test(manifest.artifact?.sourceSnapshotSha256 ?? "")) {
-    throw new Error("Manifest is missing a valid artifact sourceSnapshotSha256.");
+    throw new Error(
+      "Manifest is missing a valid artifact sourceSnapshotSha256.",
+    );
   }
   if (!/^[0-9a-f]{64}$/.test(manifest.source?.lockfileSha256 ?? "")) {
     throw new Error("Manifest is missing a valid source lockfileSha256.");
   }
-  if (typeof manifest.source?.revision !== "string" || manifest.source.revision.length < 7) {
+  if (
+    typeof manifest.source?.revision !== "string" ||
+    manifest.source.revision.length < 7
+  ) {
     throw new Error("Manifest is missing an exact source revision.");
   }
   if (!Array.isArray(manifest.dependencies?.runtimeOrBundledCandidates)) {
     throw new Error("Manifest is missing runtime dependency candidates.");
   }
   if (!Array.isArray(manifest.dependencies?.buildOrDevelopmentOnly)) {
-    throw new Error("Manifest is missing build/development dependency candidates.");
+    throw new Error(
+      "Manifest is missing build/development dependency candidates.",
+    );
   }
   if (manifest.externallySupplied?.some((entry) => entry.bundled !== false)) {
-    throw new Error("Externally supplied executables/models must not be marked as bundled.");
+    throw new Error(
+      "Externally supplied executables/models must not be marked as bundled.",
+    );
   }
   if (manifest.policy?.licenseSelection !== "UNRESOLVED_T913") {
-    throw new Error("Third-party manifest must not infer or select the Totem project license.");
+    throw new Error(
+      "Third-party manifest must not infer or select the Totem project license.",
+    );
   }
 }
 
@@ -371,15 +422,24 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  const { command, output, sourceRevision } = parseArgs(process.argv.slice(2));
+  const { command, output, sourceRevision } = parseArgs(
+    process.argv.slice(2),
+  );
   const rootDir = process.cwd();
-  const outputPath = resolve(rootDir, output ?? "release/third-party-manifest.json");
+  const outputPath = resolve(
+    rootDir,
+    output ?? "release/third-party-manifest.json",
+  );
 
   if (command === "generate") {
     const manifest = await buildManifest({ rootDir, outputPath, sourceRevision });
     assertManifestShape(manifest);
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    await writeFile(
+      outputPath,
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8",
+    );
     console.log(`Wrote ${slash(relative(rootDir, outputPath))}`);
     return;
   }
@@ -395,7 +455,9 @@ async function main() {
   throw new Error(`Unknown command: ${command}. Expected generate or verify.`);
 }
 
-const entry = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;
+const entry = process.argv[1]
+  ? pathToFileURL(resolve(process.argv[1])).href
+  : null;
 if (entry === import.meta.url) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
