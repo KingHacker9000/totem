@@ -48,7 +48,9 @@ test("malformed critical values are rejected deterministically", async () => {
 
 test("env-file parser keeps credential values opaque", () => {
   assert.deepEqual(
-    parseEnvFile("# comment\nTOTEM_ENV=production\nSERVICE_TOKEN='secret-placeholder'\n"),
+    parseEnvFile(
+      "# comment\nTOTEM_ENV=production\nSERVICE_TOKEN='secret-placeholder'\n",
+    ),
     { TOTEM_ENV: "production", SERVICE_TOKEN: "secret-placeholder" },
   );
 });

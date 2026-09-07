@@ -17,7 +17,9 @@ function freePort() {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
-        server.close(() => reject(new Error("failed to allocate a local test port")));
+        server.close(() =>
+          reject(new Error("failed to allocate a local test port")),
+        );
         return;
       }
       const port = address.port;
@@ -48,7 +50,9 @@ async function waitForHealth(baseUrl, child, timeoutMs = 15_000) {
   let last = null;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`core exited before readiness with code ${child.exitCode}`);
+      throw new Error(
+        `core exited before readiness with code ${child.exitCode}`,
+      );
     }
     try {
       const response = await fetch(`${baseUrl}/health`, {
@@ -61,7 +65,9 @@ async function waitForHealth(baseUrl, child, timeoutMs = 15_000) {
     }
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
-  throw new Error(`credential-free core did not become healthy: ${JSON.stringify(last)}`);
+  throw new Error(
+    `credential-free core did not become healthy: ${JSON.stringify(last)}`,
+  );
 }
 
 const dataDir = await mkdtemp(path.join(os.tmpdir(), "totem-credential-free-"));
@@ -69,29 +75,53 @@ const port = await freePort();
 const env = credentialFreeEnvironment(port, dataDir);
 const contract = await loadContract();
 const issues = validateEnvironment(contract, env);
-if (issues.length) throw new Error(`smoke environment violates release contract:\n- ${issues.join("\n- ")}`);
+if (issues.length)
+  throw new Error(
+    `smoke environment violates release contract:\n- ${issues.join("\n- ")}`,
+  );
 
-const child = spawn(process.execPath, [path.join(root, "apps/core/dist/main.js")], {
-  cwd: root,
-  env,
-  stdio: ["ignore", "pipe", "pipe"],
-});
+const child = spawn(
+  process.execPath,
+  [path.join(root, "apps/core/dist/main.js")],
+  {
+    cwd: root,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  },
+);
 let stdout = "";
 let stderr = "";
-child.stdout.on("data", (chunk) => { stdout += chunk; });
-child.stderr.on("data", (chunk) => { stderr += chunk; });
+child.stdout.on("data", (chunk) => {
+  stdout += chunk;
+});
+child.stderr.on("data", (chunk) => {
+  stderr += chunk;
+});
 
 try {
   const health = await waitForHealth(`http://127.0.0.1:${port}`, child);
-  console.log(JSON.stringify({
-    schema: "totem.credential-free-startup/v1",
-    ok: true,
-    credential_env_keys: [],
-    configured_totem_keys: ["TOTEM_ENV", "TOTEM_HOST", "TOTEM_PORT", "TOTEM_DATA_DIR"],
-    health,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        schema: "totem.credential-free-startup/v1",
+        ok: true,
+        credential_env_keys: [],
+        configured_totem_keys: [
+          "TOTEM_ENV",
+          "TOTEM_HOST",
+          "TOTEM_PORT",
+          "TOTEM_DATA_DIR",
+        ],
+        health,
+      },
+      null,
+      2,
+    ),
+  );
 } catch (error) {
-  throw new Error(`${error instanceof Error ? error.message : String(error)}\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+  throw new Error(
+    `${error instanceof Error ? error.message : String(error)}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+  );
 } finally {
   if (child.exitCode === null) {
     child.kill("SIGTERM");
