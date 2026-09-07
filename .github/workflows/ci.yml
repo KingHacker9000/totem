@@ -172,7 +172,19 @@ jobs:
             --root "$extension_root" \
             --repo KingHacker9000/totem-base-extensions
           revision="$(git -C "$extension_root/totem-base-extensions" rev-parse HEAD)"
-          test "$revision" = "6844e5b4bbc0c4b369a24e43c3ca5202e1685312"
+          test "$revision" = "a535cfc5d780e78645469daa37b911b1adf629f7"
           pnpm --filter @totem/core exec tsx scripts/base-extension-integration.ts \
             "$extension_root/totem-base-extensions" \
+            "$revision"
+      - name: Validate pinned public registry host integration
+        shell: bash
+        run: |
+          registry_root="$RUNNER_TEMP/totem-registry-host-integration"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$registry_root" \
+            --repo KingHacker9000/totem-registry
+          revision="$(git -C "$registry_root/totem-registry" rev-parse HEAD)"
+          test "$revision" = "1543d2e3c3f5c7c42baf89e0182cc51a2c69ce77"
+          pnpm --filter @totem/core exec tsx scripts/registry-integration.ts \
+            "$registry_root/totem-registry" \
             "$revision"

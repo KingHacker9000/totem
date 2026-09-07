@@ -85,7 +85,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-extensions",
-      "revision": "6844e5b4bbc0c4b369a24e43c3ca5202e1685312",
+      "revision": "a535cfc5d780e78645469daa37b911b1adf629f7",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
