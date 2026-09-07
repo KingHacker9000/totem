@@ -91,6 +91,8 @@ jobs:
         run: |
           pnpm release:bundle:build
           pnpm release:bundle:verify
+      - name: Enforce public release artifact footprint
+        run: pnpm release:footprint:check
       - name: Scan public release artifact content boundary
         run: pnpm release:artifact:scan
       - name: Generate and verify deterministic CycloneDX release SBOM
