@@ -152,3 +152,15 @@ jobs:
           git clone https://github.com/KingHacker9000/totem-extension-sdk.git "$RUNNER_TEMP/totem-extension-sdk"
           git -C "$RUNNER_TEMP/totem-extension-sdk" checkout 916607a23a7a5905e0d675a1f451402b495ec3e1
           pnpm --filter @totem/core exec tsx scripts/phase2-integration.ts "$RUNNER_TEMP/totem-base-extensions" "$RUNNER_TEMP/totem-extension-sdk"
+      - name: Validate pinned public base-theme host integration
+        shell: bash
+        run: |
+          theme_root="$RUNNER_TEMP/totem-theme-host-integration"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$theme_root" \
+            --repo KingHacker9000/totem-base-themes
+          revision="$(git -C "$theme_root/totem-base-themes" rev-parse HEAD)"
+          test "$revision" = "d07a33ad68e7837febf369f57813870df8110982"
+          pnpm --filter @totem/core exec tsx scripts/theme-integration.ts \
+            "$theme_root/totem-base-themes" \
+            "$revision"
