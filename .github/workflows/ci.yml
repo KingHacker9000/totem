@@ -88,6 +88,10 @@ jobs:
         run: |
           pnpm release:bundle:build
           pnpm release:bundle:verify
+      - name: Generate and verify deterministic CycloneDX release SBOM
+        run: |
+          pnpm release:sbom:generate
+          pnpm release:sbom:verify
       - name: Validate source-to-artifact release provenance
         shell: bash
         run: |
