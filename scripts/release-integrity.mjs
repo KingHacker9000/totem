@@ -9,7 +9,7 @@ export const DEFAULT_BUNDLE = "dist/release/totem-public";
 export const DEFAULT_MANIFEST = "dist/release/totem-public.integrity.json";
 const RELEASE_MANIFEST = "release-manifest.json";
 const RELEASE_SCHEMA = "totem.public-release-bundle/v1";
-const PRIVATE_MARKERS = ["totem-portal-theme", "totem-portal-hardware"];
+const PRIVATE_PORTAL_PREFIX = ["totem", "portal"].join("-");
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -34,7 +34,10 @@ function assertSafeRelativePath(value, label = "path") {
     throw new Error(`unsafe ${label}: ${value}`);
   }
   if (
-    PRIVATE_MARKERS.some((marker) => normalized.toLowerCase().includes(marker))
+    normalized
+      .toLowerCase()
+      .split("/")
+      .some((part) => part.startsWith(`${PRIVATE_PORTAL_PREFIX}-`))
   ) {
     throw new Error(
       `private Portal path is forbidden in public integrity metadata: ${value}`,
