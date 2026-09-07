@@ -146,6 +146,7 @@ export async function createArchive({ bundle = DEFAULT_BUNDLE, archive = DEFAULT
       "--owner=0",
       "--group=0",
       "--numeric-owner",
+      "--mode=u+rwX,go+rX,go-w",
       "-czf",
       resolve(archive),
       "-C",
