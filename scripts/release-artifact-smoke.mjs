@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { cp, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -33,7 +41,12 @@ async function listFiles(root) {
   async function walk(directory) {
     for (const name of (await readdir(directory)).sort()) {
       const absolute = path.join(directory, name);
-      const info = await stat(absolute);
+      const info = await lstat(absolute);
+      if (info.isSymbolicLink()) {
+        throw new Error(
+          `release artifact contains symlink: ${normalize(path.relative(root, absolute))}`,
+        );
+      }
       if (info.isDirectory()) {
         await walk(absolute);
       } else if (info.isFile()) {
@@ -79,6 +92,10 @@ export async function verifyPortableBundle(bundleRoot) {
     }
     const absolute = path.resolve(root, entry.path);
     assertInside(root, absolute, `manifest entry ${entry.path}`);
+    const info = await lstat(absolute);
+    if (!info.isFile() || info.isSymbolicLink()) {
+      throw new Error(`release bundle entry is not a regular file: ${entry.path}`);
+    }
     const bytes = await readFile(absolute);
     if (bytes.length !== entry.bytes || sha256(bytes) !== entry.sha256) {
       throw new Error(`release bundle file drift: ${entry.path}`);
