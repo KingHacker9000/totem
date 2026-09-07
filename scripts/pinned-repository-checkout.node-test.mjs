@@ -23,7 +23,10 @@ test("rejects missing or non-exact revisions", () => {
   );
   assert.throws(
     () =>
-      assertExactRevision("KingHacker9000/example", exactRevision.toUpperCase()),
+      assertExactRevision(
+        "KingHacker9000/example",
+        exactRevision.toUpperCase(),
+      ),
     /exact 40-character lowercase commit revision/,
   );
   assert.throws(
