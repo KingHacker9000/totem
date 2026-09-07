@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,19 +32,35 @@ export function normalizeTagRef(value) {
     throw new Error("release tag is required");
   }
   if (value.startsWith("refs/heads/") || value.startsWith("refs/remotes/")) {
-    throw new Error("moving branch refs are not valid release publication refs");
+    throw new Error(
+      "moving branch refs are not valid release publication refs",
+    );
   }
-  const name = value.startsWith("refs/tags/") ? value.slice("refs/tags/".length) : value;
-  if (!TAG_NAME_RE.test(name) || name.includes("..") || name.endsWith("/") || name.includes("//")) {
+  const name = value.startsWith("refs/tags/")
+    ? value.slice("refs/tags/".length)
+    : value;
+  if (
+    !TAG_NAME_RE.test(name) ||
+    name.includes("..") ||
+    name.endsWith("/") ||
+    name.includes("//")
+  ) {
     throw new Error("release tag name is invalid");
   }
   return `refs/tags/${name}`;
 }
 
-export function verifyPublicationIdentity({ candidate, candidateBytes, releaseRef, root }) {
+export function verifyPublicationIdentity({
+  candidate,
+  candidateBytes,
+  releaseRef,
+  root,
+}) {
   validateCandidateDocument(candidate);
   if (!FULL_SHA_RE.test(candidate.source.revision)) {
-    throw new Error("release candidate source revision must be a full commit SHA");
+    throw new Error(
+      "release candidate source revision must be a full commit SHA",
+    );
   }
   if (!TREE_RE.test(candidate.source.tree)) {
     throw new Error("release candidate source tree must be a full tree SHA");
@@ -61,7 +77,9 @@ export function verifyPublicationIdentity({ candidate, candidateBytes, releaseRe
   }
 
   if (!FULL_SHA_RE.test(refCommit)) {
-    throw new Error(`release tag did not resolve to a full commit SHA: ${tagRef}`);
+    throw new Error(
+      `release tag did not resolve to a full commit SHA: ${tagRef}`,
+    );
   }
   if (refCommit !== candidate.source.revision) {
     throw new Error(
@@ -132,7 +150,9 @@ function parseArgs(argv) {
     }
   }
   if (!options.releaseRef) {
-    throw new Error("usage: release-publication.mjs --ref <tag> [--candidate path]");
+    throw new Error(
+      "usage: release-publication.mjs --ref <tag> [--candidate path]",
+    );
   }
   return options;
 }
