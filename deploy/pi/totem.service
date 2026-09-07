@@ -12,6 +12,7 @@ Group=totem
 WorkingDirectory=/opt/totem/current
 EnvironmentFile=-/etc/totem/totem.env
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStartPre=/usr/bin/env node scripts/release-config.mjs validate-env
 ExecStart=/usr/bin/env pnpm --filter @totem/core start
 Restart=on-failure
 RestartSec=5

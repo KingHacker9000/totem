@@ -20,6 +20,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate release configuration contract
+        run: pnpm release:config:check
       - name: Validate artifact-specific third-party release manifest
         shell: bash
         run: |
@@ -35,6 +37,8 @@ jobs:
       - name: Test
         run: pnpm test
       - run: pnpm build
+      - name: Validate credential-free startup
+        run: pnpm release:config:smoke
       - name: Build and verify deterministic public release bundle
         run: |
           pnpm release:bundle:build
