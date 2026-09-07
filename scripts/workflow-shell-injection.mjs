@@ -32,7 +32,7 @@ export function inspectWorkflowShellExpressions(text, file = "<workflow>") {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const run = line.match(/^(\s*)run:\s*(.*)$/);
+    const run = line.match(/^(\s*)(?:-\s+)?run:\s*(.*)$/);
     if (!run) continue;
     runBlocks += 1;
     const [, indent, remainder] = run;
