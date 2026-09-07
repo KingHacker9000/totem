@@ -129,10 +129,14 @@ function scanPrivateBoundary(path, text) {
 
 function scanDebugMaterial(path, text) {
   if (path.endsWith(".map")) {
-    throw new Error(`source-map artifact is not allowed in public release: ${path}`);
+    throw new Error(
+      `source-map artifact is not allowed in public release: ${path}`,
+    );
   }
   if (/\bsourceMappingURL\s*=/.test(text)) {
-    throw new Error(`source-map reference is not allowed in public release: ${path}`);
+    throw new Error(
+      `source-map reference is not allowed in public release: ${path}`,
+    );
   }
 }
 
