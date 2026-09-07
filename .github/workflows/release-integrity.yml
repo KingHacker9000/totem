@@ -26,11 +26,12 @@ jobs:
           pnpm release:bundle:build
           node scripts/release-integrity.mjs generate
           node scripts/release-integrity.mjs verify
-      - name: Create, verify, and extract release archive
+      - name: Create, verify, extract, and reproduce release archive
         run: |
           pnpm release:archive:create
           pnpm release:archive:verify
           pnpm release:archive:smoke
+          pnpm release:archive:reproducibility
       - name: Bind and verify final release candidate identity
         run: |
           pnpm release:candidate:generate
