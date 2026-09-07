@@ -7,7 +7,11 @@ const WINDOWS_RESERVED_BASENAMES = new Set([
   ...Array.from({ length: 9 }, (_, index) => `lpt${index + 1}`),
 ]);
 
-const WINDOWS_INVALID_CHARS = /[<>:"|?*\u0000-\u001f]/u;
+const WINDOWS_INVALID_CHARS = /[<>:"|?*]/u;
+
+function hasWindowsControlCharacter(component) {
+  return [...component].some((character) => character.codePointAt(0) <= 0x1f);
+}
 
 export function portablePathKey(path) {
   return path.normalize("NFC").toLowerCase();
@@ -34,8 +38,13 @@ export function assertPortableReleasePath(path) {
         `release path component has a Windows-unsafe trailing dot/space: ${path}`,
       );
     }
-    if (WINDOWS_INVALID_CHARS.test(component)) {
-      throw new Error(`release path component has Windows-invalid characters: ${path}`);
+    if (
+      WINDOWS_INVALID_CHARS.test(component) ||
+      hasWindowsControlCharacter(component)
+    ) {
+      throw new Error(
+        `release path component has Windows-invalid characters: ${path}`,
+      );
     }
     const basename = component.split(".", 1)[0].toLowerCase();
     if (WINDOWS_RESERVED_BASENAMES.has(basename)) {
