@@ -17,10 +17,12 @@ jobs:
           node-version: 22.20.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate release verifier Node runtime policy
+        run: node scripts/workflow-node-runtime.mjs
       - name: Check integrity implementation formatting
-        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.mjs scripts/release-publication.node-test.mjs
-      - name: Test detached integrity, archive, candidate, reproducibility, and publication validators
-        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.node-test.mjs
+        run: pnpm exec biome check scripts/release-integrity.mjs scripts/release-integrity.node-test.mjs scripts/release-archive.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.mjs scripts/release-publication.node-test.mjs scripts/workflow-node-runtime.mjs scripts/workflow-node-runtime.node-test.mjs
+      - name: Test detached integrity, archive, candidate, reproducibility, publication, and verifier-runtime validators
+        run: node --test scripts/release-integrity.node-test.mjs scripts/release-archive.node-test.mjs scripts/release-candidate.node-test.mjs scripts/release-reproducibility.node-test.mjs scripts/release-publication.node-test.mjs scripts/workflow-node-runtime.node-test.mjs
       - name: Prove bundle reproducibility across clean worktrees
         run: pnpm release:bundle:reproducibility
       - name: Build and verify public bundle integrity
@@ -66,6 +68,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.20.0
       - name: Download public release handoff into fresh path
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
