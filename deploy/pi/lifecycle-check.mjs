@@ -81,10 +81,14 @@ if (!(await ready("core-ready"))) {
   const capabilities = await probe("/api/operator/capabilities");
   record("operator-capabilities", capabilities.ok, capabilities);
 
-  const selfTest = spawnSync(process.execPath, [path.join(here, "self-test.mjs")], {
-    encoding: "utf8",
-    env: { ...process.env, TOTEM_BASE_URL: baseUrl },
-  });
+  const selfTest = spawnSync(
+    process.execPath,
+    [path.join(here, "self-test.mjs")],
+    {
+      encoding: "utf8",
+      env: { ...process.env, TOTEM_BASE_URL: baseUrl },
+    },
+  );
   record("self-test", selfTest.status === 0, {
     exitCode: selfTest.status,
     stdout: selfTest.stdout?.trim() || null,
@@ -93,7 +97,9 @@ if (!(await ready("core-ready"))) {
 
   if (restart) {
     if (process.platform !== "linux") {
-      record("service-restart", false, { error: "--restart requires Linux/systemd" });
+      record("service-restart", false, {
+        error: "--restart requires Linux/systemd",
+      });
     } else {
       const command = spawnSync("systemctl", ["restart", "totem.service"], {
         encoding: "utf8",

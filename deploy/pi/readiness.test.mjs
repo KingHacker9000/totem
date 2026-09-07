@@ -24,7 +24,10 @@ test("waitForCoreReady tolerates delayed startup", async () => {
     },
     fetchImpl: async () => {
       attempts += 1;
-      return response(attempts < 3 ? 503 : 200, attempts < 3 ? "starting" : "ok");
+      return response(
+        attempts < 3 ? 503 : 200,
+        attempts < 3 ? "starting" : "ok",
+      );
     },
   });
 

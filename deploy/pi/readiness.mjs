@@ -23,7 +23,8 @@ export async function waitForCoreReady({
   const timeoutMs = overrides.timeoutMs ?? defaults.timeoutMs;
   const initialDelayMs = overrides.initialDelayMs ?? defaults.initialDelayMs;
   const maxDelayMs = overrides.maxDelayMs ?? defaults.maxDelayMs;
-  const requestTimeoutMs = overrides.requestTimeoutMs ?? defaults.requestTimeoutMs;
+  const requestTimeoutMs =
+    overrides.requestTimeoutMs ?? defaults.requestTimeoutMs;
   const startedAt = now();
   let attempts = 0;
   let delayMs = initialDelayMs;
