@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,6 +62,32 @@ function assertZeroBytes(bytes, label) {
   if (!bytes.every((value) => value === 0)) {
     throw new Error(`non-zero tar ${label}`);
   }
+}
+
+export function inspectGzipHeader(bytes) {
+  if (bytes.length < 10 || bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+    throw new Error("release archive is not gzip-compressed");
+  }
+  if (bytes[2] !== 8) {
+    throw new Error(`unsupported gzip compression method: ${bytes[2]}`);
+  }
+  const flags = bytes[3];
+  if (flags !== 0) {
+    throw new Error(
+      `non-deterministic gzip header flags: 0x${flags.toString(16)}`,
+    );
+  }
+  const mtime = bytes.readUInt32LE(4);
+  if (mtime !== 0) {
+    throw new Error(`non-deterministic gzip mtime: ${mtime}`);
+  }
+  return {
+    compressionMethod: bytes[2],
+    flags,
+    mtime,
+    extraFlags: bytes[8],
+    operatingSystem: bytes[9],
+  };
 }
 
 export function parseTarEntries(bytes) {
@@ -187,9 +220,19 @@ export async function verifyExtractedTree({ root, expectedFiles }) {
   }
 }
 
+function archiveToolEnv(overrides = {}) {
+  return {
+    ...process.env,
+    LC_ALL: "C",
+    TZ: "UTC",
+    ...overrides,
+  };
+}
+
 export async function createArchive({
   bundle = DEFAULT_BUNDLE,
   archive = DEFAULT_ARCHIVE,
+  env = archiveToolEnv(),
 }) {
   if (process.platform === "win32") {
     throw new Error(
@@ -197,24 +240,35 @@ export async function createArchive({
     );
   }
   await mkdir(dirname(resolve(archive)), { recursive: true });
-  execFileSync(
-    "tar",
-    [
-      "--format=ustar",
-      "--sort=name",
-      "--mtime=@0",
-      "--owner=0",
-      "--group=0",
-      "--numeric-owner",
-      "--mode=u+rwX,go+rX,go-w",
-      "-czf",
-      resolve(archive),
-      "-C",
-      resolve(bundle),
-      ".",
-    ],
-    { stdio: "inherit" },
-  );
+  const temp = await mkdtemp(join(tmpdir(), "totem-release-tar-"));
+  const tarPath = join(temp, "payload.tar");
+  try {
+    execFileSync(
+      "tar",
+      [
+        "--format=ustar",
+        "--sort=name",
+        "--mtime=@0",
+        "--owner=0",
+        "--group=0",
+        "--numeric-owner",
+        "--mode=u+rwX,go+rX,go-w",
+        "-cf",
+        tarPath,
+        "-C",
+        resolve(bundle),
+        ".",
+      ],
+      { env, stdio: "inherit" },
+    );
+    const compressed = execFileSync("gzip", ["-n", "-c", tarPath], {
+      env,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    await writeFile(resolve(archive), compressed);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
   return verifyArchive({ bundle, archive });
 }
 
@@ -224,6 +278,7 @@ export async function verifyArchive({
 }) {
   const expectedFiles = await loadContract(bundle);
   const bytes = await readFile(resolve(archive));
+  inspectGzipHeader(bytes);
   const entries = parseTarEntries(bytes);
   validateArchiveEntries(entries, expectedFiles);
   return {
@@ -231,6 +286,45 @@ export async function verifyArchive({
     archive: basename(archive),
     fileCount: expectedFiles.size,
   };
+}
+
+export async function proveArchiveReproducibility({
+  bundle = DEFAULT_BUNDLE,
+} = {}) {
+  if (process.platform === "win32") {
+    throw new Error(
+      "release archive reproducibility requires Unix tar/gzip tooling",
+    );
+  }
+  const temp = await mkdtemp(join(tmpdir(), "totem-release-repro-"));
+  const first = join(temp, "first.tar.gz");
+  const second = join(temp, "second.tar.gz");
+  try {
+    await createArchive({
+      bundle,
+      archive: first,
+      env: archiveToolEnv({ LANG: "C", TZ: "Pacific/Kiritimati" }),
+    });
+    await createArchive({
+      bundle,
+      archive: second,
+      env: archiveToolEnv({ LANG: "C.UTF-8", TZ: "America/New_York" }),
+    });
+    const [firstBytes, secondBytes] = await Promise.all([
+      readFile(first),
+      readFile(second),
+    ]);
+    if (!firstBytes.equals(secondBytes)) {
+      throw new Error("compressed release archive bytes are not reproducible");
+    }
+    return {
+      schema: SCHEMA,
+      archive: basename(DEFAULT_ARCHIVE),
+      bytes: firstBytes.length,
+    };
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
 }
 
 export async function smokeArchive({
@@ -278,13 +372,17 @@ async function main() {
   if (command === "create") result = await createArchive(options);
   else if (command === "verify") result = await verifyArchive(options);
   else if (command === "smoke") result = await smokeArchive(options);
+  else if (command === "reproducibility")
+    result = await proveArchiveReproducibility(options);
   else
     throw new Error(
-      "usage: release-archive.mjs <create|verify|smoke> [--bundle path] [--archive path]",
+      "usage: release-archive.mjs <create|verify|smoke|reproducibility> [--bundle path] [--archive path]",
     );
-  console.log(
-    `[release-archive] ${result.fileCount} files verified in ${result.archive}`,
-  );
+  const summary =
+    "fileCount" in result
+      ? `${result.fileCount} files verified in ${result.archive}`
+      : `${result.bytes} reproducible compressed bytes in ${result.archive}`;
+  console.log(`[release-archive] ${summary}`);
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {

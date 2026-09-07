@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   expectedArchiveContract,
+  inspectGzipHeader,
   normalizeArchivePath,
   parseTarEntries,
   validateArchiveEntries,
@@ -50,6 +51,33 @@ test("archive contract derives exact regular-file modes", () => {
   assert.equal(contract.get("README.md"), 0o644);
   assert.equal(contract.get("deploy/pi/install.sh"), 0o755);
   assert.equal(contract.get("release-manifest.json"), 0o644);
+});
+
+test("deterministic gzip header requires no optional fields and epoch mtime", () => {
+  const header = Buffer.from([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 3]);
+  assert.deepEqual(inspectGzipHeader(header), {
+    compressionMethod: 8,
+    flags: 0,
+    mtime: 0,
+    extraFlags: 0,
+    operatingSystem: 3,
+  });
+});
+
+test("gzip header fails closed on timestamps, filenames, or unsupported methods", () => {
+  const timestamped = Buffer.from([0x1f, 0x8b, 8, 0, 1, 0, 0, 0, 0, 3]);
+  assert.throws(() => inspectGzipHeader(timestamped), /gzip mtime/);
+
+  const named = Buffer.from([0x1f, 0x8b, 8, 8, 0, 0, 0, 0, 0, 3]);
+  assert.throws(() => inspectGzipHeader(named), /gzip header flags/);
+
+  const unsupported = Buffer.from([0x1f, 0x8b, 9, 0, 0, 0, 0, 0, 0, 3]);
+  assert.throws(() => inspectGzipHeader(unsupported), /compression method/);
+
+  assert.throws(
+    () => inspectGzipHeader(Buffer.from("not-gzip")),
+    /not gzip-compressed/,
+  );
 });
 
 test("tar parser and validator accept the exact portable contract", () => {

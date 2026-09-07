@@ -39,6 +39,7 @@
     "release:archive:create": "node scripts/release-archive.mjs create && pnpm release:paths:archive",
     "release:archive:verify": "node scripts/release-archive.mjs verify && pnpm release:paths:archive",
     "release:archive:smoke": "node scripts/release-archive.mjs smoke && pnpm release:paths:archive",
+    "release:archive:reproducibility": "node scripts/release-archive.mjs reproducibility",
     "release:candidate:generate": "node scripts/release-candidate.mjs generate",
     "release:candidate:verify": "node scripts/release-candidate.mjs verify",
     "release:footprint:check": "node scripts/release-footprint.mjs",
