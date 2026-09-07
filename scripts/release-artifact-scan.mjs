@@ -26,7 +26,10 @@ const PRIVATE_REFERENCE_ALLOWLIST = new Set([
 ]);
 const SYNTHETIC_TEST_HOME = ["", "home", "tester"].join("/");
 const SAFE_ABSOLUTE_PATH_LITERALS = new Map([
-  ["apps/core/src/extensionGrants.config.test.ts", new Set([SYNTHETIC_TEST_HOME])],
+  [
+    "apps/core/src/extensionGrants.config.test.ts",
+    new Set([SYNTHETIC_TEST_HOME]),
+  ],
 ]);
 const SECRET_PATTERNS = [
   {
