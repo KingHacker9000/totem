@@ -39,7 +39,7 @@ Completed/integrated work includes:
 - capability-aware management/operator APIs and dashboard surfaces;
 - registry signing/install/rollback primitives, ecosystem integration fixtures, remote-node transport, and management APIs;
 - Raspberry Pi systemd installation, update/rollback, readiness/self-test lifecycle, low-disk/release-retention safeguards, diagnostics, and real-Pi validation;
-- deterministic release configuration checks, third-party manifests, source-to-artifact provenance, public bundle boundaries, and repository metadata checks.
+- deterministic release configuration checks, third-party manifests, source-to-artifact provenance, public bundle/content-privacy boundaries, and repository metadata checks.
 
 The supported CI matrix validates Linux and Windows on the supported Node releases and includes the pinned public extension integration path. Use the current CI workflow and the release validation commands below instead of relying on historical commit hashes embedded in documentation.
 
@@ -65,9 +65,10 @@ pnpm build
 pnpm release:config:smoke
 pnpm release:bundle:build
 pnpm release:bundle:verify
+pnpm release:artifact:scan
 ```
 
-`pnpm check` includes release configuration, repository metadata, documentation drift, lint, formatting, typechecking, and tests. CI additionally validates the public repository-family documentation surfaces and the pinned Phase 2 extension integration path.
+`pnpm check` includes release configuration, repository metadata, documentation drift, lint, formatting, typechecking, and tests. CI additionally validates the public repository-family documentation surfaces, the release artifact content boundary, and the pinned Phase 2 extension integration path.
 
 For a real Raspberry Pi lifecycle check, use:
 
