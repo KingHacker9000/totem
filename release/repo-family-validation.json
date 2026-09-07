@@ -18,6 +18,7 @@
     },
     {
       "repo": "KingHacker9000/totem-hardware",
+      "revision": "f5e65acb2c70942d2228e18205e7f9aadf0ce456",
       "kind": "python-hardware",
       "runtime": {
         "python": "3.11+ (CAD); 3.12 supported for schema validation"
@@ -64,6 +65,7 @@
     },
     {
       "repo": "KingHacker9000/totem-extension-sdk",
+      "revision": "d6f7cfd56900c51df9af8488d387a0f45c7f33bf",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -73,6 +75,7 @@
     },
     {
       "repo": "KingHacker9000/totem-theme-sdk",
+      "revision": "3146fd063afb8dab62c46ebea67fe7dea350de20",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -82,6 +85,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-extensions",
+      "revision": "028804bac39f5162c6eb15b8fd1fdcb94a16675d",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -91,6 +95,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-themes",
+      "revision": "1203e7f4723c39969ed01e83ef1c9da7f91416be",
       "kind": "content",
       "runtime": null,
       "metadata": ["README.md", "default", "minimal", "retro-terminal"],
@@ -100,6 +105,7 @@
     },
     {
       "repo": "KingHacker9000/totem-agent-providers",
+      "revision": "706051d6535259f20d7d3351d189282980668d06",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
@@ -109,6 +115,7 @@
     },
     {
       "repo": "KingHacker9000/totem-registry",
+      "revision": "54d8757fb73f5733792a8678b7f3aefdbbdd7b28",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
