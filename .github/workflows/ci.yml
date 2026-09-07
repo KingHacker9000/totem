@@ -36,10 +36,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: pnpm release:repos:validate
-      - name: Validate pinned public workflow actions and least-privilege permissions
+      - name: Validate public workflow supply-chain policy
         shell: bash
         run: |
-          workflow_root="$RUNNER_TEMP/totem-workflow-actions"
+          workflow_root="$RUNNER_TEMP/totem-workflow-policy"
           mkdir -p "$workflow_root"
           args=(--repo .)
           for repo in \
@@ -56,6 +56,7 @@ jobs:
           done
           node scripts/workflow-actions.mjs "${args[@]}"
           node scripts/workflow-permissions.mjs "${args[@]}"
+          node scripts/workflow-trust.mjs "${args[@]}"
       - name: Validate public release documentation drift
         shell: bash
         run: |
