@@ -15,6 +15,7 @@ const CONTRACT = {
   pnpm: { pinned: "10.28.0", engine: ">=10 <11" },
   workflow: ".github/workflows/ci.yml",
 };
+const MATRIX_EXPRESSION = "node-version: $" + "{{ matrix.node }}";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "totem-toolchain-"));
@@ -35,7 +36,7 @@ async function fixture() {
   await writeFile(join(root, ".nvmrc"), "24.18.0\n");
   await writeFile(
     join(root, ".github", "workflows", "ci.yml"),
-    "matrix:\n  node: [22.20.0, 24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      node-version: ${{ matrix.node }}\n",
+    `matrix:\n  node: [22.20.0, 24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      ${MATRIX_EXPRESSION}\n`,
   );
   return root;
 }
@@ -88,7 +89,7 @@ test("rejects CI matrix drift", async () => {
   await withFixture(async (root) => {
     await writeFile(
       join(root, ".github", "workflows", "ci.yml"),
-      "matrix:\n  node: [24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      node-version: ${{ matrix.node }}\n",
+      `matrix:\n  node: [24.18.0]\nsteps:\n  - uses: pnpm/action-setup@deadbeef\n  - uses: actions/setup-node@deadbeef\n    with:\n      ${MATRIX_EXPRESSION}\n`,
     );
     await assert.rejects(
       () => validateToolchainMetadata(root),
