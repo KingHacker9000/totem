@@ -95,7 +95,7 @@
     },
     {
       "repo": "KingHacker9000/totem-base-themes",
-      "revision": "f89089fdc58ba01a2c5f11609e3d515b96dcf4bc",
+      "revision": "d07a33ad68e7837febf369f57813870df8110982",
       "kind": "content",
       "runtime": null,
       "metadata": ["README.md", "default", "minimal", "retro-terminal"],
