@@ -11,11 +11,7 @@ assert.ok(
   baseRoot && revision,
   "Pass base-extension checkout path and revision",
 );
-assert.match(
-  revision,
-  /^[0-9a-f]{40}$/u,
-  "Expected an exact commit revision",
-);
+assert.match(revision, /^[0-9a-f]{40}$/u, "Expected an exact commit revision");
 
 const expectedIds = [
   "clock",
