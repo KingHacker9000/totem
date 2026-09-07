@@ -10,12 +10,13 @@ Before removing anything, preview the exact plan:
 sudo node /opt/totem/current/deploy/pi/decommission.mjs --dry-run --json
 ```
 
-Environment overrides are the same paths used by the installer:
+Environment overrides use the same install/runtime paths already declared by Totem's release configuration contract:
 
 - `TOTEM_PREFIX` defaults to `/opt/totem`;
 - `TOTEM_STATE_DIR` defaults to `/var/lib/totem`;
-- `TOTEM_CONFIG_DIR` defaults to `/etc/totem`;
-- `TOTEM_SERVICE_FILE` defaults to `/etc/systemd/system/totem.service`.
+- `TOTEM_CONFIG_DIR` defaults to `/etc/totem`.
+
+The systemd unit path remains the fixed packaged location `/etc/systemd/system/totem.service`.
 
 ## State-preserving decommission
 
