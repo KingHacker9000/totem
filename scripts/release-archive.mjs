@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -66,7 +73,9 @@ export function inspectGzipHeader(bytes) {
   }
   const flags = bytes[3];
   if (flags !== 0) {
-    throw new Error(`non-deterministic gzip header flags: 0x${flags.toString(16)}`);
+    throw new Error(
+      `non-deterministic gzip header flags: 0x${flags.toString(16)}`,
+    );
   }
   const mtime = bytes.readUInt32LE(4);
   if (mtime !== 0) {
