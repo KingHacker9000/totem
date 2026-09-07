@@ -13,6 +13,9 @@
     "dev:apps": "pnpm --parallel --filter \"./apps/*\" dev",
     "validate:live": "node scripts/live-validation.mjs",
     "validate:pi": "node deploy/pi/lifecycle-check.mjs",
+    "recovery:verify": "node scripts/state-recovery.mjs verify",
+    "recovery:backup": "node scripts/state-recovery.mjs backup",
+    "recovery:restore": "node scripts/state-recovery.mjs restore",
     "release:config:check": "node scripts/release-config.mjs check",
     "release:config:validate": "node scripts/release-config.mjs validate-env",
     "release:config:smoke": "node scripts/startup-smoke.mjs",
@@ -34,7 +37,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs scripts/release-config.node-test.mjs scripts/release-docs.node-test.mjs scripts/workflow-actions.node-test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs scripts/release-config.node-test.mjs scripts/release-docs.node-test.mjs scripts/workflow-actions.node-test.mjs scripts/state-recovery.node-test.mjs",
     "check": "pnpm release:config:check && pnpm release:metadata:check && pnpm release:repos:check && pnpm release:docs:check && pnpm release:workflow-actions:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
