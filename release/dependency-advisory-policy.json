@@ -1,0 +1,5 @@
+{
+  "schema": "totem.release-dependency-advisory-policy/v1",
+  "minimumSeverity": "high",
+  "exceptions": []
+}
