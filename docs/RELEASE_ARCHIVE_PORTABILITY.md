@@ -39,7 +39,8 @@ pnpm release:paths:archive
 - duplicate or unexpected regular files;
 - group/world-writable directories;
 - a missing required file;
-- executable-bit drift relative to the release manifest, including a required executable losing `+x` or a non-executable file gaining it.
+- executable-bit drift relative to the release manifest, including a required executable losing `+x` or a non-executable file gaining it;
+- invalid ustar header checksums, truncated headers/payloads/padding, malformed or incomplete two-block end markers, non-zero entry padding, or non-zero data after the logical archive terminator.
 
 The portable-path layer additionally fails closed when bundle or archive paths contain:
 
@@ -59,14 +60,14 @@ The source of truth is `release-manifest.json` inside the T926 bundle. Every man
 
 The same portable-path rules are applied to the bundle manifest and the parsed archive entry set through `release-portable-path-check.mjs`, preventing one boundary from accepting names that the other rejects.
 
-The archive validator intentionally accepts only ordinary ustar regular files/directories. This keeps the deployable artifact free from link and special-file semantics that could escape or mutate an extraction target.
+The archive validator intentionally accepts only structurally complete ordinary ustar regular files/directories. Every non-zero header checksum is recomputed with the checksum field treated as spaces, payload/padding boundaries must fit inside the stream, padding must be zero-filled, and the archive must end with the required two zero blocks followed only by optional zero padding. This keeps corrupted/truncated streams and appended payloads from passing the same trust boundary that rejects links and special-file semantics.
 
 ## Platform boundary
 
 Archive creation and extraction-mode smoke tests are Unix-specific because Windows does not provide the same executable-bit semantics. The parser, path/type/mode contract, portable-path contract, and regression tests remain ordinary Node code and run as part of the repository test suite on all supported source-checkout CI platforms. Hosted release-integrity CI performs the real create/extract check on Ubuntu.
 
-This guarantee is separate from T944 bundle-tree reproducibility: T944 checks that independent clean worktrees produce identical bundle content identity, while this archive gate checks transport-path safety, cross-filesystem naming safety, and Unix mode preservation after that bundle exists.
+This guarantee is separate from T944 bundle-tree reproducibility: T944 checks that independent clean worktrees produce identical bundle content identity, while this archive gate checks transport-path safety, cross-filesystem naming safety, Unix mode preservation, and tar stream structural integrity after that bundle exists.
 
 ## Remediation
 
-If verification reports mode drift, fix the tracked Git executable bit (`git update-index --chmod=+x` or `--chmod=-x`) rather than patching the generated archive. If it reports a path-portability collision or invalid component, rename the tracked source path so the public release has one unambiguous portable spelling. For path/type failures, remove the unsafe entry from the packaging path and rebuild from a clean release bundle. Do not disable the validator to accept symlinks, special files, or filesystem-dependent names.
+If verification reports mode drift, fix the tracked Git executable bit (`git update-index --chmod=+x` or `--chmod=-x`) rather than patching the generated archive. If it reports a path-portability collision or invalid component, rename the tracked source path so the public release has one unambiguous portable spelling. For checksum, truncation, end-marker, padding, path, or type failures, discard the archive and rebuild it from a clean verified release bundle. Do not disable the validator to accept corrupted streams, appended data, symlinks, special files, or filesystem-dependent names.
