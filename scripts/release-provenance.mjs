@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { lstat, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  readFile,
+  readdir,
+  realpath,
+  writeFile,
+} from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -210,11 +216,7 @@ export async function generateProvenance({
       excludedPrivateRepositories: PRIVATE_REPOSITORIES,
     },
   };
-  await writeFile(
-    outputAbs,
-    `${JSON.stringify(document, null, 2)}\n`,
-    "utf8",
-  );
+  await writeFile(outputAbs, `${JSON.stringify(document, null, 2)}\n`, "utf8");
   return document;
 }
 
@@ -258,7 +260,9 @@ export async function verifyProvenance({ root, output }) {
     JSON.stringify(document.boundary.excludedPrivateRepositories) !==
     JSON.stringify(PRIVATE_REPOSITORIES)
   ) {
-    throw new Error("private Portal repository exclusions are missing or stale");
+    throw new Error(
+      "private Portal repository exclusions are missing or stale",
+    );
   }
   if (!Array.isArray(document.artifacts) || document.artifacts.length === 0) {
     throw new Error("provenance has no artifacts");

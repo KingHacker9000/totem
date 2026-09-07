@@ -70,32 +70,29 @@ async function withFixture(run) {
   }
 }
 
-test(
-  "generates deterministic source and artifact identities and verifies them",
-  async () => {
-    await withFixture(async (root) => {
-      const first = await generateProvenance({
-        root,
-        artifacts: ["artifact.bin"],
-        output: "provenance.json",
-      });
-      assert.equal(first.schema, SCHEMA);
-      assert.match(first.repository.revision, /^[0-9a-f]{40}$/);
-      assert.match(first.repository.tree, /^[0-9a-f]{40}$/);
-      assert.equal(first.artifacts.length, 1);
-      assert.equal(first.boundary.publicRepositoryOnly, true);
-      const bytes1 = await readFile(join(root, "provenance.json"), "utf8");
-      await generateProvenance({
-        root,
-        artifacts: ["artifact.bin"],
-        output: "provenance.json",
-      });
-      const bytes2 = await readFile(join(root, "provenance.json"), "utf8");
-      assert.equal(bytes2, bytes1);
-      await verifyProvenance({ root, output: "provenance.json" });
+test("generates deterministic source and artifact identities and verifies them", async () => {
+  await withFixture(async (root) => {
+    const first = await generateProvenance({
+      root,
+      artifacts: ["artifact.bin"],
+      output: "provenance.json",
     });
-  },
-);
+    assert.equal(first.schema, SCHEMA);
+    assert.match(first.repository.revision, /^[0-9a-f]{40}$/);
+    assert.match(first.repository.tree, /^[0-9a-f]{40}$/);
+    assert.equal(first.artifacts.length, 1);
+    assert.equal(first.boundary.publicRepositoryOnly, true);
+    const bytes1 = await readFile(join(root, "provenance.json"), "utf8");
+    await generateProvenance({
+      root,
+      artifacts: ["artifact.bin"],
+      output: "provenance.json",
+    });
+    const bytes2 = await readFile(join(root, "provenance.json"), "utf8");
+    assert.equal(bytes2, bytes1);
+    await verifyProvenance({ root, output: "provenance.json" });
+  });
+});
 
 test("rejects artifact digest drift without source changes", async () => {
   await withFixture(async (root) => {
