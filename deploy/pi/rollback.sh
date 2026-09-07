@@ -30,6 +30,22 @@ if [[ -z "$target" ]]; then
   exit 1
 fi
 
+if [[ -z "$current" || ! -d "$current" ]]; then
+  echo "Could not determine the currently active Totem release." >&2
+  exit 1
+fi
+
+compatibility_tool="$current/deploy/pi/state-compatibility.mjs"
+if [[ ! -f "$compatibility_tool" ]]; then
+  echo "Current release lacks the state compatibility gate: $compatibility_tool" >&2
+  echo "Refusing rollback because shared durable-state compatibility cannot be proven. Use the documented stopped-service backup/recovery path instead." >&2
+  exit 1
+fi
+
+node "$compatibility_tool" assert-transition \
+  --from-release "$current" \
+  --to-release "$target"
+
 ln -sfn "$target" "$CURRENT"
 systemctl restart totem.service
 
