@@ -16,7 +16,7 @@ function stripQuotes(value) {
   const trimmed = value.trim();
   if (
     trimmed.length >= 2 &&
-    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
       (trimmed.startsWith("'") && trimmed.endsWith("'")))
   ) {
     return trimmed.slice(1, -1);
@@ -123,8 +123,12 @@ export function validateReleaseWorkflowRuntime(root = ".") {
     "release-integrity.yml",
   );
   const toolchain = resolve(absoluteRoot, "config", "release-toolchain.json");
-  if (!existsSync(workflow)) throw new Error(`missing release workflow: ${workflow}`);
-  if (!existsSync(toolchain)) throw new Error(`missing release toolchain contract: ${toolchain}`);
+  if (!existsSync(workflow)) {
+    throw new Error(`missing release workflow: ${workflow}`);
+  }
+  if (!existsSync(toolchain)) {
+    throw new Error(`missing release toolchain contract: ${toolchain}`);
+  }
 
   const contract = JSON.parse(readFileSync(toolchain, "utf8"));
   const allowedNodeVersions = contract?.node?.ci;
@@ -133,7 +137,9 @@ export function validateReleaseWorkflowRuntime(root = ".") {
     allowedNodeVersions.length === 0 ||
     allowedNodeVersions.some((version) => typeof version !== "string" || !version)
   ) {
-    throw new Error("release toolchain contract must declare non-empty node.ci versions");
+    throw new Error(
+      "release toolchain contract must declare non-empty node.ci versions",
+    );
   }
 
   const inspected = inspectReleaseWorkflowRuntime(
