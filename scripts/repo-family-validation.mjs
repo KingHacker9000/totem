@@ -1,8 +1,8 @@
+import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { spawn } from "node:child_process";
 
 const manifestUrl = new URL("../release/repo-family-validation.json", import.meta.url);
 const releaseRepositoriesUrl = new URL("../release/public-repositories.json", import.meta.url);
@@ -73,9 +73,9 @@ for (const entry of entries) {
   if (!Array.isArray(entry.commands)) {
     fail(`${entry.repo} commands must be an array`);
   } else {
-    entry.commands.forEach((command, index) =>
-      assertCommand(command, `${entry.repo} commands[${index}]`),
-    );
+    entry.commands.forEach((command, index) => {
+      assertCommand(command, `${entry.repo} commands[${index}]`);
+    });
   }
   if (entry.kind === "node") {
     if (entry.runtime?.node !== ">=22.20.0") {
