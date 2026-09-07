@@ -27,7 +27,10 @@ jobs:
           echo "\${{ github.head_ref }}"
           deploy "\${{ inputs.target }}"
 `;
-  const result = inspectWorkflowShellExpressions(workflow, ".github/workflows/unsafe.yml");
+  const result = inspectWorkflowShellExpressions(
+    workflow,
+    ".github/workflows/unsafe.yml",
+  );
   assert.equal(result.failures.length, 3);
   assert.match(result.failures[0], /github\.event\.pull_request\.title/);
   assert.match(result.failures[1], /github\.head_ref/);
@@ -52,7 +55,10 @@ jobs:
       - run: echo "\${{ github.sha }}"
       - run: node --version \${{ matrix.node }}
 `;
-  const result = inspectWorkflowShellExpressions(workflow, ".github/workflows/safe.yml");
+  const result = inspectWorkflowShellExpressions(
+    workflow,
+    ".github/workflows/safe.yml",
+  );
   assert.deepEqual(result.failures, []);
   assert.equal(result.runBlocks, 3);
   assert.equal(result.expressions, 2);
@@ -76,7 +82,10 @@ test("scans every workflow in a repository and reports deterministic paths", () 
     assert.equal(result.workflows, 2);
     assert.equal(result.run_blocks, 2);
     assert.equal(result.failures.length, 1);
-    assert.match(result.failures[0], /^\.github[/\\]workflows[/\\]ci\.yml:7:/);
+    assert.match(
+      result.failures[0],
+      /^\.github[/\\]workflows[/\\]ci\.yml:7:/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
