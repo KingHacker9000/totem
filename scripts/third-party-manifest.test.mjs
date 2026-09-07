@@ -98,7 +98,8 @@ test("rejects public manifests that depend on private Portal repositories", () =
           path: "apps/core",
           manifest: {
             dependencies: {
-              "portal-theme": "github:KingHacker9000/totem-portal-theme#deadbeef",
+              "portal-theme":
+                "github:KingHacker9000/totem-portal-theme#deadbeef",
             },
           },
         },
@@ -117,21 +118,37 @@ test("stale artifact or dependency metadata fails verification", () => {
     },
   });
 
-  assert.throws(() => assertManifestMatches(expected, changedArtifact), /stale or mismatched/);
+  assert.throws(
+    () => assertManifestMatches(expected, changedArtifact),
+    /stale or mismatched/,
+  );
 
   const changedDependencies = manifest({
     dependencies: {
       runtimeOrBundledCandidates: [
-        { name: "fastify", version: "5.12.3", directSpec: "5.12.3", identity: "fastify@5.12.3" },
+        {
+          name: "fastify",
+          version: "5.12.3",
+          directSpec: "5.12.3",
+          identity: "fastify@5.12.3",
+        },
       ],
       buildOrDevelopmentOnly: [],
     },
   });
-  assert.throws(() => assertManifestMatches(expected, changedDependencies), /stale or mismatched/);
+  assert.throws(
+    () => assertManifestMatches(expected, changedDependencies),
+    /stale or mismatched/,
+  );
 });
 
 test("externally supplied tools cannot be represented as bundled", () => {
   const expected = manifest();
-  const invalid = manifest({ externallySupplied: [{ id: "codex-cli", bundled: true }] });
-  assert.throws(() => assertManifestMatches(expected, invalid), /must not be marked as bundled/);
+  const invalid = manifest({
+    externallySupplied: [{ id: "codex-cli", bundled: true }],
+  });
+  assert.throws(
+    () => assertManifestMatches(expected, invalid),
+    /must not be marked as bundled/,
+  );
 });
