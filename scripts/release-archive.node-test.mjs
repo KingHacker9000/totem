@@ -132,3 +132,52 @@ test("missing required files and writable directories fail closed", () => {
     /group\/world writable/,
   );
 });
+
+test("tar parser rejects checksum-corrupted headers", () => {
+  const bytes = tar([{ path: "README.md", body: "readme" }]);
+  bytes[0] ^= 1;
+  assert.throws(() => parseTarEntries(bytes), /tar header checksum mismatch/);
+});
+
+test("tar parser rejects truncated headers, payloads, and end markers", () => {
+  const headerTruncated = tar([]).subarray(0, 511);
+  assert.throws(() => parseTarEntries(headerTruncated), /truncated tar header/);
+
+  const payloadTruncated = tar([
+    { path: "README.md", body: "x".repeat(600) },
+  ]).subarray(0, 512 + 599);
+  assert.throws(
+    () => parseTarEntries(payloadTruncated),
+    /truncated tar payload/,
+  );
+
+  const endMarkerTruncated = tar([]).subarray(0, 512);
+  assert.throws(
+    () => parseTarEntries(endMarkerTruncated),
+    /truncated tar end marker/,
+  );
+});
+
+test("tar parser rejects malformed terminators and trailing garbage", () => {
+  const malformedEnd = tar([]);
+  malformedEnd[512] = 1;
+  assert.throws(() => parseTarEntries(malformedEnd), /non-zero tar end marker/);
+
+  const trailingGarbage = Buffer.concat([tar([]), Buffer.from([1])]);
+  assert.throws(
+    () => parseTarEntries(trailingGarbage),
+    /non-zero tar trailing data/,
+  );
+});
+
+test("tar parser rejects non-zero entry padding and missing terminator", () => {
+  const padding = tar([{ path: "README.md", body: "x" }]);
+  padding[513] = 1;
+  assert.throws(() => parseTarEntries(padding), /non-zero tar entry padding/);
+
+  const missingEnd = tar([{ path: "README.md", body: "" }]).subarray(0, 512);
+  assert.throws(
+    () => parseTarEntries(missingEnd),
+    /tar archive missing end marker/,
+  );
+});
