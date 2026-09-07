@@ -86,16 +86,16 @@ test("accepts lightweight and annotated tags bound to the candidate commit", () 
 });
 
 test("rejects moving branch refs and malformed tag names", () => {
-  assert.throws(
-    () => normalizeTagRef("refs/heads/main"),
-    /moving branch refs/,
-  );
+  assert.throws(() => normalizeTagRef("refs/heads/main"), /moving branch refs/);
   assert.throws(() => normalizeTagRef("bad..tag"), /tag name is invalid/);
 });
 
 test("rejects missing tags", () => {
   const root = createRepository();
-  assert.throws(() => verify(root, "v-missing"), /does not resolve to a commit/);
+  assert.throws(
+    () => verify(root, "v-missing"),
+    /does not resolve to a commit/,
+  );
 });
 
 test("rejects a tag that resolves to a different commit than the candidate", () => {
@@ -116,10 +116,7 @@ test("rejects a tag whose object cannot peel to a commit", () => {
   const tree = git(root, "rev-parse", "HEAD^{tree}");
   git(root, "tag", "tree-tag", tree);
 
-  assert.throws(
-    () => verify(root, "tree-tag"),
-    /does not resolve to a commit/,
-  );
+  assert.throws(() => verify(root, "tree-tag"), /does not resolve to a commit/);
 });
 
 test("rejects candidate tree identity that does not match its source commit", () => {
