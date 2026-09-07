@@ -90,6 +90,10 @@ jobs:
           pnpm release:bundle:verify
       - name: Scan public release artifact content boundary
         run: pnpm release:artifact:scan
+      - name: Generate and verify deterministic CycloneDX release SBOM
+        run: |
+          pnpm release:sbom:generate
+          pnpm release:sbom:verify
       - name: Validate source-to-artifact release provenance
         shell: bash
         run: |
