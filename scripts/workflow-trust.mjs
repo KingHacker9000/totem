@@ -30,7 +30,9 @@ export function inspectWorkflowTrust(text, file = "<workflow>") {
     const line = lines[index];
     if (/^on:\s*(?:#.*)?$/.test(line)) {
       if (onLine !== null) {
-        failures.push(`${file}:${index + 1}: duplicate top-level on declaration`);
+        failures.push(
+          `${file}:${index + 1}: duplicate top-level on declaration`,
+        );
         continue;
       }
       onLine = index + 1;
@@ -51,7 +53,9 @@ export function inspectWorkflowTrust(text, file = "<workflow>") {
   }
 
   if (onLine === null) {
-    failures.push(`${file}:1: missing explicit top-level workflow trigger mapping`);
+    failures.push(
+      `${file}:1: missing explicit top-level workflow trigger mapping`,
+    );
   }
 
   for (const event of events) {
@@ -163,5 +167,6 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 const isEntryPoint =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
