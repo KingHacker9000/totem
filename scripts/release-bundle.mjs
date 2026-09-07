@@ -28,7 +28,13 @@ const ROOT_FILES = new Set([
   "tsconfig.base.json",
   "vitest.config.ts",
 ]);
-const INCLUDED_PREFIXES = ["apps/", "deploy/", "docs/", "packages/", "scripts/"];
+const INCLUDED_PREFIXES = [
+  "apps/",
+  "deploy/",
+  "docs/",
+  "packages/",
+  "scripts/",
+];
 const EXCLUDED_SEGMENTS = new Set([
   ".git",
   ".github",
@@ -91,7 +97,9 @@ function trackedEntries(root) {
     .filter(Boolean)
     .map((record) => {
       const match = record.match(/^(\d{6}) [0-9a-f]+ \d\t(.+)$/);
-      if (!match) throw new Error(`unable to parse git index record: ${record}`);
+      if (!match) {
+        throw new Error(`unable to parse git index record: ${record}`);
+      }
       return { mode: match[1], path: normalizePath(match[2]) };
     })
     .sort((a, b) => a.path.localeCompare(b.path));
@@ -107,10 +115,18 @@ export function releasePolicy(path) {
     return { include: false, fatal: true, reason: "private Portal content" };
   }
   if (parts.some((part) => EXCLUDED_SEGMENTS.has(part))) {
-    return { include: false, fatal: false, reason: "transient/generated path" };
+    return {
+      include: false,
+      fatal: false,
+      reason: "transient/generated path",
+    };
   }
   if (FORBIDDEN_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
-    return { include: false, fatal: true, reason: "secret/state/transient extension" };
+    return {
+      include: false,
+      fatal: true,
+      reason: "secret/state/transient extension",
+    };
   }
   if (
     (basename === ".env" || basename.startsWith(".env.")) &&
@@ -156,7 +172,10 @@ function sourceIdentity(root) {
 
 function aggregateDigest(files) {
   const payload = files
-    .map((entry) => `${entry.path}\0${entry.mode}\0${entry.bytes}\0${entry.sha256}\n`)
+    .map(
+      (entry) =>
+        `${entry.path}\0${entry.mode}\0${entry.bytes}\0${entry.sha256}\n`,
+    )
     .join("");
   return sha256(Buffer.from(payload));
 }
@@ -166,16 +185,22 @@ async function collectSourceFiles(root) {
   for (const entry of trackedEntries(root)) {
     const policy = releasePolicy(entry.path);
     if (policy.fatal) {
-      throw new Error(`forbidden tracked release input: ${entry.path} (${policy.reason})`);
+      throw new Error(
+        `forbidden tracked release input: ${entry.path} (${policy.reason})`,
+      );
     }
     if (!policy.include) continue;
     if (entry.mode !== "100644" && entry.mode !== "100755") {
-      throw new Error(`unsupported tracked file mode ${entry.mode}: ${entry.path}`);
+      throw new Error(
+        `unsupported tracked file mode ${entry.mode}: ${entry.path}`,
+      );
     }
     const absolute = resolve(root, entry.path);
     assertInside(root, absolute, "release input");
     const info = await stat(absolute);
-    if (!info.isFile()) throw new Error(`release input is not a regular file: ${entry.path}`);
+    if (!info.isFile()) {
+      throw new Error(`release input is not a regular file: ${entry.path}`);
+    }
     const bytes = await readFile(absolute);
     assertNoEmbeddedSecret(entry.path, bytes);
     files.push({
@@ -185,7 +210,9 @@ async function collectSourceFiles(root) {
       sha256: sha256(bytes),
     });
   }
-  if (!files.length) throw new Error("public release allowlist selected no files");
+  if (!files.length) {
+    throw new Error("public release allowlist selected no files");
+  }
   return files;
 }
 
@@ -221,7 +248,8 @@ export async function buildReleaseBundle({ root, output = DEFAULT_OUTPUT }) {
       allowlistedRootFiles: [...ROOT_FILES].sort(),
       excludedGeneratedAndLocalSegments: [...EXCLUDED_SEGMENTS].sort(),
       excludedPrivateRepositories: [...PRIVATE_PORTAL_NAMES],
-      generatedBuildOutputs: "excluded; bundle is a pinned source/deployment input and runs pnpm build after frozen install",
+      generatedBuildOutputs:
+        "excluded; bundle is a pinned source/deployment input and runs pnpm build after frozen install",
     },
     files,
     digest: {
@@ -253,7 +281,9 @@ export async function verifyReleaseBundle({ root, output = DEFAULT_OUTPUT }) {
   }
   const expectedFiles = await collectSourceFiles(rootAbs);
   if (JSON.stringify(manifest.files) !== JSON.stringify(expectedFiles)) {
-    throw new Error("release bundle manifest does not match current allowlisted source inputs");
+    throw new Error(
+      "release bundle manifest does not match current allowlisted source inputs",
+    );
   }
   if (manifest.digest?.value !== aggregateDigest(expectedFiles)) {
     throw new Error("release bundle aggregate digest is invalid");
@@ -294,7 +324,9 @@ async function main() {
     const manifest = await verifyReleaseBundle({ root, ...options });
     console.log(`${manifest.digest.value}  ${options.output ?? DEFAULT_OUTPUT}`);
   } else {
-    throw new Error("usage: release-bundle.mjs <build|verify> [--output <path>]");
+    throw new Error(
+      "usage: release-bundle.mjs <build|verify> [--output <path>]",
+    );
   }
 }
 
