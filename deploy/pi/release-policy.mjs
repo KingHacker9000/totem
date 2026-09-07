@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 export const MIB = 1024 * 1024;
 export const DEFAULT_RETENTION = 2;
 export const DEFAULT_MIN_FREE_MIB = 2048;
+const STAGING_EXCLUDES = new Set([".git", "node_modules", "dist"]);
 
 export function parsePositiveInteger(value, fallback, name) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -86,7 +87,7 @@ async function listReleases(prefix) {
   return releases;
 }
 
-async function treeSize(root) {
+async function treeSize(root, { stagingSource = false } = {}) {
   let apparentBytes = 0;
   let allocatedBytes = 0;
 
@@ -95,7 +96,10 @@ async function treeSize(root) {
     apparentBytes += Number(info.size);
     if (info.blocks !== undefined) allocatedBytes += Number(info.blocks) * 512;
     if (!info.isDirectory() || info.isSymbolicLink()) return;
-    for (const name of await readdir(target)) await visit(path.join(target, name));
+    for (const name of await readdir(target)) {
+      if (stagingSource && STAGING_EXCLUDES.has(name)) continue;
+      await visit(path.join(target, name));
+    }
   }
 
   try {
@@ -133,7 +137,7 @@ async function prune(prefix, retain, dryRun = false) {
 
 async function preflight(prefix, sourceDir, minFreeMiB) {
   const releasesDir = path.join(prefix, "releases");
-  const sourceSize = await treeSize(sourceDir);
+  const sourceSize = await treeSize(sourceDir, { stagingSource: true });
   const free = await availableBytes(releasesDir);
   assertFreeSpace({
     availableBytes: free,
@@ -141,7 +145,7 @@ async function preflight(prefix, sourceDir, minFreeMiB) {
     estimatedReleaseBytes: sourceSize.allocatedBytes,
   });
   console.log(
-    `disk preflight: ${formatMiB(free)} free; source ${formatMiB(sourceSize.apparentBytes)} apparent / ` +
+    `disk preflight: ${formatMiB(free)} free; staged source estimate ${formatMiB(sourceSize.apparentBytes)} apparent / ` +
       `${formatMiB(sourceSize.allocatedBytes)} allocated; reserve ${minFreeMiB} MiB`,
   );
 }
