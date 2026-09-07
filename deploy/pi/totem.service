@@ -2,6 +2,8 @@
 Description=Totem core service
 After=network-online.target local-fs.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -13,8 +15,6 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/env pnpm --filter @totem/core start
 Restart=on-failure
 RestartSec=5
-StartLimitIntervalSec=60
-StartLimitBurst=5
 TimeoutStopSec=20
 KillSignal=SIGTERM
 NoNewPrivileges=true
