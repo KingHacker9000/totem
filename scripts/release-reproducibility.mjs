@@ -183,15 +183,23 @@ export async function checkReleaseReproducibility({
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "build-one") {
-    if (args.length !== 2 || args[0] !== "--umask" || !/^[0-7]{3}$/.test(args[1])) {
-      throw new Error("usage: release-reproducibility.mjs build-one --umask <octal>");
+    if (
+      args.length !== 2 ||
+      args[0] !== "--umask" ||
+      !/^[0-7]{3}$/.test(args[1])
+    ) {
+      throw new Error(
+        "usage: release-reproducibility.mjs build-one --umask <octal>",
+      );
     }
     process.umask(Number.parseInt(args[1], 8));
     await buildReleaseBundle({ root: process.cwd() });
     return;
   }
   if (command !== "check" || args.length !== 0) {
-    throw new Error("usage: release-reproducibility.mjs <check|build-one --umask <octal>>");
+    throw new Error(
+      "usage: release-reproducibility.mjs <check|build-one --umask <octal>>",
+    );
   }
   const result = await checkReleaseReproducibility();
   console.log(
