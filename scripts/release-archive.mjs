@@ -43,14 +43,52 @@ export function normalizeArchivePath(value) {
   return normalized;
 }
 
+function tarHeaderChecksum(header) {
+  let checksum = 0;
+  for (let index = 0; index < header.length; index += 1) {
+    checksum += index >= 148 && index < 156 ? 0x20 : header[index];
+  }
+  return checksum;
+}
+
+function assertZeroBytes(bytes, label) {
+  if (!bytes.every((value) => value === 0)) {
+    throw new Error(`non-zero tar ${label}`);
+  }
+}
+
 export function parseTarEntries(bytes) {
   const archive =
     bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
   const entries = [];
   let offset = 0;
-  while (offset + 512 <= archive.length) {
+
+  while (offset < archive.length) {
+    if (offset + 512 > archive.length) {
+      throw new Error(`truncated tar header at offset ${offset}`);
+    }
+
     const header = archive.subarray(offset, offset + 512);
-    if (header.every((value) => value === 0)) break;
+    if (header.every((value) => value === 0)) {
+      if (offset + 1024 > archive.length) {
+        throw new Error("truncated tar end marker");
+      }
+      assertZeroBytes(
+        archive.subarray(offset + 512, offset + 1024),
+        "end marker",
+      );
+      assertZeroBytes(archive.subarray(offset + 1024), "trailing data");
+      return entries;
+    }
+
+    const expectedChecksum = parseOctal(header, 148, 8, "checksum");
+    const actualChecksum = tarHeaderChecksum(header);
+    if (expectedChecksum !== actualChecksum) {
+      throw new Error(
+        `tar header checksum mismatch at offset ${offset}: expected ${expectedChecksum} got ${actualChecksum}`,
+      );
+    }
+
     const name = readString(header, 0, 100);
     const prefix = readString(header, 345, 155);
     const path = prefix ? `${prefix}/${name}` : name;
@@ -58,10 +96,22 @@ export function parseTarEntries(bytes) {
     const size = parseOctal(header, 124, 12, "size");
     const typeByte = header[156];
     const type = typeByte === 0 ? "0" : String.fromCharCode(typeByte);
-    entries.push({ path: normalizeArchivePath(path), mode, size, type });
-    offset += 512 + Math.ceil(size / 512) * 512;
+    const payloadStart = offset + 512;
+    const payloadEnd = payloadStart + size;
+    const nextOffset = payloadStart + Math.ceil(size / 512) * 512;
+    const normalizedPath = normalizeArchivePath(path);
+    if (payloadEnd > archive.length) {
+      throw new Error(`truncated tar payload: ${normalizedPath}`);
+    }
+    if (nextOffset > archive.length) {
+      throw new Error(`truncated tar padding: ${normalizedPath}`);
+    }
+    assertZeroBytes(archive.subarray(payloadEnd, nextOffset), "entry padding");
+    entries.push({ path: normalizedPath, mode, size, type });
+    offset = nextOffset;
   }
-  return entries;
+
+  throw new Error("tar archive missing end marker");
 }
 
 export function expectedArchiveContract(bundleManifest) {
