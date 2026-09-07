@@ -16,6 +16,8 @@
     "release:config:check": "node scripts/release-config.mjs check",
     "release:config:validate": "node scripts/release-config.mjs validate-env",
     "release:config:smoke": "node scripts/startup-smoke.mjs",
+    "release:metadata:check": "node scripts/release-repository-metadata.mjs",
+    "release:metadata:check:remote": "node scripts/release-repository-metadata.mjs --remote",
     "release:bundle:build": "node scripts/release-bundle.mjs build",
     "release:bundle:verify": "node scripts/release-bundle.mjs verify",
     "release:third-party:generate": "node scripts/third-party-manifest.mjs generate",
@@ -28,7 +30,7 @@
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs scripts/release-provenance.node-test.mjs scripts/release-bundle.node-test.mjs scripts/release-config.node-test.mjs",
-    "check": "pnpm release:config:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
+    "check": "pnpm release:config:check && pnpm release:metadata:check && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
