@@ -1,14 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import {
-  cp,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  stat,
-} from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -98,7 +91,9 @@ export async function verifyPortableBundle(bundleRoot) {
 
   const actualPaths = await listFiles(root);
   const unexpected = actualPaths.filter((entry) => !expectedPaths.has(entry));
-  const missing = [...expectedPaths].filter((entry) => !actualPaths.includes(entry));
+  const missing = [...expectedPaths].filter(
+    (entry) => !actualPaths.includes(entry),
+  );
   if (unexpected.length || missing.length) {
     throw new Error(
       `release bundle file set mismatch; unexpected=${unexpected.join(",") || "none"}; missing=${missing.join(",") || "none"}`,
@@ -106,7 +101,10 @@ export async function verifyPortableBundle(bundleRoot) {
   }
 
   const aggregate = sha256(Buffer.from(digestRows.join("")));
-  if (manifest.digest?.algorithm !== "sha256" || manifest.digest?.value !== aggregate) {
+  if (
+    manifest.digest?.algorithm !== "sha256" ||
+    manifest.digest?.value !== aggregate
+  ) {
     throw new Error("release bundle aggregate digest is invalid");
   }
   return manifest;
@@ -149,7 +147,9 @@ export async function smokeReleaseArtifact({ bundleRoot }) {
   const source = path.resolve(bundleRoot);
   await verifyPortableBundle(source);
 
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "totem-release-artifact-"));
+  const tempRoot = await mkdtemp(
+    path.join(os.tmpdir(), "totem-release-artifact-"),
+  );
   const isolated = path.join(tempRoot, "totem-public");
   try {
     await cp(source, isolated, { recursive: true, errorOnExist: true });
@@ -158,7 +158,9 @@ export async function smokeReleaseArtifact({ bundleRoot }) {
     const gitPath = path.join(isolated, ".git");
     try {
       await stat(gitPath);
-      throw new Error("isolated release artifact unexpectedly contains .git metadata");
+      throw new Error(
+        "isolated release artifact unexpectedly contains .git metadata",
+      );
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
