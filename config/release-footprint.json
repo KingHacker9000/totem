@@ -1,0 +1,8 @@
+{
+  "schema": "totem.release-footprint-budget/v1",
+  "maxTotalBytes": 2000000,
+  "maxFileCount": 500,
+  "maxFileBytes": 256000,
+  "topContributors": 10,
+  "exceptions": []
+}

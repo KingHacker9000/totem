@@ -97,6 +97,8 @@ jobs:
         run: |
           pnpm release:bundle:build
           pnpm release:bundle:verify
+      - name: Enforce public release artifact footprint
+        run: pnpm release:footprint:check
       - name: Validate isolated public release artifact
         if: runner.os == 'Linux' && matrix.node == '22.20.0'
         run: node scripts/release-artifact-smoke.mjs --bundle dist/release/totem-public
