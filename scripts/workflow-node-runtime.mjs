@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 const SETUP_NODE_RE = /^\s*-\s+uses:\s*actions\/setup-node@[^\s#]+(?:\s+#.*)?$/;
 const NODE_VERSION_RE = /^\s*node-version:\s*([^#]+?)(?:\s+#.*)?$/;
 const JOB_RE = /^  ([A-Za-z0-9_-]+):\s*(?:#.*)?$/;
-const REPOSITORY_JS_RE = /(?:^|[|;&]\s*|\s)(?:node\s+(?:\.\/)?scripts\/|pnpm\s+(?:run\s+)?release:)/;
+const REPOSITORY_JS_RE =
+  /(?:^|[|;&]\s*|\s)(?:node\s+(?:\.\/)?scripts\/|pnpm\s+(?:run\s+)?release:)/;
 
 function indentOf(line) {
   return line.match(/^\s*/)?.[0].length ?? 0;
@@ -16,7 +17,7 @@ function stripQuotes(value) {
   const trimmed = value.trim();
   if (
     trimmed.length >= 2 &&
-    ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
       (trimmed.startsWith("'") && trimmed.endsWith("'")))
   ) {
     return trimmed.slice(1, -1);
@@ -135,7 +136,9 @@ export function validateReleaseWorkflowRuntime(root = ".") {
   if (
     !Array.isArray(allowedNodeVersions) ||
     allowedNodeVersions.length === 0 ||
-    allowedNodeVersions.some((version) => typeof version !== "string" || !version)
+    allowedNodeVersions.some(
+      (version) => typeof version !== "string" || !version,
+    )
   ) {
     throw new Error(
       "release toolchain contract must declare non-empty node.ci versions",
@@ -181,5 +184,6 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 const isEntryPoint =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isEntryPoint) process.exitCode = main();
