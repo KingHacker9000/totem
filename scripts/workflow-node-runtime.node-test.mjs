@@ -51,7 +51,10 @@ test("rejects Node outside the release toolchain contract", () => {
       - run: node scripts/release-integrity.mjs verify
 `);
   assert.equal(result.failures.length, 1);
-  assert.match(result.failures[0], /not allowed by the release toolchain contract/);
+  assert.match(
+    result.failures[0],
+    /not allowed by the release toolchain contract/,
+  );
 });
 
 test("rejects setup-node after repository JavaScript", () => {
