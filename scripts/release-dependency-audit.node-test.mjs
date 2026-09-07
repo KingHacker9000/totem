@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateAudit, normalizeAudit, validatePolicy } from "./release-dependency-audit.mjs";
+import {
+  evaluateAudit,
+  normalizeAudit,
+  validatePolicy,
+} from "./release-dependency-audit.mjs";
 
 const basePolicy = {
   schema: "totem.release-dependency-advisory-policy/v1",
@@ -36,14 +40,33 @@ const audit = {
 };
 
 test("normalizes npm/pnpm vulnerability JSON deterministically", () => {
-  assert.deepEqual(normalizeAudit(audit).map(({ advisoryId, package: pkg, severity }) => ({ advisoryId, pkg, severity })), [
-    { advisoryId: "GHSA-AAAA-BBBB-CCCC", pkg: "fastify", severity: "high" },
-    { advisoryId: "GHSA-DDDD-EEEE-FFFF", pkg: "tiny", severity: "low" },
-  ]);
+  assert.deepEqual(
+    normalizeAudit(audit).map(({ advisoryId, package: pkg, severity }) => ({
+      advisoryId,
+      pkg,
+      severity,
+    })),
+    [
+      {
+        advisoryId: "GHSA-AAAA-BBBB-CCCC",
+        pkg: "fastify",
+        severity: "high",
+      },
+      {
+        advisoryId: "GHSA-DDDD-EEEE-FFFF",
+        pkg: "tiny",
+        severity: "low",
+      },
+    ],
+  );
 });
 
 test("fails actionable advisories at or above the threshold", () => {
-  const result = evaluateAudit({ audit, policy: basePolicy, now: new Date("2026-09-07T00:00:00Z") });
+  const result = evaluateAudit({
+    audit,
+    policy: basePolicy,
+    now: new Date("2026-09-07T00:00:00Z"),
+  });
   assert.equal(result.actionable.length, 1);
   assert.equal(result.actionable[0].advisoryId, "GHSA-AAAA-BBBB-CCCC");
   assert.equal(result.actionable[0].reason, "no-exception");
@@ -62,7 +85,11 @@ test("accepts only exact, unexpired advisory and package exceptions", () => {
       },
     ],
   };
-  const result = evaluateAudit({ audit, policy, now: new Date("2026-09-07T00:00:00Z") });
+  const result = evaluateAudit({
+    audit,
+    policy,
+    now: new Date("2026-09-07T00:00:00Z"),
+  });
   assert.equal(result.accepted.length, 1);
   assert.equal(result.actionable.length, 0);
 });
@@ -80,7 +107,11 @@ test("expired exceptions fail closed", () => {
       },
     ],
   };
-  const result = evaluateAudit({ audit, policy, now: new Date("2026-09-07T00:00:00Z") });
+  const result = evaluateAudit({
+    audit,
+    policy,
+    now: new Date("2026-09-07T00:00:00Z"),
+  });
   assert.equal(result.actionable.length, 1);
   assert.match(result.actionable[0].reason, /^exception-expired:/);
 });
