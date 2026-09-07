@@ -36,7 +36,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: pnpm release:repos:validate
-      - name: Validate pinned public workflow actions
+      - name: Validate pinned public workflow actions and least-privilege permissions
         shell: bash
         run: |
           workflow_root="$RUNNER_TEMP/totem-workflow-actions"
@@ -55,6 +55,7 @@ jobs:
             args+=(--repo "$workflow_root/$repo")
           done
           node scripts/workflow-actions.mjs "${args[@]}"
+          node scripts/workflow-permissions.mjs "${args[@]}"
       - name: Validate public release documentation drift
         shell: bash
         run: |
