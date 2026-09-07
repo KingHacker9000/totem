@@ -131,8 +131,6 @@ async function main() {
     prefix: process.env.TOTEM_PREFIX ?? "/opt/totem",
     stateDir: process.env.TOTEM_STATE_DIR ?? "/var/lib/totem",
     configDir: process.env.TOTEM_CONFIG_DIR ?? "/etc/totem",
-    serviceFile:
-      process.env.TOTEM_SERVICE_FILE ?? "/etc/systemd/system/totem.service",
     ...options,
   });
   if (options.json) console.log(JSON.stringify(result, null, 2));
