@@ -24,7 +24,11 @@ function firstDifference(left, right, path = "$") {
     if (!Array.isArray(left) || !Array.isArray(right)) return path;
     if (left.length !== right.length) return `${path}.length`;
     for (let index = 0; index < left.length; index += 1) {
-      const difference = firstDifference(left[index], right[index], `${path}[${index}]`);
+      const difference = firstDifference(
+        left[index],
+        right[index],
+        `${path}[${index}]`,
+      );
       if (difference) return difference;
     }
     return null;
@@ -32,9 +36,14 @@ function firstDifference(left, right, path = "$") {
   if (typeof left === "object") {
     const leftKeys = Object.keys(left).sort();
     const rightKeys = Object.keys(right).sort();
-    if (JSON.stringify(leftKeys) !== JSON.stringify(rightKeys)) return `${path}.keys`;
+    if (JSON.stringify(leftKeys) !== JSON.stringify(rightKeys))
+      return `${path}.keys`;
     for (const key of leftKeys) {
-      const difference = firstDifference(left[key], right[key], `${path}.${key}`);
+      const difference = firstDifference(
+        left[key],
+        right[key],
+        `${path}.${key}`,
+      );
       if (difference) return difference;
     }
     return null;
@@ -59,48 +68,73 @@ async function perturbTrackedMtimes(root, timestamp) {
 }
 
 function assertClean(root) {
-  const status = git(root, ["status", "--porcelain=v1", "--untracked-files=no"]);
-  if (status) throw new Error(`reproducibility worktree is not clean: ${status}`);
+  const status = git(root, [
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=no",
+  ]);
+  if (status)
+    throw new Error(`reproducibility worktree is not clean: ${status}`);
 }
 
 async function loadManifest(root) {
   return JSON.parse(
-    await readFile(resolve(root, DEFAULT_OUTPUT, "release-manifest.json"), "utf8"),
+    await readFile(
+      resolve(root, DEFAULT_OUTPUT, "release-manifest.json"),
+      "utf8",
+    ),
   );
 }
 
 async function addWorktree(sourceRoot, path, revision) {
-  execFileSync("git", ["-C", sourceRoot, "worktree", "add", "--detach", path, revision], {
-    stdio: "ignore",
-  });
+  execFileSync(
+    "git",
+    ["-C", sourceRoot, "worktree", "add", "--detach", path, revision],
+    {
+      stdio: "ignore",
+    },
+  );
 }
 
 async function removeWorktree(sourceRoot, path) {
   try {
-    execFileSync("git", ["-C", sourceRoot, "worktree", "remove", "--force", path], {
-      stdio: "ignore",
-    });
+    execFileSync(
+      "git",
+      ["-C", sourceRoot, "worktree", "remove", "--force", path],
+      {
+        stdio: "ignore",
+      },
+    );
   } catch {
     await rm(path, { recursive: true, force: true });
-    execFileSync("git", ["-C", sourceRoot, "worktree", "prune"], { stdio: "ignore" });
+    execFileSync("git", ["-C", sourceRoot, "worktree", "prune"], {
+      stdio: "ignore",
+    });
   }
 }
 
 function buildInIsolatedEnvironment(root, { lang, timezone, umask }) {
-  execFileSync(process.execPath, [resolve(root, "scripts/release-reproducibility.mjs"), "build-one"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      LANG: lang,
-      LC_ALL: lang,
-      TZ: timezone,
-      TOTEM_REPRO_UMASK: umask,
+  execFileSync(
+    process.execPath,
+    [resolve(root, "scripts/release-reproducibility.mjs"), "build-one"],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        LANG: lang,
+        LC_ALL: lang,
+        TZ: timezone,
+        TOTEM_REPRO_UMASK: umask,
+      },
+      stdio: "inherit",
     },
-    stdio: "inherit",
-  });
+  );
 }
 
-export async function checkReleaseReproducibility({ root = process.cwd(), revision = "HEAD" } = {}) {
+export async function checkReleaseReproducibility({
+  root = process.cwd(),
+  revision = "HEAD",
+} = {}) {
   const sourceRoot = resolve(root);
   const resolvedRevision = git(sourceRoot, ["rev-parse", revision]);
   const temp = await mkdtemp(join(tmpdir(), "totem-release-repro-"));
@@ -146,7 +180,8 @@ async function main() {
   const [command] = process.argv.slice(2);
   if (command === "build-one") {
     const requestedUmask = process.env.TOTEM_REPRO_UMASK ?? "022";
-    if (!/^[0-7]{3}$/.test(requestedUmask)) throw new Error("invalid TOTEM_REPRO_UMASK");
+    if (!/^[0-7]{3}$/.test(requestedUmask))
+      throw new Error("invalid TOTEM_REPRO_UMASK");
     process.umask(Number.parseInt(requestedUmask, 8));
     await buildReleaseBundle({ root: process.cwd() });
     return;
