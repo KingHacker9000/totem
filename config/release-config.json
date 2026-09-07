@@ -21,6 +21,7 @@
     {"name":"TOTEM_SPEECH_VAD_THRESHOLD","scope":"runtime","class":"optional","default":"0.015","secret":false,"validation":"unit-number"},
     {"name":"TOTEM_REGISTRY_TRUSTED_KEYS","scope":"runtime","class":"security-policy","default":null,"secret":false,"validation":"registry-trusted-keys"},
     {"name":"TOTEM_REMOTE_ACCESS_LAYER","scope":"runtime","class":"security-metadata","default":null,"secret":false,"validation":"nonempty-string"},
+    {"name":"TOTEM_DISPLAY_SIMULATOR_URL","scope":"runtime","class":"optional","default":"http://127.0.0.1:5174","secret":false,"validation":"url"},
     {"name":"TOTEM_DISPLAY_DRIVER","scope":"runtime","class":"optional","default":"headless","secret":false,"validation":"nonempty-string"},
     {"name":"TOTEM_TOUCH_DRIVER","scope":"runtime","class":"optional","default":"none","secret":false,"validation":"nonempty-string"},
     {"name":"TOTEM_AUDIO_DRIVER","scope":"runtime","class":"optional","default":"none","secret":false,"validation":"nonempty-string"},
