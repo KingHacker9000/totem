@@ -88,6 +88,8 @@ jobs:
         run: |
           pnpm release:bundle:build
           pnpm release:bundle:verify
+      - name: Scan public release artifact content boundary
+        run: pnpm release:artifact:scan
       - name: Validate source-to-artifact release provenance
         shell: bash
         run: |
