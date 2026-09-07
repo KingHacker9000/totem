@@ -15,7 +15,9 @@ export function inspectWorkflowPermissions(text, file = "<workflow>") {
     const line = lines[index];
     if (!/^permissions:\s*(?:#.*)?$/.test(line)) continue;
     if (declarationLine !== null) {
-      failures.push(`${file}:${index + 1}: duplicate top-level permissions declaration`);
+      failures.push(
+        `${file}:${index + 1}: duplicate top-level permissions declaration`,
+      );
       continue;
     }
     declarationLine = index + 1;
@@ -24,7 +26,9 @@ export function inspectWorkflowPermissions(text, file = "<workflow>") {
       const raw = lines[child];
       if (!raw.trim() || /^\s*#/.test(raw)) continue;
       if (!/^\s/.test(raw)) break;
-      const match = raw.match(/^\s{2}([a-z-]+):\s*(read|write|none)\s*(?:#.*)?$/);
+      const match = raw.match(
+        /^\s{2}([a-z-]+):\s*(read|write|none)\s*(?:#.*)?$/,
+      );
       if (!match) {
         failures.push(
           `${file}:${child + 1}: unsupported permissions syntax; use explicit two-space scope: read|none entries`,
@@ -33,7 +37,9 @@ export function inspectWorkflowPermissions(text, file = "<workflow>") {
       }
       const [, scope, access] = match;
       if (permissions.has(scope)) {
-        failures.push(`${file}:${child + 1}: duplicate permission scope: ${scope}`);
+        failures.push(
+          `${file}:${child + 1}: duplicate permission scope: ${scope}`,
+        );
       }
       permissions.set(scope, access);
     }
@@ -136,7 +142,8 @@ export function main(argv = process.argv.slice(2)) {
   else {
     for (const repository of repositories) {
       console.log(`${repository.root}: ${repository.workflows} workflows`);
-      for (const failure of repository.failures) console.error(`  FAIL ${failure}`);
+      for (const failure of repository.failures)
+        console.error(`  FAIL ${failure}`);
     }
     console.log(
       `workflow permissions: ${summary.overall} (${workflowCount} workflows, ${failureCount} failures)`,
