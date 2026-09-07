@@ -68,18 +68,19 @@ The private boundary remains:
 - [x] Inventory direct runtime/build/CAD dependencies that may require notice review when artifacts are bundled.
 - [x] Confirm public Portal references describe/test the boundary rather than create a public runtime dependency.
 - [x] Record versioning/publish inconsistencies and intended release posture.
-- [ ] At packaging time, generate an artifact-specific third-party manifest from the exact production bundle/container/package rather than copying the entire development lockfile into notices.
+- [x] Generate an artifact-specific third-party manifest from the exact production source-release boundary rather than treating the entire development lockfile as runtime content. See `docs/THIRD_PARTY_RELEASE_MANIFEST.md`.
 - [ ] At packaging time, verify upstream license text/attribution obligations for every actually redistributed dependency/binary/model/asset.
 - [ ] After explicit owner approval in T913, add the selected `LICENSE`/SPDX package metadata and any required project-level `NOTICE` artifacts consistently.
-- [ ] Keep private Portal repositories outside public release/license automation unless their owner explicitly chooses otherwise.
+- [x] Keep private Portal repositories outside public release/license automation unless their owner explicitly chooses otherwise; the manifest generator rejects direct private-Portal package references.
 
 ## T913 handoff
 
 After this audit, license-choice-dependent work is intentionally narrow:
 
 1. obtain explicit owner selection between the documented license-policy options;
-2. apply LICENSE/SPDX/NOTICE metadata consistently to public repos and publishable packages;
-3. verify artifact-specific third-party notices during the first actual release packaging;
-4. reconcile permanent release-license issue #7.
+2. regenerate/verify `totem.third-party-release-manifest/v1` from the final release source revision;
+3. inspect upstream license text/attribution obligations for every actually redistributed dependency/binary/model/asset represented by that artifact;
+4. apply LICENSE/SPDX/NOTICE metadata consistently to public repos and publishable packages;
+5. reconcile permanent release-license issue #7.
 
-Do not infer the owner's choice from historical `license` fields that were introduced before the licensing decision was made.
+The generated manifest deliberately records `licenseSelection: UNRESOLVED_T913`; do not infer the owner's choice from historical `license` fields that were introduced before the licensing decision was made.

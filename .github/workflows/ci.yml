@@ -20,6 +20,12 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate artifact-specific third-party release manifest
+        shell: bash
+        run: |
+          manifest="$RUNNER_TEMP/totem-third-party-manifest.json"
+          node scripts/third-party-manifest.mjs generate --output "$manifest"
+          node scripts/third-party-manifest.mjs verify --output "$manifest"
       - run: pnpm check
       - run: pnpm build
       - name: Validate Pi self-test host-independent path
