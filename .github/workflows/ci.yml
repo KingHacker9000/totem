@@ -176,6 +176,20 @@ jobs:
           pnpm --filter @totem/core exec tsx scripts/base-extension-integration.ts \
             "$extension_root/totem-base-extensions" \
             "$revision"
+      - name: Validate pinned public agent-provider host integration
+        shell: bash
+        run: |
+          provider_root="$RUNNER_TEMP/totem-agent-provider-host-integration"
+          node scripts/pinned-repository-checkout.mjs \
+            --root "$provider_root" \
+            --repo KingHacker9000/totem-agent-providers
+          revision="$(git -C "$provider_root/totem-agent-providers" rev-parse HEAD)"
+          test "$revision" = "032eb011ef16c862013564357095b609e5783247"
+          npm --prefix "$provider_root/totem-agent-providers" install --no-audit --no-fund
+          npm --prefix "$provider_root/totem-agent-providers" run check
+          pnpm --filter @totem/core exec tsx scripts/agent-provider-integration.ts \
+            "$provider_root/totem-agent-providers" \
+            "$revision"
       - name: Validate pinned public registry host integration
         shell: bash
         run: |
