@@ -34,7 +34,8 @@ export async function performDecommission({
   }
 
   const actions = [];
-  const record = (action, target, status) => actions.push({ action, target, status });
+  const record = (action, target, status) =>
+    actions.push({ action, target, status });
 
   for (const args of [
     ["stop", "totem.service"],
@@ -52,7 +53,9 @@ export async function performDecommission({
       if (/not loaded|not found|does not exist|no such file/i.test(message)) {
         record("systemctl", args.join(" "), "already-absent");
       } else {
-        throw new Error(`systemctl ${args.join(" ")} failed: ${message.trim()}`);
+        throw new Error(
+          `systemctl ${args.join(" ")} failed: ${message.trim()}`,
+        );
       }
     }
   }
@@ -125,7 +128,9 @@ function parseArgs(argv) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!options.dryRun && process.getuid?.() !== 0) {
-    throw new Error("decommission.mjs must run as root (use sudo), or use --dry-run.");
+    throw new Error(
+      "decommission.mjs must run as root (use sudo), or use --dry-run.",
+    );
   }
   const result = await performDecommission({
     prefix: process.env.TOTEM_PREFIX ?? "/opt/totem",
