@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { gunzipSync } from "node:zlib";
 import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 export const SCHEMA = "totem.release-archive/v1";
 export const DEFAULT_BUNDLE = "dist/release/totem-public";
@@ -44,7 +44,8 @@ export function normalizeArchivePath(value) {
 }
 
 export function parseTarEntries(bytes) {
-  const archive = bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
+  const archive =
+    bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
   const entries = [];
   let offset = 0;
   while (offset + 512 <= archive.length) {
@@ -65,7 +66,9 @@ export function parseTarEntries(bytes) {
 
 export function expectedArchiveContract(bundleManifest) {
   if (bundleManifest?.schema !== "totem.public-release-bundle/v1") {
-    throw new Error(`unsupported release bundle schema: ${bundleManifest?.schema}`);
+    throw new Error(
+      `unsupported release bundle schema: ${bundleManifest?.schema}`,
+    );
   }
   const files = new Map();
   for (const entry of bundleManifest.files ?? []) {
@@ -106,7 +109,8 @@ export function validateArchiveEntries(entries, expectedFiles) {
     }
   }
   for (const path of expectedFiles.keys()) {
-    if (!seen.has(path)) throw new Error(`archive missing required file: ${path}`);
+    if (!seen.has(path))
+      throw new Error(`archive missing required file: ${path}`);
   }
 }
 
@@ -120,7 +124,8 @@ export async function verifyExtractedTree({ root, expectedFiles }) {
   for (const [path, expectedMode] of expectedFiles) {
     const absolute = resolve(root, path);
     const info = await stat(absolute);
-    if (!info.isFile()) throw new Error(`extracted entry is not a regular file: ${path}`);
+    if (!info.isFile())
+      throw new Error(`extracted entry is not a regular file: ${path}`);
     if (process.platform !== "win32") {
       const actualMode = info.mode & 0o777;
       if (actualMode !== expectedMode) {
@@ -132,9 +137,14 @@ export async function verifyExtractedTree({ root, expectedFiles }) {
   }
 }
 
-export async function createArchive({ bundle = DEFAULT_BUNDLE, archive = DEFAULT_ARCHIVE }) {
+export async function createArchive({
+  bundle = DEFAULT_BUNDLE,
+  archive = DEFAULT_ARCHIVE,
+}) {
   if (process.platform === "win32") {
-    throw new Error("release archive creation requires a Unix tar implementation");
+    throw new Error(
+      "release archive creation requires a Unix tar implementation",
+    );
   }
   await mkdir(dirname(resolve(archive)), { recursive: true });
   execFileSync(
@@ -158,23 +168,37 @@ export async function createArchive({ bundle = DEFAULT_BUNDLE, archive = DEFAULT
   return verifyArchive({ bundle, archive });
 }
 
-export async function verifyArchive({ bundle = DEFAULT_BUNDLE, archive = DEFAULT_ARCHIVE }) {
+export async function verifyArchive({
+  bundle = DEFAULT_BUNDLE,
+  archive = DEFAULT_ARCHIVE,
+}) {
   const expectedFiles = await loadContract(bundle);
   const bytes = await readFile(resolve(archive));
   const entries = parseTarEntries(bytes);
   validateArchiveEntries(entries, expectedFiles);
-  return { schema: SCHEMA, archive: basename(archive), fileCount: expectedFiles.size };
+  return {
+    schema: SCHEMA,
+    archive: basename(archive),
+    fileCount: expectedFiles.size,
+  };
 }
 
-export async function smokeArchive({ bundle = DEFAULT_BUNDLE, archive = DEFAULT_ARCHIVE }) {
+export async function smokeArchive({
+  bundle = DEFAULT_BUNDLE,
+  archive = DEFAULT_ARCHIVE,
+}) {
   if (process.platform === "win32") {
-    throw new Error("release archive extraction smoke requires Unix file-mode semantics");
+    throw new Error(
+      "release archive extraction smoke requires Unix file-mode semantics",
+    );
   }
   const result = await verifyArchive({ bundle, archive });
   const expectedFiles = await loadContract(bundle);
   const temp = await mkdtemp(join(tmpdir(), "totem-release-archive-"));
   try {
-    execFileSync("tar", ["-xzf", resolve(archive), "-C", temp], { stdio: "inherit" });
+    execFileSync("tar", ["-xzf", resolve(archive), "-C", temp], {
+      stdio: "inherit",
+    });
     await verifyExtractedTree({ root: temp, expectedFiles });
   } finally {
     await rm(temp, { recursive: true, force: true });
@@ -204,8 +228,13 @@ async function main() {
   if (command === "create") result = await createArchive(options);
   else if (command === "verify") result = await verifyArchive(options);
   else if (command === "smoke") result = await smokeArchive(options);
-  else throw new Error("usage: release-archive.mjs <create|verify|smoke> [--bundle path] [--archive path]");
-  console.log(`[release-archive] ${result.fileCount} files verified in ${result.archive}`);
+  else
+    throw new Error(
+      "usage: release-archive.mjs <create|verify|smoke> [--bundle path] [--archive path]",
+    );
+  console.log(
+    `[release-archive] ${result.fileCount} files verified in ${result.archive}`,
+  );
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
