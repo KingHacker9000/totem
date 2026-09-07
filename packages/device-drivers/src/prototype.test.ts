@@ -43,7 +43,8 @@ describe("prototype hardware capability detection", () => {
           paths.thermalZone,
         ],
         {
-          [paths.alsaCards]: " 2 [seeed2micvoicec]: USB-Audio - reSpeaker Lite XU316",
+          [paths.alsaCards]:
+            " 2 [seeed2micvoicec]: USB-Audio - reSpeaker Lite XU316",
         },
       ),
     );
