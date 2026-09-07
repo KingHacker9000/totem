@@ -22,7 +22,9 @@ test("rejects write access and unexpected scopes", () => {
   );
   assert.equal(result.failures.length, 2);
   assert.ok(result.failures.some((failure) => /contents: write/.test(failure)));
-  assert.ok(result.failures.some((failure) => /scope actions: read/.test(failure)));
+  assert.ok(
+    result.failures.some((failure) => /scope actions: read/.test(failure)),
+  );
 });
 
 test("rejects ambiguous syntax and duplicate declarations", () => {
@@ -34,5 +36,7 @@ test("rejects ambiguous syntax and duplicate declarations", () => {
   const duplicate = inspectWorkflowPermissions(
     `permissions:\n  contents: read\npermissions:\n  contents: read\n`,
   );
-  assert.ok(duplicate.failures.some((failure) => /duplicate top-level/.test(failure)));
+  assert.ok(
+    duplicate.failures.some((failure) => /duplicate top-level/.test(failure)),
+  );
 });
