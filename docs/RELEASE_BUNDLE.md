@@ -19,7 +19,7 @@ Identical tracked inputs at the same source revision produce identical manifest 
 
 `release:artifact:scan` first verifies that manifest/source integrity and then scans the actual bundle directory with schema `totem.release-artifact-content-scan/v1`. It fails closed on high-confidence credential/token material, private-key blocks, developer home/workspace paths, private Portal repository identifiers outside a narrow policy-reference allowlist, source maps/source-map references, symlinks, unsupported filesystem entries, and files above the bounded per-file scan limit. Binary files are classified by NUL bytes and still receive ASCII-compatible content checks rather than being silently skipped.
 
-A small explicit allowlist exists only for known-safe policy/documentation references to the private Portal repository names and the existing synthetic `/home/tester` unit-test fixture. New occurrences are rejected until deliberately reviewed and added. This keeps intentional boundary documentation possible without turning the privacy gate into a broad suppression list.
+A small explicit allowlist exists only for known-safe policy/documentation references to the private Portal repository names and one existing synthetic developer-home unit-test fixture. New occurrences are rejected until deliberately reviewed and added. This keeps intentional boundary documentation possible without turning the privacy gate into a broad suppression list.
 
 ## Boundary policy
 
