@@ -17,7 +17,9 @@ function sha256(buffer) {
 }
 
 function git(root, args) {
-  return execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
+  return execFileSync("git", ["-C", root, ...args], {
+    encoding: "utf8",
+  }).trim();
 }
 
 function normalizePath(path) {
@@ -26,10 +28,15 @@ function normalizePath(path) {
 
 function assertInside(root, candidate, label) {
   const rel = relative(root, candidate);
-  if (rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !rel.startsWith(sep))) {
+  if (
+    rel === "" ||
+    (rel !== ".." && !rel.startsWith(`..${sep}`) && !rel.startsWith(sep))
+  ) {
     return normalizePath(rel || ".");
   }
-  throw new Error(`${label} must stay inside the public Totem repository: ${candidate}`);
+  throw new Error(
+    `${label} must stay inside the public Totem repository: ${candidate}`,
+  );
 }
 
 function canonicalRemote(value) {
@@ -40,26 +47,38 @@ function canonicalRemote(value) {
 }
 
 function assertPublicRemote(root) {
-  const remote = canonicalRemote(git(root, ["config", "--get", "remote.origin.url"]));
-  if (!remote.endsWith(`/${PUBLIC_REPOSITORY}`)) {
-    throw new Error(`origin must resolve to the public ${PUBLIC_REPOSITORY} repository; got ${remote}`);
+  const remote = canonicalRemote(
+    git(root, ["config", "--get", "remote.origin.url"]),
+  );
+  if (remote !== `https://github.com/${PUBLIC_REPOSITORY}`) {
+    throw new Error(
+      `origin must resolve to the public ${PUBLIC_REPOSITORY} repository; got ${remote}`,
+    );
   }
   return remote;
 }
 
 function assertCleanSource(root, allowedUntracked = new Set()) {
   if (git(root, ["diff", "--name-only", "HEAD", "--"])) {
-    throw new Error("tracked source differs from HEAD; provenance requires a clean source revision");
+    throw new Error(
+      "tracked source differs from HEAD; provenance requires a clean source revision",
+    );
   }
   if (git(root, ["diff", "--cached", "--name-only", "--"])) {
-    throw new Error("staged source differs from HEAD; provenance requires a clean source revision");
+    throw new Error(
+      "staged source differs from HEAD; provenance requires a clean source revision",
+    );
   }
   const untracked = git(root, ["ls-files", "--others", "--exclude-standard"])
     .split("\n")
     .filter(Boolean);
-  const unexpected = untracked.filter((path) => !allowedUntracked.has(normalizePath(path)));
+  const unexpected = untracked.filter(
+    (path) => !allowedUntracked.has(normalizePath(path)),
+  );
   if (unexpected.length) {
-    throw new Error(`unexpected untracked source inputs: ${unexpected.join(", ")}`);
+    throw new Error(
+      `unexpected untracked source inputs: ${unexpected.join(", ")}`,
+    );
   }
 }
 
@@ -70,13 +89,22 @@ async function hashPath(root, inputPath) {
   const resolvedArtifact = await realpath(absolute);
   assertInside(resolvedRoot, resolvedArtifact, "artifact realpath");
   const info = await lstat(absolute);
-  if (info.isSymbolicLink()) throw new Error(`artifact root may not be a symlink: ${rel}`);
+  if (info.isSymbolicLink()) {
+    throw new Error(`artifact root may not be a symlink: ${rel}`);
+  }
 
   if (info.isFile()) {
     const bytes = await readFile(absolute);
-    return { path: rel, type: "file", bytes: bytes.length, sha256: sha256(bytes) };
+    return {
+      path: rel,
+      type: "file",
+      bytes: bytes.length,
+      sha256: sha256(bytes),
+    };
   }
-  if (!info.isDirectory()) throw new Error(`unsupported artifact type: ${rel}`);
+  if (!info.isDirectory()) {
+    throw new Error(`unsupported artifact type: ${rel}`);
+  }
 
   const entries = [];
   async function walk(directory) {
@@ -84,19 +112,31 @@ async function hashPath(root, inputPath) {
     for (const name of names) {
       const child = resolve(directory, name);
       const childInfo = await lstat(child);
-      if (childInfo.isSymbolicLink()) throw new Error(`artifact contains symlink: ${normalizePath(relative(root, child))}`);
+      if (childInfo.isSymbolicLink()) {
+        throw new Error(
+          `artifact contains symlink: ${normalizePath(relative(root, child))}`,
+        );
+      }
       if (childInfo.isDirectory()) {
         await walk(child);
       } else if (childInfo.isFile()) {
         const bytes = await readFile(child);
-        entries.push({ path: normalizePath(relative(absolute, child)), bytes: bytes.length, sha256: sha256(bytes) });
+        entries.push({
+          path: normalizePath(relative(absolute, child)),
+          bytes: bytes.length,
+          sha256: sha256(bytes),
+        });
       } else {
-        throw new Error(`artifact contains unsupported entry: ${normalizePath(relative(root, child))}`);
+        throw new Error(
+          `artifact contains unsupported entry: ${normalizePath(relative(root, child))}`,
+        );
       }
     }
   }
   await walk(absolute);
-  const digestInput = entries.map((entry) => `${entry.path}\0${entry.bytes}\0${entry.sha256}\n`).join("");
+  const digestInput = entries
+    .map((entry) => `${entry.path}\0${entry.bytes}\0${entry.sha256}\n`)
+    .join("");
   return {
     path: rel,
     type: "directory",
@@ -123,8 +163,16 @@ async function workspaceIdentity(root) {
   };
 }
 
-export async function generateProvenance({ root, artifacts, output, buildCommand = "pnpm build", profile = "production" }) {
-  if (!artifacts.length) throw new Error("at least one --artifact is required");
+export async function generateProvenance({
+  root,
+  artifacts,
+  output,
+  buildCommand = "pnpm build",
+  profile = "production",
+}) {
+  if (!artifacts.length) {
+    throw new Error("at least one --artifact is required");
+  }
   const rootReal = await realpath(root);
   const outputAbs = resolve(rootReal, output);
   const outputRel = assertInside(rootReal, outputAbs, "provenance output");
@@ -133,10 +181,14 @@ export async function generateProvenance({ root, artifacts, output, buildCommand
 
   const artifactRecords = [];
   for (const artifact of [...new Set(artifacts)].sort()) {
-    const normalized = normalizePath(relative(rootReal, resolve(rootReal, artifact)));
+    const normalized = normalizePath(
+      relative(rootReal, resolve(rootReal, artifact)),
+    );
     for (const privateRepository of PRIVATE_REPOSITORIES) {
       if (normalized.includes(privateRepository.split("/").at(-1))) {
-        throw new Error(`private Portal content cannot be attested by public provenance: ${normalized}`);
+        throw new Error(
+          `private Portal content cannot be attested by public provenance: ${normalized}`,
+        );
       }
     }
     artifactRecords.push(await hashPath(rootReal, artifact));
@@ -153,9 +205,16 @@ export async function generateProvenance({ root, artifacts, output, buildCommand
     workspace: await workspaceIdentity(rootReal),
     build: { profile, command: buildCommand },
     artifacts: artifactRecords.sort((a, b) => a.path.localeCompare(b.path)),
-    boundary: { publicRepositoryOnly: true, excludedPrivateRepositories: PRIVATE_REPOSITORIES },
+    boundary: {
+      publicRepositoryOnly: true,
+      excludedPrivateRepositories: PRIVATE_REPOSITORIES,
+    },
   };
-  await writeFile(outputAbs, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  await writeFile(
+    outputAbs,
+    `${JSON.stringify(document, null, 2)}\n`,
+    "utf8",
+  );
   return document;
 }
 
@@ -164,29 +223,51 @@ export async function verifyProvenance({ root, output }) {
   const outputAbs = resolve(rootReal, output);
   assertInside(rootReal, outputAbs, "provenance output");
   const document = JSON.parse(await readFile(outputAbs, "utf8"));
-  if (document.schema !== SCHEMA) throw new Error(`unsupported provenance schema: ${document.schema}`);
-  assertCleanSource(rootReal, new Set([normalizePath(relative(rootReal, outputAbs))]));
+  if (document.schema !== SCHEMA) {
+    throw new Error(`unsupported provenance schema: ${document.schema}`);
+  }
+  assertCleanSource(
+    rootReal,
+    new Set([normalizePath(relative(rootReal, outputAbs))]),
+  );
   const remote = assertPublicRemote(rootReal);
-  if (document.repository?.slug !== PUBLIC_REPOSITORY || document.repository?.origin !== remote) {
-    throw new Error("provenance repository identity does not match the public Totem checkout");
+  if (
+    document.repository?.slug !== PUBLIC_REPOSITORY ||
+    document.repository?.origin !== remote
+  ) {
+    throw new Error(
+      "provenance repository identity does not match the public Totem checkout",
+    );
   }
   const revision = git(rootReal, ["rev-parse", "HEAD"]);
   const tree = git(rootReal, ["rev-parse", "HEAD^{tree}"]);
-  if (document.repository.revision !== revision || document.repository.tree !== tree) {
+  if (
+    document.repository.revision !== revision ||
+    document.repository.tree !== tree
+  ) {
     throw new Error("provenance source revision/tree is stale");
   }
   const workspace = await workspaceIdentity(rootReal);
   if (JSON.stringify(document.workspace) !== JSON.stringify(workspace)) {
     throw new Error("provenance workspace/lockfile identity is stale");
   }
-  if (!document.boundary?.publicRepositoryOnly) throw new Error("public/private release boundary is not asserted");
-  if (JSON.stringify(document.boundary.excludedPrivateRepositories) !== JSON.stringify(PRIVATE_REPOSITORIES)) {
+  if (!document.boundary?.publicRepositoryOnly) {
+    throw new Error("public/private release boundary is not asserted");
+  }
+  if (
+    JSON.stringify(document.boundary.excludedPrivateRepositories) !==
+    JSON.stringify(PRIVATE_REPOSITORIES)
+  ) {
     throw new Error("private Portal repository exclusions are missing or stale");
   }
-  if (!Array.isArray(document.artifacts) || document.artifacts.length === 0) throw new Error("provenance has no artifacts");
+  if (!Array.isArray(document.artifacts) || document.artifacts.length === 0) {
+    throw new Error("provenance has no artifacts");
+  }
   for (const expected of document.artifacts) {
     const actual = await hashPath(rootReal, expected.path);
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`artifact digest drift: ${expected.path}`);
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      throw new Error(`artifact digest drift: ${expected.path}`);
+    }
   }
   return document;
 }
@@ -195,11 +276,21 @@ function parseArgs(argv) {
   const args = { artifacts: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === "--artifact") args.artifacts.push(argv[++index]);
-    else if (value === "--output") args.output = argv[++index];
-    else if (value === "--build-command") args.buildCommand = argv[++index];
-    else if (value === "--profile") args.profile = argv[++index];
-    else throw new Error(`unknown argument: ${value}`);
+    if (value === "--artifact") {
+      index += 1;
+      args.artifacts.push(argv[index]);
+    } else if (value === "--output") {
+      index += 1;
+      args.output = argv[index];
+    } else if (value === "--build-command") {
+      index += 1;
+      args.buildCommand = argv[index];
+    } else if (value === "--profile") {
+      index += 1;
+      args.profile = argv[index];
+    } else {
+      throw new Error(`unknown argument: ${value}`);
+    }
   }
   return args;
 }
@@ -207,11 +298,19 @@ function parseArgs(argv) {
 async function main() {
   const [command, ...argv] = process.argv.slice(2);
   const args = parseArgs(argv);
-  if (!args.output) throw new Error("--output is required");
+  if (!args.output) {
+    throw new Error("--output is required");
+  }
   const root = process.cwd();
-  if (command === "generate") await generateProvenance({ root, ...args });
-  else if (command === "verify") await verifyProvenance({ root, output: args.output });
-  else throw new Error("usage: release-provenance.mjs <generate|verify> --output <path> [--artifact <path> ...]");
+  if (command === "generate") {
+    await generateProvenance({ root, ...args });
+  } else if (command === "verify") {
+    await verifyProvenance({ root, output: args.output });
+  } else {
+    throw new Error(
+      "usage: release-provenance.mjs <generate|verify> --output <path> [--artifact <path> ...]",
+    );
+  }
 }
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
