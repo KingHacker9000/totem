@@ -19,6 +19,14 @@
       "publishable": false
     },
     {
+      "repo": "KingHacker9000/totem-hardware",
+      "package": null,
+      "version": null,
+      "private": null,
+      "node": null,
+      "publishable": false
+    },
+    {
       "repo": "KingHacker9000/totem-extension-sdk",
       "package": "@totem/extension-sdk",
       "version": "0.2.0",
