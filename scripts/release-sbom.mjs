@@ -77,9 +77,9 @@ export function buildCycloneDx({
       "SBOM source revision differs between release and third-party manifests.",
     );
   }
-  if (!/^[0-9a-f]{64}$/.test(bundleManifest.source?.tree ?? "")) {
+  if (!/^[0-9a-f]{40,64}$/.test(bundleManifest.source?.tree ?? "")) {
     throw new Error(
-      "SBOM release bundle is missing an exact source tree identity.",
+      "SBOM release bundle is missing an exact Git source tree object identity.",
     );
   }
   if (!/^[0-9a-f]{64}$/.test(bundleManifest.digest?.value ?? "")) {
