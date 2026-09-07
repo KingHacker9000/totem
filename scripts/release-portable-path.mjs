@@ -10,9 +10,7 @@ const WINDOWS_RESERVED_BASENAMES = new Set([
 const WINDOWS_INVALID_CHARS = /[<>:"|?*]/u;
 
 function hasWindowsControlCharacter(component) {
-  return [...component].some(
-    (character) => character.codePointAt(0) <= 0x1f,
-  );
+  return [...component].some((character) => character.codePointAt(0) <= 0x1f);
 }
 
 export function portablePathKey(path) {
