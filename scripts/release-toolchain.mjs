@@ -25,7 +25,7 @@ function parseWorkflowNodeMatrix(workflow) {
   }
   return match[1]
     .split(",")
-    .map((value) => value.trim().replace(/^['\"]|['\"]$/g, ""))
+    .map((value) => value.trim().replace(/^['"]|['"]$/g, ""))
     .filter(Boolean);
 }
 
@@ -44,7 +44,8 @@ export async function loadToolchainContract(root) {
   if (!Array.isArray(contract.node?.ci) || contract.node.ci.length === 0) {
     throw new Error("node.ci must contain at least one exact CI version");
   }
-  for (const version of contract.node.ci) assertVersion(version, "node.ci entry");
+  for (const version of contract.node.ci)
+    assertVersion(version, "node.ci entry");
   if (!contract.node.ci.includes(contract.node.default)) {
     throw new Error("node.default must be included in node.ci");
   }
@@ -53,7 +54,9 @@ export async function loadToolchainContract(root) {
     throw new Error("release toolchain engine ranges are required");
   }
   if (contract.workflow !== ".github/workflows/ci.yml") {
-    throw new Error("release toolchain workflow must be .github/workflows/ci.yml");
+    throw new Error(
+      "release toolchain workflow must be .github/workflows/ci.yml",
+    );
   }
   return { contract, bytes };
 }
@@ -61,7 +64,9 @@ export async function loadToolchainContract(root) {
 export async function validateToolchainMetadata(root) {
   const { contract, bytes } = await loadToolchainContract(root);
   const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
-  const nodeVersion = (await readFile(resolve(root, ".node-version"), "utf8")).trim();
+  const nodeVersion = (
+    await readFile(resolve(root, ".node-version"), "utf8")
+  ).trim();
   const nvmrc = (await readFile(resolve(root, ".nvmrc"), "utf8")).trim();
   const workflow = await readFile(resolve(root, contract.workflow), "utf8");
 
@@ -81,7 +86,10 @@ export async function validateToolchainMetadata(root) {
       `pnpm engine drift: expected ${contract.pnpm.engine}; got ${pkg.engines?.pnpm}`,
     );
   }
-  if (nodeVersion !== contract.node.default || nvmrc !== contract.node.default) {
+  if (
+    nodeVersion !== contract.node.default ||
+    nvmrc !== contract.node.default
+  ) {
     throw new Error(
       `default Node drift: contract=${contract.node.default} .node-version=${nodeVersion} .nvmrc=${nvmrc}`,
     );
@@ -92,7 +100,8 @@ export async function validateToolchainMetadata(root) {
       `CI Node matrix drift: expected [${contract.node.ci.join(", ")}]; got [${matrix.join(", ")}]`,
     );
   }
-  if (!workflow.includes("node-version: ${{ matrix.node }}")) {
+  const matrixExpression = "node-version: $" + "{{ matrix.node }}";
+  if (!workflow.includes(matrixExpression)) {
     throw new Error("CI setup-node must consume matrix.node");
   }
   if (!workflow.includes("pnpm/action-setup@")) {
@@ -107,20 +116,29 @@ export async function validateToolchainMetadata(root) {
   };
 }
 
-export async function effectiveToolchainIdentity(root) {
-  const metadata = await validateToolchainMetadata(root);
-  const node = process.version.replace(/^v/, "");
-  const pnpmExecutable = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const pnpm = execFileSync(pnpmExecutable, ["--version"], {
+function readPnpmVersion(root) {
+  if (process.platform === "win32") {
+    const command = process.env.ComSpec ?? "cmd.exe";
+    return execFileSync(command, ["/d", "/s", "/c", "pnpm --version"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  }
+  return execFileSync("pnpm", ["--version"], {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
+}
+
+export async function effectiveToolchainIdentity(root) {
+  const metadata = await validateToolchainMetadata(root);
   return {
     schema: SCHEMA,
     contractSha256: metadata.contractSha256,
-    node,
-    pnpm,
+    node: process.version.replace(/^v/, ""),
+    pnpm: readPnpmVersion(root),
   };
 }
 
