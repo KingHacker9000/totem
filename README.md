@@ -9,7 +9,7 @@ Totem deliberately separates **what the assistant can do** from **what the assis
 - **Themes** change visual identity, animations, sounds, persona instructions, wake-word presentation, LED behavior, and TTS configuration without granting new capabilities.
 - **Agent providers** bridge Totem to external agent runtimes such as Codex CLI and Claude Code CLI. Totem does not require a general-purpose LLM to run on the device.
 
-The project remains software-first, but the software platform has now advanced beyond the original PC-simulator milestone into real provider adapters, extension/theme runtimes, management tooling, registry/remote-node infrastructure, speech orchestration, and a software-only Raspberry Pi deployment layer.
+The software platform has advanced beyond the original PC-simulator milestone into real provider adapters, extension/theme runtimes, management tooling, registry/remote-node infrastructure, speech orchestration, deterministic release tooling, and validated Raspberry Pi deployment lifecycle support.
 
 ## Project principles
 
@@ -28,37 +28,58 @@ See [docs/REPOSITORIES.md](docs/REPOSITORIES.md) for the role and dependency bou
 
 ## Current status
 
-The **core software platform is substantially implemented**, but the physical Totem device is not finished.
+The **software platform and Raspberry Pi deployment path are implemented and substantially validated**. The initial physical-product milestone is not complete yet.
 
 Completed/integrated work includes:
 
-- **Phase 0** — architecture and repository bootstrap;
-- **Phase 1** — core + PC simulator + clean-checkout mocked-task validation;
-- **Phase 2** — extension manifest/SDK/runtime, permissions, lifecycle, settings/secrets/MCP, first-party extension pack, and cross-repository integration validation;
-- **Phase 3** — full theme platform, hot switching/rollback, public reference themes, and private Portal theme through the same generic contract;
-- **Phase 4** — real Codex CLI and Claude Code CLI adapters, durable provider sessions, streaming, cancellation/resume, workspace policy, and provider dashboard flow;
-- **Phase 5 software framework** — provider-neutral speech orchestration, VAD, STT/TTS adapter seams, streaming playback, barge-in, and theme voice selection;
-- **Phase 6** — capability-aware management/operator console with real core-owned state and honest unavailable states for unfinished subsystems;
-- **Phases 7/11 software** — registry signing/install/rollback primitives, ecosystem integration fixtures, remote-node transport, and Totem management APIs;
-- **Phase 8 software-only deployment** — systemd service, installer, rollback, diagnostics, relocatable external-HDD state path, and hardware-agnostic device-driver interfaces.
+- architecture, core runtime, PC simulator, durable task state, and clean-checkout validation;
+- extension and theme SDK/runtime contracts, permissions, lifecycle, settings/secrets/MCP, public reference content, and private-theme separation;
+- real Codex CLI and Claude Code CLI provider adapters with durable sessions, streaming, cancellation/resume, and workspace policy;
+- provider-neutral speech orchestration, deterministic VAD, local STT/TTS adapter seams, streaming playback, barge-in, and device capability/simulation adapters;
+- capability-aware management/operator APIs and dashboard surfaces;
+- registry signing/install/rollback primitives, ecosystem integration fixtures, remote-node transport, and management APIs;
+- Raspberry Pi systemd installation, update/rollback, readiness/self-test lifecycle, low-disk/release-retention safeguards, diagnostics, and real-Pi validation;
+- deterministic release configuration checks, third-party manifests, source-to-artifact provenance, public bundle boundaries, and repository metadata checks.
 
-The latest Phase 2 integration gate is `main` at `503b99a3b0156f47126d56d49e4a26e3e8f7dedf` (PR #32). That gate passed clean frozen install/check/build across Windows and Linux on Node 22.20/24.18 and exercised the public extension SDK/runtime/base-extension path. See `PHASE2_INTEGRATION.md` for the reproduction details and boundaries.
+The supported CI matrix validates Linux and Windows on the supported Node releases and includes the pinned public extension integration path. Use the current CI workflow and the release validation commands below instead of relying on historical commit hashes embedded in documentation.
 
 ### What is still not complete
 
-The next milestone is **real-world validation and physical-product integration**, not another architecture phase. Remaining work includes:
+The remaining initial-milestone gates are intentionally narrow:
 
-- concrete production local STT/TTS + real PC microphone/speaker adapters;
-- actual rendering of extension display/dashboard contributions through the generic extension contract;
-- remaining speech/display/log/backup/security operator APIs;
-- one consolidated real-PC burn-in using installed/authenticated agent CLIs and optional live services;
-- deployment and performance/recovery validation on the user's real Raspberry Pi 5;
-- physical component selection and measured BOM;
-- real caliper measurements and parametric CAD from those measurements;
-- printed/assembled prototype, audio/thermal/touch/LED validation, and final daily-use testing;
-- public software/hardware license selection before the first release.
+- capture the actual purchased-part identities and real caliper/fit-coupon measurements required for CAD;
+- generate measured parametric CAD from those real measurements, then print/assemble and validate the physical prototype;
+- select and apply the owner-approved public software/hardware license policy;
+- finish final release documentation and workflow supply-chain drift hardening before project closeout.
 
-The task-board next wave intentionally reserves Codex for only high-value local/agentic gates: the consolidated real-PC integration burn-in and measured parametric CAD generation. Routine implementation stays with ChatGPT/direct tooling where practical.
+Final enclosure CAD must not be generated from guessed dimensions. Private Portal cosmetics remain separate from the public generic chassis and public release artifacts.
+
+## Release validation
+
+From a clean checkout with the supported Node and pnpm versions:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm check
+pnpm build
+pnpm release:config:smoke
+pnpm release:bundle:build
+pnpm release:bundle:verify
+```
+
+`pnpm check` includes release configuration, repository metadata, documentation drift, lint, formatting, typechecking, and tests. CI additionally validates the public repository-family documentation surfaces and the pinned Phase 2 extension integration path.
+
+For a real Raspberry Pi lifecycle check, use:
+
+```bash
+pnpm validate:pi
+```
+
+For opt-in live provider/service validation, use:
+
+```bash
+pnpm validate:live
+```
 
 On Windows, see the [one-command development bootstrap](docs/WINDOWS_DEVELOPMENT.md). For architecture/tooling details see [development setup](docs/DEVELOPMENT.md), for startup/runtime settings see [core configuration](docs/CONFIGURATION.md), and for Pi deployment see [Raspberry Pi deployment](docs/RASPBERRY_PI_DEPLOYMENT.md).
 
