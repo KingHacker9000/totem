@@ -12,7 +12,9 @@ import {
 const roots = [];
 
 test.afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 async function fixture() {
@@ -22,7 +24,11 @@ async function fixture() {
   await mkdir(join(stateDir, "nested"), { recursive: true });
   await writeFile(join(stateDir, "totem.sqlite"), "sqlite-state-v1\n", "utf8");
   await writeFile(join(stateDir, "totem.sqlite-wal"), "wal-sidecar\n", "utf8");
-  await writeFile(join(stateDir, "nested", "durable.json"), "{\"turn\":1}\n", "utf8");
+  await writeFile(
+    join(stateDir, "nested", "durable.json"),
+    '{"turn":1}\n',
+    "utf8",
+  );
   return { root, stateDir };
 }
 
@@ -55,8 +61,15 @@ test("rejects tampered, incomplete, and legacy snapshots", async () => {
     now: new Date("2026-09-07T07:31:00.000Z"),
     assertStopped: stopped,
   });
-  await writeFile(join(first.backupDir, "state", "totem.sqlite"), "tampered\n", "utf8");
-  await assert.rejects(() => verifyBackupDirectory(first.backupDir), /integrity verification failed/);
+  await writeFile(
+    join(first.backupDir, "state", "totem.sqlite"),
+    "tampered\n",
+    "utf8",
+  );
+  await assert.rejects(
+    () => verifyBackupDirectory(first.backupDir),
+    /integrity verification failed/,
+  );
 
   const second = await createQuiescedBackup({
     root,
@@ -65,7 +78,10 @@ test("rejects tampered, incomplete, and legacy snapshots", async () => {
     assertStopped: stopped,
   });
   await rm(join(second.backupDir, "state", "nested", "durable.json"));
-  await assert.rejects(() => verifyBackupDirectory(second.backupDir), /integrity verification failed/);
+  await assert.rejects(
+    () => verifyBackupDirectory(second.backupDir),
+    /integrity verification failed/,
+  );
 
   const legacyDir = join(root, "backups", "20260907T073300.000Z");
   await mkdir(join(legacyDir, "state"), { recursive: true });
@@ -79,7 +95,10 @@ test("rejects tampered, incomplete, and legacy snapshots", async () => {
       entries: [],
     }),
   );
-  await assert.rejects(() => verifyBackupDirectory(legacyDir), /no integrity inventory/);
+  await assert.rejects(
+    () => verifyBackupDirectory(legacyDir),
+    /no integrity inventory/,
+  );
 });
 
 test("fails closed without stopped-state proof and preserves live state before restore", async () => {
@@ -106,7 +125,10 @@ test("fails closed without stopped-state proof and preserves live state before r
     /service active/,
   );
   assert.equal(stopChecks, 1);
-  assert.equal(await readFile(join(stateDir, "totem.sqlite"), "utf8"), "new-live-state\n");
+  assert.equal(
+    await readFile(join(stateDir, "totem.sqlite"), "utf8"),
+    "new-live-state\n",
+  );
 
   const result = await restoreVerifiedBackup({
     backupDir: backup.backupDir,
@@ -114,7 +136,10 @@ test("fails closed without stopped-state proof and preserves live state before r
     now: new Date("2026-09-07T07:35:00.000Z"),
     assertStopped: stopped,
   });
-  assert.equal(await readFile(join(stateDir, "totem.sqlite"), "utf8"), "sqlite-state-v1\n");
+  assert.equal(
+    await readFile(join(stateDir, "totem.sqlite"), "utf8"),
+    "sqlite-state-v1\n",
+  );
   assert.ok(result.preservedState);
   assert.equal(
     await readFile(join(result.preservedState, "totem.sqlite"), "utf8"),
