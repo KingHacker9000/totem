@@ -103,35 +103,45 @@ test(
   },
 );
 
-test("purge refuses to run without the exact destructive confirmation", async () => {
-  const f = await fixture();
-  const systemctl = systemctlRecorder();
-  await assert.rejects(
-    performDecommission({ ...f, purgeState: true, runSystemctl: systemctl.run }),
-    /PURGE-TOTEM-STATE/,
-  );
-  assert.equal(
-    await readFile(path.join(f.stateDir, "state.db"), "utf8"),
-    "durable\n",
-  );
-  assert.equal(await exists(f.prefix), true);
-  assert.deepEqual(systemctl.calls, []);
-});
+test(
+  "purge refuses to run without the exact destructive confirmation",
+  async () => {
+    const f = await fixture();
+    const systemctl = systemctlRecorder();
+    await assert.rejects(
+      performDecommission({
+        ...f,
+        purgeState: true,
+        runSystemctl: systemctl.run,
+      }),
+      /PURGE-TOTEM-STATE/,
+    );
+    assert.equal(
+      await readFile(path.join(f.stateDir, "state.db"), "utf8"),
+      "durable\n",
+    );
+    assert.equal(await exists(f.prefix), true);
+    assert.deepEqual(systemctl.calls, []);
+  },
+);
 
-test("explicit purge can remove state while preserving config independently", async () => {
-  const f = await fixture();
-  const systemctl = systemctlRecorder();
-  const result = await performDecommission({
-    ...f,
-    purgeState: true,
-    confirmation: PURGE_CONFIRMATION,
-    runSystemctl: systemctl.run,
-  });
-  assert.equal(await exists(f.stateDir), false);
-  assert.equal(await exists(f.configDir), true);
-  assert.equal(result.state, "purged");
-  assert.equal(result.config, "preserved");
-});
+test(
+  "explicit purge can remove state while preserving config independently",
+  async () => {
+    const f = await fixture();
+    const systemctl = systemctlRecorder();
+    const result = await performDecommission({
+      ...f,
+      purgeState: true,
+      confirmation: PURGE_CONFIRMATION,
+      runSystemctl: systemctl.run,
+    });
+    assert.equal(await exists(f.stateDir), false);
+    assert.equal(await exists(f.configDir), true);
+    assert.equal(result.state, "purged");
+    assert.equal(result.config, "preserved");
+  },
+);
 
 test("dry-run makes no filesystem or systemctl changes", async () => {
   const f = await fixture();
