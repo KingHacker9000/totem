@@ -84,6 +84,13 @@ cd "$release"
 pnpm install --frozen-lockfile
 pnpm build
 
+previous_release=$(readlink -f "$PREFIX/current" || true)
+if [[ -n "$previous_release" && -d "$previous_release" ]]; then
+  node "$release/deploy/pi/state-compatibility.mjs" assert-transition \
+    --from-release "$previous_release" \
+    --to-release "$release"
+fi
+
 ln -sfn "$release" "$PREFIX/current"
 install_complete=1
 trap - EXIT
