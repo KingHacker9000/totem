@@ -28,4 +28,47 @@ Display management reports the normalized core-event transport (`/api/events`) a
 
 Backups are written outside the live `state` directory and receive a `totem.backup/v0` manifest. Restore is intentionally plan-only while core is running. Before applying a restore, stop Totem, preserve the current state directory, replace it from the selected snapshot, restart Totem, and run health/self-test validation.
 
-A state snapshot may contain SQLite files. For release-grade disaster recovery, perform snapshot creation during a quiesced maintenance window or after stopping the service so the SQLite database and any WAL sidecars are captured consistently. The API makes the restore requirement explicit and does not claim hot-restore safety.
+A snapshot created by the running core API is useful for convenience/export, but it is **not** claimed as a release-grade SQLite disaster-recovery point because the database and WAL sidecars may still be changing while the copy runs. Release-grade recovery uses the stopped-service tooling below; its manifest carries a SHA-256 file inventory and `captureMode: "quiesced"`, and verification rejects legacy/uninventoried, incomplete, extra, or tampered snapshot contents.
+
+## Release-grade disaster recovery
+
+The recovery CLI fails closed unless it can prove the systemd service is inactive or failed. On the Raspberry Pi, use a maintenance window and keep the service stopped for both snapshot creation and restore:
+
+```bash
+sudo systemctl stop totem.service
+sudo systemctl is-active totem.service || true
+
+pnpm recovery:backup -- \
+  --root /var/lib/totem \
+  --state /var/lib/totem/state \
+  --service totem.service
+```
+
+The command copies the stopped state, inventories every regular file (including SQLite `-wal`/`-shm` sidecars when present), records SHA-256 plus byte size, and immediately verifies the resulting `totem.backup/v0` snapshot. Symbolic links and other unsupported filesystem entries fail closed.
+
+Before a restore, verify the selected snapshot explicitly:
+
+```bash
+pnpm recovery:verify -- \
+  --backup /var/lib/totem/backups/20260907T073000.000Z
+```
+
+Then, while `totem.service` is still stopped:
+
+```bash
+pnpm recovery:restore -- \
+  --backup /var/lib/totem/backups/20260907T073000.000Z \
+  --state /var/lib/totem/state \
+  --service totem.service
+```
+
+Restore verification happens **before** the live state is touched. The replacement is staged beside the live directory, the current live state is renamed to a timestamped `state.pre-restore.*` rollback copy, and only then is the verified staged snapshot moved into place. The rollback copy is never silently deleted.
+
+Finish the rehearsal by restarting and validating the recovered installation:
+
+```bash
+sudo systemctl start totem.service
+pnpm validate:pi
+```
+
+Do not remove the `state.pre-restore.*` copy until readiness/self-test and the operator's durable-state checks are successful. If `systemctl` cannot prove the service is stopped, recovery intentionally refuses to proceed. Hot restore remains unsupported.
