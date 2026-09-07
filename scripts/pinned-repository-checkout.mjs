@@ -20,7 +20,10 @@ export function assertExactRevision(repo, revision) {
 }
 
 export function resolvePinnedEntries(manifest, requestedRepositories) {
-  if (!Array.isArray(requestedRepositories) || requestedRepositories.length === 0) {
+  if (
+    !Array.isArray(requestedRepositories) ||
+    requestedRepositories.length === 0
+  ) {
     throw new Error("at least one --repo is required");
   }
   const entries = new Map(
@@ -28,7 +31,9 @@ export function resolvePinnedEntries(manifest, requestedRepositories) {
   );
   return requestedRepositories.map((repo) => {
     const entry = entries.get(repo);
-    if (!entry) throw new Error(`${repo} is not declared in repo-family validation`);
+    if (!entry) {
+      throw new Error(`${repo} is not declared in repo-family validation`);
+    }
     assertExactRevision(repo, entry.revision);
     return entry;
   });
@@ -61,7 +66,9 @@ function run(command, cwd, { capture = false } = {}) {
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (code === 0) resolve(capture ? stdout.trim() : undefined);
-      else reject(new Error(`exit=${code ?? "null"} signal=${signal ?? "none"}`));
+      else {
+        reject(new Error(`exit=${code ?? "null"} signal=${signal ?? "none"}`));
+      }
     });
   });
 }
@@ -117,14 +124,18 @@ function parseArgs(argv) {
       index += 1;
     } else if (argument === "--repo") {
       const repo = argv[index + 1];
-      if (!repo) throw new Error("--repo requires a repository identity");
+      if (!repo) {
+        throw new Error("--repo requires a repository identity");
+      }
       repositories.push(repo);
       index += 1;
     } else {
       throw new Error(`unknown argument: ${argument}`);
     }
   }
-  if (!root) throw new Error("--root is required");
+  if (!root) {
+    throw new Error("--root is required");
+  }
   return { root: path.resolve(root), repositories };
 }
 
