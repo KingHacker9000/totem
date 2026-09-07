@@ -15,7 +15,7 @@
     "validate:pi": "node deploy/pi/lifecycle-check.mjs",
     "release:config:check": "node scripts/release-config.mjs check",
     "release:config:validate": "node scripts/release-config.mjs validate-env",
-    "release:config:smoke": "node scripts/credential-free-startup.mjs",
+    "release:config:smoke": "node scripts/startup-smoke.mjs",
     "release:bundle:build": "node scripts/release-bundle.mjs build",
     "release:bundle:verify": "node scripts/release-bundle.mjs verify",
     "release:third-party:generate": "node scripts/third-party-manifest.mjs generate",
