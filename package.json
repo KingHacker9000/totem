@@ -20,7 +20,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.test.mjs",
+    "test": "vitest run && node --test deploy/pi/readiness.test.mjs scripts/third-party-manifest.node-test.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
