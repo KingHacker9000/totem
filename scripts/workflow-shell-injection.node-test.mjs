@@ -71,7 +71,7 @@ test("scans every workflow in a repository and reports deterministic paths", () 
     mkdirSync(workflows, { recursive: true });
     writeFileSync(
       join(workflows, "ci.yml"),
-      "name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo '${{ github.ref_name }}'\n",
+      `name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo '\${{ github.ref_name }}'\n`,
     );
     writeFileSync(
       join(workflows, "safe.yaml"),
@@ -82,10 +82,7 @@ test("scans every workflow in a repository and reports deterministic paths", () 
     assert.equal(result.workflows, 2);
     assert.equal(result.run_blocks, 2);
     assert.equal(result.failures.length, 1);
-    assert.match(
-      result.failures[0],
-      /^\.github[/\\]workflows[/\\]ci\.yml:7:/,
-    );
+    assert.match(result.failures[0], /^\.github[/\\]workflows[/\\]ci\.yml:7:/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
