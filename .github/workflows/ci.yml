@@ -22,6 +22,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Validate release configuration contract
         run: pnpm release:config:check
+      - name: Validate public release documentation drift
+        shell: bash
+        run: |
+          docs_root="$RUNNER_TEMP/totem-release-docs"
+          mkdir -p "$docs_root"
+          args=(--repo .)
+          for repo in \
+            totem-extension-sdk \
+            totem-theme-sdk \
+            totem-base-extensions \
+            totem-base-themes \
+            totem-agent-providers \
+            totem-registry
+          do
+            git clone --depth 1 "https://github.com/KingHacker9000/${repo}.git" "$docs_root/$repo"
+            args+=(--repo "$docs_root/$repo")
+          done
+          node scripts/release-docs.mjs "${args[@]}"
       - name: Validate artifact-specific third-party release manifest
         shell: bash
         run: |
