@@ -88,7 +88,10 @@ export function validateCandidateDocument(document) {
   if (document.algorithm !== "sha256") {
     throw new Error("release candidate algorithm must be sha256");
   }
-  if (typeof document.repository !== "string" || document.repository.length === 0) {
+  if (
+    typeof document.repository !== "string" ||
+    document.repository.length === 0
+  ) {
     throw new Error("release candidate repository identity is missing");
   }
   if (!document.source?.revision || !document.source?.tree) {
@@ -140,7 +143,11 @@ export async function generateCandidate({
   candidate = DEFAULT_CANDIDATE,
   root = process.cwd(),
 } = {}) {
-  const integrityDocument = await verifyIntegrity({ bundle, manifest: integrity, root });
+  const integrityDocument = await verifyIntegrity({
+    bundle,
+    manifest: integrity,
+    root,
+  });
   await verifyArchive({
     bundle: resolve(root, bundle),
     archive: resolve(root, archive),
@@ -169,7 +176,11 @@ export async function verifyCandidate({
   candidate = DEFAULT_CANDIDATE,
   root = process.cwd(),
 } = {}) {
-  const integrityDocument = await verifyIntegrity({ bundle, manifest: integrity, root });
+  const integrityDocument = await verifyIntegrity({
+    bundle,
+    manifest: integrity,
+    root,
+  });
   await verifyArchive({
     bundle: resolve(root, bundle),
     archive: resolve(root, archive),
