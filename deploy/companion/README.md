@@ -15,7 +15,11 @@ is shipped in this directory.
 
 - HTTP binds to `127.0.0.1:4181`; 4180 is the existing authenticated admin.
 - `GET /state`, `GET /events` (SSE), `POST /heartbeat` and `POST /command`
-  are presentation endpoints. Browser commands are a narrow subset, without
+  require a per-process display token. SSE uses a query token; other routes use
+  `X-Totem-View-Token`. The token is loaded from a local bootstrap file, never
+  served over HTTP. A named ACL grants only the configured kiosk user read
+  access; the Muse account cannot read it. Install distro `acl` for `setfacl`.
+  Browser commands are a narrow subset, without
   generic notification injection, core restart or display restart.
 - The group-protected `/run/totem-companion/commands.sock` accepts one newline
   JSON `{ "command": "totem.health", "args": {} }` per connection. Muse's
@@ -56,17 +60,26 @@ ordinary display cards. Remote notifications never echo back to Muse.
 The monitor reads existing navigation/widgets/attention on 4174 and core `/health`
 on 3000. Existing calendar, academic, GitHub and SwingLab adapters continue running.
 Attention records are normalized for the outbox without changing their producers.
-The current original screen is **not yet subscribed to companion state**. Thus
-backend command success is not proof of final on-screen behavior. Preserved idle,
-Claude Design presentation integration, physical controls and adapter acknowledgements
-must be finished before closing visual issues. Automatic briefing scheduling and
-printing/local-job adapters are also not complete.
+The original private-theme screen subscribes to state through a data-only bridge.
+Incoming companion alerts reuse its existing alert interface; reactions reuse its
+existing heart pulse. The original idle markup, artwork and inline styles are
+preserved. Adapter-origin alerts remain rendered by their original connector;
+remote acknowledgement first deletes the source alert, retaining it on failure.
+Source resolution cancels pending companion messages. Local copies of the same
+font families/weights remove external font requests from cold startup.
+
+The display reports its supported presentation capabilities (`reaction`, `alerts`)
+through rendered-frame heartbeats. Stored avatar state is not proof that mood,
+look direction, sunglasses or other new visual features are presented. Those
+features and their controls await Claude Design; backend command responses expose
+presentation support. Automatic briefing scheduling and printing/local-job
+adapters are also not complete.
 
 ## Install on the inspected Pi
 
 These sample units document the actual checkout paths; adapt them for another host.
-Code and venv are HDD-backed. Do not change `/opt/totem/current`, the existing theme
-files or the kiosk URL. Create system users `totem-companion` and `musegadget` with
+Code and venv are HDD-backed. Do not change `/opt/totem/current` or the kiosk URL.
+The private-theme bridge is a separate reviewable change preserving original visuals. Create system users `totem-companion` and `musegadget` with
 shared group `totem-companion`, shell `/usr/sbin/nologin`, and no additional groups.
 Create `/srv/pi-hdd/totem-companion-state` owned by `totem-companion` mode 0700, and
 `/var/lib/musegadget` owned by `musegadget` mode 0700.

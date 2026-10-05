@@ -145,7 +145,10 @@ export class Companion {
           at: now,
           id: randomUUID(),
         };
-        if (args.reaction === "wake") s.avatar.activity = "idle";
+        if (args.reaction === "wake") {
+          s.avatar.activity = "idle";
+          s.transientUntil = 0;
+        }
         break;
       case "totem.notify":
       case "totem.show_card":
@@ -176,13 +179,14 @@ export class Companion {
           ? { until: now + minutes * 60000, kind: args.kind || "focus" }
           : null;
         s.avatar.activity = minutes ? "focus" : "idle";
+        s.transientUntil = 0;
         break;
       }
       default:
         throw new Error("unsupported command");
     }
     s.audit = s.audit.slice(-256);
-    if (source === "muse")
+    if (source === "muse" && command !== "totem.avatar.react")
       s.reaction = { name: "curious", at: now, id: randomUUID() };
     return { ok: true };
   }
@@ -229,6 +233,7 @@ export class Companion {
     const event = {
       id: randomUUID(),
       source: origin,
+      origin: source,
       type,
       severity,
       title,
@@ -317,12 +322,14 @@ export class Companion {
       s = this.state;
     if (s.deliveries.length >= 6) return null;
     return (
-      s.outbox.find(
-        (e) =>
-          e.nextAttempt <= now &&
-          s.deliveries.filter((d) => d.source === e.source).length < 2 &&
-          (!this.snapshot().quiet || rank[e.severity] >= 2),
-      ) || null
+      [...s.outbox]
+        .sort((a, b) => rank[b.severity] - rank[a.severity] || a.at - b.at)
+        .find(
+          (e) =>
+            e.nextAttempt <= now &&
+            s.deliveries.filter((d) => d.source === e.source).length < 2 &&
+            (!this.snapshot().quiet || rank[e.severity] >= 2),
+        ) || null
     );
   }
   delivered(id) {

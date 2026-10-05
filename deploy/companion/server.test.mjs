@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -14,6 +14,49 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
   timeout: 15000,
 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "totem-companion-"));
+  const reservation = net.createServer();
+  reservation.listen(0, "127.0.0.1");
+  await once(reservation, "listening");
+  const port = reservation.address().port;
+  await new Promise((resolve) => reservation.close(resolve));
+  const base = `http://127.0.0.1:${port}`;
+  let acknowledgementAllowed = false;
+  let acknowledged = false;
+  const desk = http.createServer((req, res) => {
+    if (req.url === "/desk/navigation") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          attention: {
+            records: acknowledged
+              ? []
+              : [
+                  {
+                    connectorId: "academic",
+                    id: "assignment:42",
+                    title: "Assignment due",
+                    body: "Existing connector alert",
+                    severity: "critical",
+                  },
+                ],
+          },
+        }),
+      );
+    } else if (
+      req.method === "DELETE" &&
+      req.url === "/desk/attention/academic/assignment%3A42"
+    ) {
+      acknowledged = acknowledgementAllowed;
+      res.statusCode = acknowledgementAllowed ? 200 : 503;
+      res.end();
+    } else {
+      res.statusCode = 404;
+      res.end();
+    }
+  });
+  desk.listen(0, "127.0.0.1");
+  await once(desk, "listening");
+  const deskBase = `http://127.0.0.1:${desk.address().port}`;
   const restored = initial();
   restored.avatar.accessory = "sunglasses";
   await writeFile(join(root, "state.json"), "{invalid");
@@ -25,9 +68,11 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       env: {
         ...process.env,
         TOTEM_COMPANION_STATE: root,
-        TOTEM_COMPANION_PORT: "4182",
+        TOTEM_COMPANION_VIEW_BOOTSTRAP: join(root, "display-config.js"),
+        TOTEM_COMPANION_DISPLAY_USER: "",
+        TOTEM_COMPANION_PORT: String(port),
         TOTEM_COMPANION_SOCKET: join(root, "commands.sock"),
-        TOTEM_DESK_BASE: "http://127.0.0.1:1",
+        TOTEM_DESK_BASE: deskBase,
         MUSEGADGET_SOCKET: join(root, "absent.sock"),
         TOTEM_COMPANION_AUTO_RECOVER: "0",
         TOTEM_COMPANION_APPROVALS: "0",
@@ -36,10 +81,22 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     },
   );
   try {
-    let state;
+    let state, token;
+    function headers() {
+      return { "X-Totem-View-Token": token };
+    }
     for (let i = 0; i < 100; i++) {
       try {
-        const r = await fetch("http://127.0.0.1:4182/state");
+        const config = await readFile(join(root, "display-config.js"), "utf8");
+        token = JSON.parse(
+          config
+            .replace(/^window.TotemCompanionConfig=/, "")
+            .trim()
+            .replace(/;$/, ""),
+        ).token;
+        const r = await fetch(`${base}/state`, {
+          headers: headers(),
+        });
         if (r.ok) {
           state = await r.json();
           break;
@@ -48,6 +105,15 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.ok(state, "sidecar should start");
+    assert.equal((await fetch(`${base}/state`)).status, 401);
+    assert.equal(
+      (
+        await fetch(`${base}/state`, {
+          headers: { Origin: "null" },
+        })
+      ).status,
+      401,
+    );
     assert.equal(state.avatar.accessory, "sunglasses");
     assert.ok(
       state.events.some(
@@ -60,15 +126,15 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     );
     assert.equal(
       (
-        await fetch("http://127.0.0.1:4182/state", {
-          headers: { Origin: "https://evil.example" },
+        await fetch(`${base}/state`, {
+          headers: { ...headers(), Origin: "https://evil.example" },
         })
       ).status,
       403,
     );
     const forgedHost = await new Promise((resolve, reject) => {
       const req = http.get(
-        "http://127.0.0.1:4182/state",
+        `${base}/state`,
         { headers: { Host: "evil.example" } },
         (res) => {
           res.resume();
@@ -78,9 +144,9 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       req.on("error", reject);
     });
     assert.equal(forgedHost, 403);
-    const bad = await fetch("http://127.0.0.1:4182/command", {
+    const bad = await fetch(`${base}/command`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...headers(), "Content-Type": "application/json" },
       body: JSON.stringify({ command: "system.run", args: { command: "id" } }),
     });
     assert.equal(bad.status, 400);
@@ -96,6 +162,47 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
         sock.on("error", reject);
       });
     }
+    let imported;
+    for (let i = 0; i < 100; i++) {
+      const snapshot = await fetch(`${base}/state`, {
+        headers: headers(),
+      }).then((r) => r.json());
+      imported = snapshot.events.find(
+        (e) => e.sourceRef?.recordId === "assignment:42",
+      );
+      if (imported) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.ok(imported, "existing connector alert should be imported");
+    assert.equal(imported.origin, "adapter");
+    assert.match(
+      (await command("totem.dismiss", { id: imported.id })).error,
+      /alert retained/,
+    );
+    assert.ok(
+      (
+        await fetch(`${base}/state`, { headers: headers() }).then((r) =>
+          r.json(),
+        )
+      ).events.some((e) => e.id === imported.id),
+    );
+    acknowledgementAllowed = true;
+    assert.equal(
+      (await command("totem.dismiss", { id: imported.id })).ok,
+      true,
+    );
+    assert.equal(
+      acknowledged,
+      true,
+      "remote acknowledgement reaches the original connector",
+    );
+    assert.ok(
+      !(
+        await fetch(`${base}/state`, { headers: headers() }).then((r) =>
+          r.json(),
+        )
+      ).events.some((e) => e.id === imported.id),
+    );
     assert.match(
       (await command("totem.restart_core")).error,
       /approval UI unavailable/,
@@ -106,8 +213,12 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     );
     assert.equal((await command("totem.focus", { minutes: 1 })).ok, true);
   } finally {
-    child.kill("SIGTERM");
-    await once(child, "exit");
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, "exit");
+      child.kill("SIGTERM");
+      await exited;
+    }
+    await new Promise((resolve) => desk.close(resolve));
     await rm(root, { recursive: true, force: true });
   }
 });

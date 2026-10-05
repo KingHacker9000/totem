@@ -134,3 +134,28 @@ test("wake reaction exits sleep and one noisy source cannot fill the queue", () 
     true,
   );
 });
+test("remote reaction is preserved and focus supersedes a transient activity", () => {
+  const { c, advance } = make();
+  c.command("totem.avatar.react", { reaction: "boop" }, "muse");
+  assert.equal(c.state.reaction.name, "boop");
+  c.command("totem.avatar.set_state", { activity: "thinking" });
+  c.command("totem.focus", { minutes: 2 });
+  advance(31000);
+  c.tick();
+  assert.equal(c.state.avatar.activity, "focus");
+  assert.ok(c.state.focus);
+});
+test("proactive delivery chooses critical events before ordinary queued events", () => {
+  const { c } = make();
+  c.command(
+    "totem.notify",
+    { source: "build", title: "Done", severity: "attention" },
+    "adapter",
+  );
+  const critical = c.command(
+    "totem.notify",
+    { source: "system", title: "Failed", severity: "critical" },
+    "system",
+  );
+  assert.equal(c.nextDelivery().id, critical.id);
+});

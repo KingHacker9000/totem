@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import {
   chmod,
   mkdir,
@@ -14,9 +14,25 @@ import net from "node:net";
 import os from "node:os";
 import { extname, resolve } from "node:path";
 import { promisify } from "node:util";
+import {
+  attentionPath,
+  normalizeAttention,
+  sourceReference,
+} from "./attention.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
 const run = promisify(execFile);
+const viewToken = randomBytes(32).toString("base64url");
+const bootstrapPath =
+  process.env.TOTEM_COMPANION_VIEW_BOOTSTRAP ||
+  "/run/totem-companion/display-config.js";
+const displayUser = process.env.TOTEM_COMPANION_DISPLAY_USER;
+function validViewToken(value) {
+  if (typeof value !== "string") return false;
+  const input = Buffer.from(value),
+    expected = Buffer.from(viewToken);
+  return input.length === expected.length && timingSafeEqual(input, expected);
+}
 const port = Number(process.env.TOTEM_COMPANION_PORT || 4181);
 const stateDir =
   process.env.TOTEM_COMPANION_STATE || "/srv/pi-hdd/totem-companion-state";
@@ -64,6 +80,7 @@ if (stateRecovered)
 const clients = new Set();
 let health = { status: "starting", muse: "unpaired" },
   navigation = {},
+  presentation = { view: "unconnected", capabilities: [] },
   lastDisplayBeat = Date.now(),
   started = Date.now();
 let persistence = Promise.resolve();
@@ -179,7 +196,7 @@ async function command(name, args = {}, source = "local") {
         (w) =>
           w.id === "academic:due-this-week" && w.primary && w.primary !== "0",
       ) || widgets.find((w) => w.id === "calendar:next-event");
-    return companion.command(
+    const result = companion.command(
       "totem.show_card",
       {
         source: "briefing",
@@ -192,6 +209,9 @@ async function command(name, args = {}, source = "local") {
       },
       source,
     );
+    await persist();
+    broadcast();
+    return result;
   }
   if (name === "totem.set_brightness") {
     checkObject(args, ["percent"]);
@@ -253,11 +273,26 @@ async function command(name, args = {}, source = "local") {
     broadcast();
     return { ok: true };
   }
+  if (name === "totem.dismiss") {
+    checkObject(args, ["id"]);
+    const id = text(args.id, 100);
+    const event = companion.state.events.find((e) => e.id === id);
+    if (event?.origin === "adapter" && event.sourceRef) {
+      const response = await fetch(deskBase + attentionPath(event.sourceRef), {
+        method: "DELETE",
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!response.ok)
+        throw new Error(
+          "connector acknowledgement unavailable; alert retained",
+        );
+    }
+  }
   // Never expose arbitrary service, path, shell, URL or file parameters.
   const result = companion.command(name, args, source);
   await persist();
   broadcast();
-  return result;
+  return { ...result, presentation };
 }
 async function body(req) {
   let bytes = 0,
@@ -305,13 +340,24 @@ const server = http.createServer(async (req, res) => {
       res.setHeader("Vary", "Origin");
     }
     if (req.method === "OPTIONS") {
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type,X-Totem-View-Token",
+      );
       res.setHeader("Access-Control-Allow-Methods", "GET,POST");
       res.writeHead(204);
       res.end();
       return;
     }
-    const path = new URL(req.url, "http://127.0.0.1:4181").pathname;
+    const url = new URL(req.url, `http://127.0.0.1:${port}`);
+    const path = url.pathname;
+    const supplied =
+      req.headers["x-totem-view-token"] ||
+      (path === "/events" ? url.searchParams.get("token") : null);
+    if (!validViewToken(supplied)) {
+      json(res, 401, { ok: false, error: "display authentication required" });
+      return;
+    }
     if (path === "/state" && req.method === "GET") {
       json(res, 200, snapshot());
       return;
@@ -327,6 +373,18 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (path === "/heartbeat" && req.method === "POST") {
+      const report = await body(req);
+      checkObject(report, ["view", "capabilities", "renderedAt"]);
+      if (
+        typeof report.view !== "string" ||
+        report.view.length > 40 ||
+        !Array.isArray(report.capabilities) ||
+        report.capabilities.length > 20 ||
+        report.capabilities.some((c) => typeof c !== "string" || c.length > 40)
+      )
+        throw new Error("invalid presentation report");
+      number(report.renderedAt, 0, Number.MAX_SAFE_INTEGER);
+      presentation = { view: report.view, capabilities: report.capabilities };
       lastDisplayBeat = Date.now();
       json(res, 200, { ok: true });
       return;
@@ -365,6 +423,23 @@ const server = http.createServer(async (req, res) => {
   }
 });
 await mkdir(resolve(socketPath, ".."), { recursive: true });
+await mkdir(resolve(bootstrapPath, ".."), { recursive: true });
+await writeFile(
+  bootstrapPath,
+  `window.TotemCompanionConfig=${JSON.stringify({ base: `http://127.0.0.1:${port}`, token: viewToken })};\n`,
+  { mode: 0o600 },
+);
+await chmod(bootstrapPath, 0o600);
+if (displayUser) {
+  await run(
+    "/usr/bin/setfacl",
+    ["-m", `u:${displayUser}:x`, resolve(bootstrapPath, "..")],
+    { timeout: 2500 },
+  );
+  await run("/usr/bin/setfacl", ["-m", `u:${displayUser}:r`, bootstrapPath], {
+    timeout: 2500,
+  });
+}
 try {
   await unlink(socketPath);
 } catch (e) {
@@ -447,6 +522,7 @@ async function monitor() {
           : museStatus.paired
             ? "offline"
             : "unpaired",
+      presentation,
       displayHeartbeatAgeSeconds: Math.round(
         (Date.now() - lastDisplayBeat) / 1000,
       ),
@@ -498,30 +574,40 @@ async function monitor() {
         : null,
     ])
       if (alert) companion.event(alert, "system");
-    for (const event of nav?.attention?.records || []) {
-      try {
-        companion.event(
-          {
-            source: event.connectorId,
-            type: "notification",
-            severity:
-              {
-                critical: "critical",
-                error: "urgent",
-                warning: "attention",
-                success: "attention",
-                info: "info",
-              }[event.severity] || "info",
-            title: event.title,
-            detail: event.body || undefined,
-            dedupeKey: event.id,
-            ttlSeconds: 60,
-            pinned: event.severity === "critical",
-          },
-          "adapter",
-        );
-      } catch {
-        console.error("invalid connector attention ignored");
+    if (nav?.attention && Array.isArray(nav.attention.records)) {
+      const records = nav.attention.records;
+      for (const record of records) {
+        try {
+          const reference = sourceReference(record);
+          const result = companion.event(normalizeAttention(record), "adapter");
+          if (result.id) {
+            const event = companion.state.events.find(
+              (e) => e.id === result.id,
+            );
+            if (event?.origin === "adapter") event.sourceRef = reference;
+          }
+        } catch {
+          console.error("invalid connector attention ignored");
+        }
+      }
+      // Source resolution and original-screen touch dismissal cancel pending messages.
+      // Never infer resolution from a failed snapshot fetch.
+      for (const event of [...companion.state.events]) {
+        if (
+          event.origin === "adapter" &&
+          event.sourceRef &&
+          !records.some(
+            (r) =>
+              r.connectorId === event.sourceRef.connectorId &&
+              r.id === event.sourceRef.recordId,
+          )
+        ) {
+          companion.command(
+            "totem.dismiss",
+            { id: event.id },
+            "source-resolution",
+          );
+        }
       }
     }
     // Auto-recover only a stale kiosk after a grace period, at most twice/hour.
