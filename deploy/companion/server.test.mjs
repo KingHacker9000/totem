@@ -83,6 +83,8 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
         TOTEM_COMPANION_STATE: root,
         TOTEM_COMPANION_VIEW_BOOTSTRAP: join(root, "display-config.js"),
         TOTEM_COMPANION_DISPLAY_USER: "",
+        TOTEM_COMPANION_EVENT_USER: "",
+        TOTEM_COMPANION_EVENT_SOCKET: join(root, "events.sock"),
         TOTEM_COMPANION_PORT: String(port),
         TOTEM_COMPANION_SOCKET: join(root, "commands.sock"),
         TOTEM_DESK_BASE: deskBase,
@@ -242,6 +244,43 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       /physical confirmation/,
     );
     assert.equal((await command("totem.focus", { minutes: 1 })).ok, true);
+    const publisher = spawn(
+      process.execPath,
+      [new URL("./publish-event.mjs", import.meta.url).pathname],
+      {
+        env: {
+          ...process.env,
+          TOTEM_COMPANION_EVENT_SOCKET: join(root, "events.sock"),
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    let published = "";
+    publisher.stdout.on("data", (chunk) => (published += chunk));
+    const publisherExit = once(publisher, "exit");
+    publisher.stdin.end(
+      JSON.stringify({
+        source: "jobs",
+        type: "job.failed",
+        severity: "critical",
+        title: "Local job failed",
+        dedupeKey: "local-run-1",
+      }),
+    );
+    assert.equal((await publisherExit)[0], 0);
+    const publication = JSON.parse(published);
+    assert.equal(publication.ok, true);
+    const saved = JSON.parse(await readFile(join(root, "state.json"), "utf8"));
+    assert.equal(
+      saved.outbox.some(
+        (e) => e.id === publication.id && e.origin === "local-event",
+      ),
+      true,
+    );
+    assert.equal(
+      (await command("totem.dismiss", { id: publication.id })).ok,
+      true,
+    );
     const next = await command("totem.next");
     assert.equal(next.ok, true);
     const requested = (

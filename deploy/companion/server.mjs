@@ -20,6 +20,7 @@ import {
   sourceReference,
 } from "./attention.mjs";
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
+import { publishEvent } from "./event-ingress.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
 const run = promisify(execFile);
@@ -28,6 +29,10 @@ const bootstrapPath =
   process.env.TOTEM_COMPANION_VIEW_BOOTSTRAP ||
   "/run/totem-companion/display-config.js";
 const displayUser = process.env.TOTEM_COMPANION_DISPLAY_USER;
+const eventUser = process.env.TOTEM_COMPANION_EVENT_USER;
+const eventSocketPath =
+  process.env.TOTEM_COMPANION_EVENT_SOCKET ||
+  "/run/totem-companion/events.sock";
 function validViewToken(value) {
   if (typeof value !== "string") return false;
   const input = Buffer.from(value),
@@ -472,6 +477,49 @@ const bridge = net.createServer((sock) => {
 });
 await new Promise((resolve) => bridge.listen(socketPath, resolve));
 await chmod(socketPath, 0o660);
+await mkdir(resolve(eventSocketPath, ".."), { recursive: true });
+await unlink(eventSocketPath).catch((e) => {
+  if (e.code !== "ENOENT") throw e;
+});
+const eventBridge = net.createServer((sock) => {
+  let input = "";
+  sock.setTimeout(5000, () => sock.destroy());
+  sock.on("data", (chunk) => {
+    input += chunk;
+    if (Buffer.byteLength(input) > 8192) {
+      sock.destroy();
+      return;
+    }
+    if (!input.includes("\n")) return;
+    sock.pause();
+    commandQueue = commandQueue
+      .catch(() => {})
+      .then(async () => {
+        try {
+          const result = publishEvent(companion, JSON.parse(input));
+          await persist();
+          broadcast();
+          sock.end(`${JSON.stringify(result)}\n`);
+        } catch (e) {
+          sock.end(`${JSON.stringify({ ok: false, error: e.message })}\n`);
+        }
+      });
+  });
+  sock.on("error", () => {});
+});
+await new Promise((resolve) => eventBridge.listen(eventSocketPath, resolve));
+await chmod(eventSocketPath, 0o600);
+if (eventUser) {
+  await run(
+    "/usr/bin/setfacl",
+    ["-m", `u:${eventUser}:x`, resolve(eventSocketPath, "..")],
+    { timeout: 2500 },
+  );
+  await run("/usr/bin/setfacl", ["-m", `u:${eventUser}:rw`, eventSocketPath], {
+    timeout: 2500,
+  });
+}
+
 server.listen(port, "127.0.0.1");
 setInterval(() => {
   const before = JSON.stringify(companion.state);
@@ -671,6 +719,7 @@ process.on("SIGTERM", () => {
   void persist().finally(() => {
     server.close();
     bridge.close();
+    eventBridge.close();
     process.exit(0);
   });
 });

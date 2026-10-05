@@ -87,6 +87,38 @@ unavailable. The per-day marker persists with the event, so service restarts do
 not repeat it. Daily briefings expire after 60 seconds and do not proactively
 message Muse. Explicit Muse requests are separate from the automatic schedule.
 
+## Local event producers
+
+`events.sock` is separate from Muse's command socket. It accepts one normalized
+JSON event per connection and exposes no commands or recovery authority. It is
+owner-only, with a named read/write ACL for `TOTEM_COMPANION_EVENT_USER` (the
+inspected Pi uses `ashish`). The common Muse group has no access. Grant additional
+producer users deliberately; never make this socket world/group writable.
+
+Allowed sources: academic, calendar, github, swinglab, printing, jobs, webhook.
+Use stable per-run dedupe keys. Fields are source, type, severity, title, detail,
+dedupeKey, optional ISO timestamp, ttlSeconds and proactive. A timestamp must be
+within the last 24 hours and no more than a minute ahead. `actions` may only be an
+empty array until those controls have a supported contract. Input is bounded to
+8 KiB. Unknown fields (including commands, URLs and file paths) are rejected.
+Existing queue bounds, priority, quiet hours, expiry and rate limits apply.
+Success is returned after state/outbox persistence. Acknowledgement cancels a
+pending delivery; stable keys prevent duplicates across restart.
+
+A trusted local job can publish its result without sudo:
+
+```sh
+node /srv/pi-hdd/totem-companion-work/totem/deploy/companion/publish-event.mjs <<'JSON'
+{"source":"jobs","type":"job.completed","severity":"attention","title":"Local job completed","dedupeKey":"job-name:unique-run-id","ttlSeconds":60}
+JSON
+```
+
+The client reads one event from stdin, prints its acknowledgement and exits
+nonzero on denial/unavailability. It never executes producer content. Printing
+and webhook producers can use the same contract; no printer or external HTTP
+webhook transport is assumed installed. Native systemd-job hooks and actual
+printer transport integration remain separate acceptance work.
+
 ## Install on the inspected Pi
 
 These sample units document the actual checkout paths; adapt them for another host.

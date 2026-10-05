@@ -12,6 +12,7 @@ EnvironmentFile=-/etc/totem-companion.env
 Environment=TZ=America/New_York
 Environment=TOTEM_COMPANION_BRIEFING_AT=09:00
 Environment=TOTEM_COMPANION_DISPLAY_USER=ashish
+Environment=TOTEM_COMPANION_EVENT_USER=ashish
 RuntimeDirectory=totem-companion
 RuntimeDirectoryMode=0750
 ExecStart=/bin/sh -c 'while [ ! -r /srv/pi-hdd/totem-companion-work/totem/deploy/companion/server.mjs ]; do sleep 2; done; exec /usr/bin/node /srv/pi-hdd/totem-companion-work/totem/deploy/companion/server.mjs'
