@@ -103,9 +103,11 @@ export class Companion {
     this.state = saved || initial();
     if (this.state.version !== 1) throw new Error("unsupported state version");
     this.state.alertSourceOrder ??= [];
-    if (!Array.isArray(this.state.alertSourceOrder) ||
-        this.state.alertSourceOrder.length > 128 ||
-        this.state.alertSourceOrder.some((source) => typeof source !== "string"))
+    if (
+      !Array.isArray(this.state.alertSourceOrder) ||
+      this.state.alertSourceOrder.length > 128 ||
+      this.state.alertSourceOrder.some((source) => typeof source !== "string")
+    )
       throw new Error("invalid alert source order");
     for (const key of [
       "events",
@@ -365,7 +367,9 @@ export class Companion {
   snapshot() {
     this.tick();
     const s = this.state;
-    const sourceOrder = Array.isArray(s.alertSourceOrder) ? s.alertSourceOrder : [];
+    const sourceOrder = Array.isArray(s.alertSourceOrder)
+      ? s.alertSourceOrder
+      : [];
     const events = [...s.events].sort(
       (a, b) =>
         rank[b.severity] - rank[a.severity] ||

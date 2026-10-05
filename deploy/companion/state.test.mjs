@@ -304,6 +304,10 @@ test("equal-priority alerts rotate sources after acknowledgement and survive rel
   assert.equal(restored.snapshot().card.source, "github");
   restored.command("totem.dismiss", { id: restored.snapshot().card.id });
   assert.equal(restored.snapshot().card.source, "jobs");
-  const critical = restored.command("totem.notify", { title: "Critical", severity: "critical" }, "jobs");
+  const critical = restored.command(
+    "totem.notify",
+    { title: "Critical", severity: "critical" },
+    "jobs",
+  );
   assert.equal(restored.snapshot().card.id, critical.id);
 });
