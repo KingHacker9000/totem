@@ -143,6 +143,32 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       ).status,
       401,
     );
+    const heartbeat = (report) =>
+      request(`${base}/heartbeat`, {
+        method: "POST",
+        headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify(report),
+      });
+    assert.equal(
+      (
+        await heartbeat({
+          view: "original",
+          capabilities: ["reaction", "alerts"],
+          renderedAt: Date.now() - 10000,
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await heartbeat({
+          view: "original",
+          capabilities: ["reaction", "alerts"],
+          renderedAt: Date.now(),
+        })
+      ).status,
+      200,
+    );
     assert.equal(state.avatar.accessory, "sunglasses");
     assert.ok(
       state.events.some(
@@ -183,7 +209,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       stage = name;
       return new Promise((resolve, reject) => {
         const sock = net.createConnection(join(root, "commands.sock"));
-        sock.setTimeout(10000, () =>
+        sock.setTimeout(17000, () =>
           sock.destroy(new Error(`command timeout: ${name}`)),
         );
         sock.on("connect", () =>
@@ -191,7 +217,13 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
         );
         let body = "";
         sock.on("data", (chunk) => (body += chunk));
-        sock.on("end", () => resolve(JSON.parse(body)));
+        sock.on("end", () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            reject(new Error(`invalid command acknowledgement: ${name}`));
+          }
+        });
         sock.on("error", reject);
       });
     }

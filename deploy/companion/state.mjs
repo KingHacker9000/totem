@@ -80,6 +80,7 @@ export function initial() {
     audit: [],
     reaction: null,
     transientUntil: 0,
+    displayRecovery: { attempts: [], lastResult: null },
   };
 }
 export class Companion {
@@ -108,6 +109,21 @@ export class Companion {
     for (const key of ["mood", "activity", "accessory"])
       choice(this.state.avatar[key], key);
     number(this.state.avatar.energy, 0, 1);
+    this.state.displayRecovery ??= {
+      attempts: this.state.audit
+        .filter(
+          (e) => e.action === "auto-restart-display" && Number.isFinite(e.at),
+        )
+        .map((e) => e.at)
+        .sort((a, b) => a - b)
+        .slice(-2),
+      lastResult: null,
+    };
+    if (
+      !Array.isArray(this.state.displayRecovery.attempts) ||
+      this.state.displayRecovery.attempts.some((at) => !Number.isFinite(at))
+    )
+      throw new Error("invalid display recovery state");
     this.tick();
   }
   command(command, args = {}, source = "local") {

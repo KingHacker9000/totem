@@ -22,6 +22,7 @@ import {
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
 import { publishEvent } from "./event-ingress.mjs";
 import { jobUnits, observeJobs } from "./jobs.mjs";
+import { displayRecoveryDecision, recordDisplayRecovery } from "./recovery.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
 const run = promisify(execFile);
@@ -390,6 +391,8 @@ const server = http.createServer(async (req, res) => {
       )
         throw new Error("invalid presentation report");
       number(report.renderedAt, 0, Number.MAX_SAFE_INTEGER);
+      if (Math.abs(Date.now() - report.renderedAt) > 5000)
+        throw new Error("stale render heartbeat");
       presentation = { view: report.view, capabilities: report.capabilities };
       lastDisplayBeat = Date.now();
       json(res, 200, { ok: true });
@@ -462,6 +465,7 @@ const bridge = net.createServer((sock) => {
       return;
     }
     if (!data.includes("\n")) return;
+    sock.setTimeout(15000); // Full requests need the command/recovery budget, not the idle-input timeout.
     sock.pause();
     commandQueue = commandQueue
       .catch(() => {})
@@ -496,6 +500,7 @@ const eventBridge = net.createServer((sock) => {
       return;
     }
     if (!input.includes("\n")) return;
+    sock.setTimeout(15000);
     sock.pause();
     commandQueue = commandQueue
       .catch(() => {})
@@ -692,35 +697,46 @@ async function monitor() {
       process.env.TOTEM_COMPANION_BRIEFING_AT,
       process.env.TZ,
     );
-    // Auto-recover only a stale kiosk after a grace period, at most twice/hour.
-    if (
-      process.env.TOTEM_COMPANION_AUTO_RECOVER === "1" &&
-      Date.now() - lastDisplayBeat > 60000 &&
-      Date.now() - started > 90000
-    ) {
-      const attempts = companion.state.audit.filter(
-        (e) =>
-          e.action === "auto-restart-display" && Date.now() - e.at < 3600000,
-      );
-      if (attempts.length < 2) {
-        companion.state.audit.push({
-          action: "auto-restart-display",
-          at: Date.now(),
-        });
-        await persist();
+    const decision = displayRecoveryDecision(companion.state, {
+      enabled: process.env.TOTEM_COMPANION_AUTO_RECOVER === "1",
+      now: Date.now(),
+      started,
+      lastBeat: lastDisplayBeat,
+    });
+    if (decision === "restart") {
+      const at = Date.now();
+      recordDisplayRecovery(companion.state, at);
+      await persist(); // Reserve the attempt before invoking privileged recovery.
+      let status = "ok";
+      try {
         await restart("totem-portal-kiosk.service");
-        lastDisplayBeat = Date.now();
-      } else
-        companion.event(
-          {
-            source: "system",
-            title: "Display needs attention",
-            severity: "critical",
-            dedupeKey: "display-recovery-failed",
-          },
-          "system",
-        );
+      } catch (error) {
+        status = "failed";
+        console.error("kiosk recovery:", error.message);
+      }
+      companion.state.displayRecovery.lastResult = { at, status };
+      companion.state.audit.push({
+        action: "auto-restart-display",
+        at,
+        status,
+      });
+      companion.state.audit = companion.state.audit.slice(-256);
+    } else if (decision === "escalate") {
+      companion.event(
+        {
+          source: "system",
+          title: "Display needs attention",
+          severity: "critical",
+          dedupeKey: "display-recovery-failed",
+        },
+        "system",
+      );
     }
+    health.displayRecovery = {
+      enabled: process.env.TOTEM_COMPANION_AUTO_RECOVER === "1",
+      attemptsLastHour: companion.state.displayRecovery.attempts.length,
+      lastResult: companion.state.displayRecovery.lastResult,
+    };
     const event = companion.nextDelivery();
     if (event) {
       try {

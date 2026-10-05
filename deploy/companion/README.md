@@ -27,7 +27,9 @@ is shipped in this directory.
   independently of the model's tool schemas.
 - Muse advertises only `totem.*`: avatar state/look/reaction, notification/card,
   acknowledgement, health, focus, next/briefing, brightness and fixed recovery.
-  Shell and file commands are neither registered nor executable.
+  Shell and file commands are neither registered nor executable. Idle socket
+  input has a five-second limit; complete requests use the fifteen-second command
+  budget so persistence/recovery work is not cut off by the idle-input timeout.
 - Muse runs as `musegadget`, with no sudo and `NoNewPrivileges`. Credentials
   and identity are in `/var/lib/musegadget` (0700); companion data is owned by
   `totem-companion` on the HDD (0700). The common group permits sockets and
@@ -42,8 +44,14 @@ is shipped in this directory.
   remote approval protocol must authenticate an explicit human confirmation,
   rather than trusting another model tool call.
 - Auto kiosk restart is opt-in (`TOTEM_COMPANION_AUTO_RECOVER=1`) and requires
-  the active original display to send heartbeats. Leave it disabled until that
-  integration is verified. Existing systemd crash restarts remain in place.
+  the active original display to send fresh rendered-frame heartbeats. Keep it
+  disabled on hosts without that verified integration. The inspected Pi now
+  enables it through `/etc/totem-companion.env`, after a controlled frozen-kiosk
+  test restored rendering without restarting core. Existing systemd crash
+  restarts remain in place. Separate durable counters cap automatic attempts at
+  two/hour, with startup and retry grace. Failed recovery escalates to a pinned
+  alert instead of an endless restart loop. Counters survive audit eviction,
+  companion restart and migration from legacy audit records.
 
 ## State and delivery
 
