@@ -21,6 +21,7 @@ import {
 } from "./attention.mjs";
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
 import { publishEvent } from "./event-ingress.mjs";
+import { observeHealthEvents } from "./health-events.mjs";
 import { jobUnits, observeJobs } from "./jobs.mjs";
 import { displayRecoveryDecision, recordDisplayRecovery } from "./recovery.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
@@ -590,28 +591,30 @@ async function monitor() {
       !health.touchAvailable
     )
       health.status = "attention";
-    for (const alert of [
-      health.freeDiskBytes < 2 * 1024 ** 3
-        ? {
-            source: "system",
-            dedupeKey: "disk-low",
-            title: "Storage is getting tight",
-            detail: `${(health.freeDiskBytes / 1024 ** 3).toFixed(1)} GB free on the SD card.`,
-            severity: "urgent",
-            pinned: true,
-          }
-        : null,
-      health.temperatureC >= 80
-        ? {
-            source: "system",
-            dedupeKey: "temperature-high",
-            title: "I’m feeling hot",
-            detail: `Pi temperature ${health.temperatureC.toFixed(0)}°C.`,
-            severity: "urgent",
-            pinned: true,
-          }
-        : null,
-      !health.touchAvailable
+    observeHealthEvents(companion, {
+      "disk-low":
+        health.freeDiskBytes < 2 * 1024 ** 3
+          ? {
+              source: "system",
+              dedupeKey: "disk-low",
+              title: "Storage is getting tight",
+              detail: `${(health.freeDiskBytes / 1024 ** 3).toFixed(1)} GB free on the SD card.`,
+              severity: "urgent",
+              pinned: true,
+            }
+          : null,
+      "temperature-high":
+        health.temperatureC >= 80
+          ? {
+              source: "system",
+              dedupeKey: "temperature-high",
+              title: "I’m feeling hot",
+              detail: `Pi temperature ${health.temperatureC.toFixed(0)}°C.`,
+              severity: "urgent",
+              pinned: true,
+            }
+          : null,
+      "touch-unavailable": !health.touchAvailable
         ? {
             source: "system",
             dedupeKey: "touch-unavailable",
@@ -619,7 +622,7 @@ async function monitor() {
             severity: "critical",
           }
         : null,
-      !core
+      "core-unavailable": !core
         ? {
             source: "system",
             dedupeKey: "core-unavailable",
@@ -629,8 +632,7 @@ async function monitor() {
             pinned: true,
           }
         : null,
-    ])
-      if (alert) companion.event(alert, "system");
+    });
     if (nav?.attention && Array.isArray(nav.attention.records)) {
       const records = nav.attention.records;
       for (const record of records) {
