@@ -1,0 +1,1 @@
+totem-companion ALL=(root) NOPASSWD: /usr/local/libexec/totem-companion-recover totem-portal-kiosk.service, /usr/local/libexec/totem-companion-recover totem.service, /usr/local/libexec/totem-companion-recover ^brightness\:[0-9]{1,3}$

@@ -1,0 +1,26 @@
+[Unit]
+Description=Totem semantic companion runtime
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=totem-companion
+Group=totem-companion
+Environment=TOTEM_COMPANION_STATE=/srv/pi-hdd/totem-companion-state
+EnvironmentFile=-/etc/totem-companion.env
+Environment=TZ=America/New_York
+RuntimeDirectory=totem-companion
+RuntimeDirectoryMode=0750
+ExecStart=/bin/sh -c 'while [ ! -r /srv/pi-hdd/totem-companion-work/totem/deploy/companion/server.mjs ]; do sleep 2; done; exec /usr/bin/node /srv/pi-hdd/totem-companion-work/totem/deploy/companion/server.mjs'
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+UMask=0027
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/pi-hdd/totem-companion-state /run/totem-companion
+
+[Install]
+WantedBy=multi-user.target
