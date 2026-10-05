@@ -138,6 +138,16 @@ export class Companion {
     )
       throw new Error("invalid display recovery state");
     this.tick();
+    const sourceCounts = new Map();
+    this.state.outbox = [...this.state.outbox]
+      .sort((a, b) => rank[b.severity] - rank[a.severity] || a.at - b.at)
+      .filter((event) => {
+        const count = sourceCounts.get(event.source) || 0;
+        if (count >= 16) return false;
+        sourceCounts.set(event.source, count + 1);
+        return true;
+      })
+      .slice(0, 128);
   }
   command(command, args = {}, source = "local") {
     const s = this.state,

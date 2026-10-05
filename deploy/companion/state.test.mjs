@@ -265,3 +265,28 @@ test("acknowledgement during an in-flight send cannot erase delivery rate accoun
   assert.equal(c.state.deliveries.length, 1);
   assert.equal(c.state.deliveries[0].source, "jobs");
 });
+
+test("legacy offline backlog adopts per-source limits while retaining critical delivery", () => {
+  const { c } = make();
+  const critical = c.event(
+    {
+      source: "jobs",
+      title: "Critical",
+      severity: "critical",
+      dedupeKey: "legacy-critical",
+    },
+    "local-event",
+  );
+  const saved = JSON.parse(JSON.stringify(c.state));
+  const template = saved.outbox[0];
+  for (let i = 0; i < 32; i++)
+    saved.outbox.push({
+      ...template,
+      id: `legacy-${i}`,
+      dedupeKey: `legacy-${i}`,
+      severity: "attention",
+    });
+  const restored = new Companion(saved, c.clock);
+  assert.equal(restored.state.outbox.length, 16);
+  assert.ok(restored.state.outbox.some((e) => e.id === critical.id));
+});
