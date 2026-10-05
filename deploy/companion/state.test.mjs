@@ -290,3 +290,20 @@ test("legacy offline backlog adopts per-source limits while retaining critical d
   assert.equal(restored.state.outbox.length, 16);
   assert.ok(restored.state.outbox.some((e) => e.id === critical.id));
 });
+
+test("equal-priority alerts rotate sources after acknowledgement and survive reload", () => {
+  const { c } = make();
+  for (const source of ["jobs", "jobs", "jobs", "calendar", "github"])
+    c.command("totem.notify", { title: source, severity: "urgent" }, source);
+  const first = c.snapshot().card;
+  assert.equal(first.source, "jobs");
+  c.command("totem.dismiss", { id: first.id });
+  const restored = new Companion(JSON.parse(JSON.stringify(c.state)), c.clock);
+  assert.equal(restored.snapshot().card.source, "calendar");
+  restored.command("totem.dismiss", { id: restored.snapshot().card.id });
+  assert.equal(restored.snapshot().card.source, "github");
+  restored.command("totem.dismiss", { id: restored.snapshot().card.id });
+  assert.equal(restored.snapshot().card.source, "jobs");
+  const critical = restored.command("totem.notify", { title: "Critical", severity: "critical" }, "jobs");
+  assert.equal(restored.snapshot().card.id, critical.id);
+});

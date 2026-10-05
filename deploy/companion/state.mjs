@@ -94,6 +94,7 @@ export function initial() {
     reaction: null,
     transientUntil: 0,
     displayRecovery: { attempts: [], lastResult: null },
+    alertSourceOrder: [],
   };
 }
 export class Companion {
@@ -101,6 +102,11 @@ export class Companion {
     this.clock = clock;
     this.state = saved || initial();
     if (this.state.version !== 1) throw new Error("unsupported state version");
+    this.state.alertSourceOrder ??= [];
+    if (!Array.isArray(this.state.alertSourceOrder) ||
+        this.state.alertSourceOrder.length > 128 ||
+        this.state.alertSourceOrder.some((source) => typeof source !== "string"))
+      throw new Error("invalid alert source order");
     for (const key of [
       "events",
       "history",
@@ -198,6 +204,10 @@ export class Companion {
         const id = text(args.id, 100);
         const event = s.events.find((e) => e.id === id);
         if (!event) throw new Error("unknown event");
+        s.alertSourceOrder = [
+          ...s.alertSourceOrder.filter((item) => item !== event.source),
+          event.source,
+        ].slice(-128);
         s.events = s.events.filter((e) => e.id !== id);
         s.outbox = s.outbox.filter((e) => e.id !== id);
         s.history.push({
@@ -355,8 +365,12 @@ export class Companion {
   snapshot() {
     this.tick();
     const s = this.state;
+    const sourceOrder = Array.isArray(s.alertSourceOrder) ? s.alertSourceOrder : [];
     const events = [...s.events].sort(
-      (a, b) => rank[b.severity] - rank[a.severity] || a.at - b.at,
+      (a, b) =>
+        rank[b.severity] - rank[a.severity] ||
+        sourceOrder.indexOf(a.source) - sourceOrder.indexOf(b.source) ||
+        a.at - b.at,
     );
     const quiet =
       new Date(this.clock()).getHours() < 7 ||

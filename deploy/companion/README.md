@@ -59,6 +59,7 @@ is shipped in this directory.
 focus timers, outbox, delivery counters and bounded audit survive service restarts.
 Critical alerts require acknowledgement; ordinary cards expire. Recently expired
 or acknowledged dedupe keys are remembered for 24 hours (bounded to 512). Each source may hold at most 16 visible events and 16 pending deliveries.
+Equal-priority display alerts rotate among sources after acknowledgement; severity always takes precedence. The source turn history survives companion restart.
 The event and outbox queues cap at 128. Higher-priority arrivals can replace lower-priority queued records; critical records are retained. Replaced visible records enter dedupe history and their pending messages are cancelled. Successful in-flight sends still count against delivery limits when their alert was acknowledged or replaced before the send completed. Messages expire after 24 hours, retry with
 bounded backoff and use stable source sessions; global limit six/hour and two/hour
 per source. Quiet hours are 22:00–07:00 in the configured service timezone; urgent
