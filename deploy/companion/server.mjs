@@ -745,7 +745,7 @@ async function monitor() {
           session_id: `totem-${event.source.replace(/[^A-Za-z0-9-]/g, "-").slice(0, 50)}`,
         });
         if (!result.ok) throw new Error(result.error);
-        companion.delivered(event.id);
+        companion.delivered(event.id, event.source);
       } catch {
         event.attempts++;
         event.nextAttempt =

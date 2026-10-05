@@ -188,3 +188,80 @@ test("break completion has the correct prompt and a stable completion key", () =
     1,
   );
 });
+
+test("a noisy source cannot block its later critical alert with ordinary events", () => {
+  const { c } = make();
+  const first = c.event(
+    { source: "jobs", title: "Routine", dedupeKey: "routine-0" },
+    "local-event",
+  );
+  for (let i = 1; i < 16; i++)
+    c.event(
+      { source: "jobs", title: "Routine", dedupeKey: `routine-${i}` },
+      "local-event",
+    );
+  const critical = c.event(
+    {
+      source: "jobs",
+      title: "Failure",
+      severity: "critical",
+      dedupeKey: "failure",
+    },
+    "local-event",
+  );
+  assert.equal(critical.ok, true);
+  assert.equal(critical.proactiveQueued, true);
+  assert.equal(c.state.events.length, 16);
+  assert.ok(!c.state.events.some((e) => e.id === first.id));
+  assert.ok(!c.state.outbox.some((e) => e.id === first.id));
+  assert.equal(
+    c.event(
+      { source: "jobs", title: "Routine", dedupeKey: "routine-0" },
+      "local-event",
+    ).deduplicated,
+    true,
+  );
+});
+test("offline transport queue bounds each source and reserves admission for higher priority", () => {
+  const { c, advance } = make();
+  for (let i = 0; i < 17; i++) {
+    c.event(
+      {
+        source: "jobs",
+        title: "Routine",
+        dedupeKey: `offline-${i}`,
+        ttlSeconds: 3,
+      },
+      "local-event",
+    );
+    advance(4000);
+    c.tick();
+  }
+  assert.equal(c.state.outbox.length, 16);
+  const critical = c.event(
+    {
+      source: "jobs",
+      title: "Failure",
+      severity: "critical",
+      dedupeKey: "urgent-offline",
+    },
+    "local-event",
+  );
+  assert.equal(critical.proactiveQueued, true);
+  assert.equal(c.state.outbox.length, 16);
+  assert.equal(c.nextDelivery().id, critical.id);
+});
+
+test("acknowledgement during an in-flight send cannot erase delivery rate accounting", () => {
+  const { c } = make();
+  const result = c.event(
+    { source: "jobs", title: "Finished", dedupeKey: "inflight" },
+    "local-event",
+  );
+  const sending = c.nextDelivery();
+  assert.equal(sending.id, result.id);
+  c.command("totem.dismiss", { id: result.id }, "muse");
+  c.delivered(sending.id, sending.source);
+  assert.equal(c.state.deliveries.length, 1);
+  assert.equal(c.state.deliveries[0].source, "jobs");
+});

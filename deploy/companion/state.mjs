@@ -36,6 +36,19 @@ export const ENUMS = {
   severity: ["info", "attention", "urgent", "critical"],
 };
 const rank = { info: 0, attention: 1, urgent: 2, critical: 3 };
+function queueAdmission(queue, source, severity) {
+  const sourceFull =
+    queue.filter((event) => event.source === source).length >= 16;
+  if (!sourceFull && queue.length < 128) return { allowed: true };
+  const victim = queue
+    .filter(
+      (event) =>
+        (!sourceFull || event.source === source) &&
+        rank[event.severity] < rank[severity],
+    )
+    .sort((a, b) => rank[a.severity] - rank[b.severity] || a.at - b.at)[0];
+  return { allowed: !!victim, victim };
+}
 export function checkObject(value, allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("expected object");
@@ -241,11 +254,20 @@ export class Companion {
       )
     )
       return { ok: true, deduplicated: true };
-    if (
-      this.state.events.filter((e) => e.source === origin).length >= 16 ||
-      this.state.events.length >= 128
-    ) {
-      return { ok: false, error: "event queue full" };
+    const admission = queueAdmission(this.state.events, origin, severity);
+    if (!admission.allowed) return { ok: false, error: "event queue full" };
+    if (admission.victim) {
+      const victim = admission.victim;
+      this.state.events = this.state.events.filter((e) => e.id !== victim.id);
+      this.state.outbox = this.state.outbox.filter((e) => e.id !== victim.id);
+      this.state.history.push({
+        id: victim.id,
+        source: victim.source,
+        dedupeKey: victim.dedupeKey,
+        at: now,
+        reason: "priority-replaced",
+      });
+      this.state.history = this.state.history.slice(-512);
     }
     const event = {
       id: randomUUID(),
@@ -262,16 +284,24 @@ export class Companion {
         args.pinned || severity === "critical" ? null : now + ttl * 1000,
     };
     this.state.events.push(event);
+    let proactiveQueued = false;
     if (args.proactive !== false && rank[severity] >= 1 && source !== "muse") {
-      if (this.state.outbox.length < 128)
+      const delivery = queueAdmission(this.state.outbox, origin, severity);
+      if (delivery.allowed) {
+        if (delivery.victim)
+          this.state.outbox = this.state.outbox.filter(
+            (e) => e.id !== delivery.victim.id,
+          );
         this.state.outbox.push({
           ...event,
           attempts: 0,
           nextAttempt: now,
           deliveryExpiresAt: now + 86400000,
         });
+        proactiveQueued = true;
+      }
     }
-    return { ok: true, id: event.id };
+    return { ok: true, id: event.id, proactiveQueued };
   }
   tick() {
     const now = this.clock(),
@@ -354,10 +384,14 @@ export class Companion {
         ) || null
     );
   }
-  delivered(id) {
+  delivered(id, deliveredSource) {
     const event = this.state.outbox.find((e) => e.id === id);
-    if (event)
-      this.state.deliveries.push({ source: event.source, at: this.clock() });
+    const source = event?.source || deliveredSource;
+    if (source)
+      this.state.deliveries.push({
+        source: text(source, 64),
+        at: this.clock(),
+      });
     this.state.outbox = this.state.outbox.filter((e) => e.id !== id);
   }
 }
