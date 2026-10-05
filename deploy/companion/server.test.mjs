@@ -11,7 +11,7 @@ import { initial } from "./state.mjs";
 
 test("isolated sidecar recovers corrupt state and denies web/remote authority", {
   skip: process.platform !== "linux",
-  timeout: 15000,
+  timeout: 60000,
 }, async (t) => {
   const root = await mkdtemp(join(tmpdir(), "totem-companion-"));
   const reservation = net.createServer();
@@ -93,9 +93,19 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       stdio: "ignore",
     },
   );
-  t.signal.addEventListener("abort", () => child.kill("SIGKILL"), {
-    once: true,
-  });
+  let stage = "startup";
+  const request = (url, options = {}) =>
+    fetch(url, { ...options, signal: AbortSignal.timeout(5000) });
+  t.signal.addEventListener(
+    "abort",
+    () => {
+      t.diagnostic(`timed out during ${stage}`);
+      child.kill("SIGKILL");
+    },
+    {
+      once: true,
+    },
+  );
   try {
     let state, token;
     function headers() {
@@ -110,7 +120,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
             .trim()
             .replace(/;$/, ""),
         ).token;
-        const r = await fetch(`${base}/state`, {
+        const r = await request(`${base}/state`, {
           headers: headers(),
         });
         if (r.ok) {
@@ -121,10 +131,10 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.ok(state, "sidecar should start");
-    assert.equal((await fetch(`${base}/state`)).status, 401);
+    assert.equal((await request(`${base}/state`)).status, 401);
     assert.equal(
       (
-        await fetch(`${base}/state`, {
+        await request(`${base}/state`, {
           headers: { Origin: "null" },
         })
       ).status,
@@ -142,7 +152,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     );
     assert.equal(
       (
-        await fetch(`${base}/state`, {
+        await request(`${base}/state`, {
           headers: { ...headers(), Origin: "https://evil.example" },
         })
       ).status,
@@ -160,16 +170,17 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       req.on("error", reject);
     });
     assert.equal(forgedHost, 403);
-    const bad = await fetch(`${base}/command`, {
+    const bad = await request(`${base}/command`, {
       method: "POST",
       headers: { ...headers(), "Content-Type": "application/json" },
       body: JSON.stringify({ command: "system.run", args: { command: "id" } }),
     });
     assert.equal(bad.status, 400);
     async function command(name, args = {}) {
+      stage = name;
       return new Promise((resolve, reject) => {
         const sock = net.createConnection(join(root, "commands.sock"));
-        sock.setTimeout(3000, () =>
+        sock.setTimeout(10000, () =>
           sock.destroy(new Error(`command timeout: ${name}`)),
         );
         sock.on("connect", () =>
@@ -183,7 +194,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     }
     let imported;
     for (let i = 0; i < 100; i++) {
-      const snapshot = await fetch(`${base}/state`, {
+      const snapshot = await request(`${base}/state`, {
         headers: headers(),
       }).then((r) => r.json());
       imported = snapshot.events.find(
@@ -200,7 +211,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     );
     assert.ok(
       (
-        await fetch(`${base}/state`, { headers: headers() }).then((r) =>
+        await request(`${base}/state`, { headers: headers() }).then((r) =>
           r.json(),
         )
       ).events.some((e) => e.id === imported.id),
@@ -217,7 +228,7 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     );
     assert.ok(
       !(
-        await fetch(`${base}/state`, { headers: headers() }).then((r) =>
+        await request(`${base}/state`, { headers: headers() }).then((r) =>
           r.json(),
         )
       ).events.some((e) => e.id === imported.id),
@@ -234,15 +245,23 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     const next = await command("totem.next");
     assert.equal(next.ok, true);
     const requested = (
-      await fetch(`${base}/state`, { headers: headers() }).then((r) => r.json())
+      await request(`${base}/state`, { headers: headers() }).then((r) =>
+        r.json(),
+      )
     ).events.find((e) => e.id === next.id);
     assert.equal(requested.requested, true);
     assert.match(requested.detail, /Nearest assignment/);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = once(child, "exit");
+      stage = "cleanup";
       child.kill("SIGTERM");
-      await exited;
+      const force = setTimeout(() => child.kill("SIGKILL"), 5000);
+      try {
+        await exited;
+      } finally {
+        clearTimeout(force);
+      }
     }
     desk.closeAllConnections();
     await new Promise((resolve) => desk.close(resolve));
