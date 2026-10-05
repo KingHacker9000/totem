@@ -125,12 +125,13 @@ function broadcast() {
 function localMessage(payload) {
   return new Promise((resolve, reject) => {
     const sock = net.createConnection(museSocket);
+    sock.setEncoding("utf8");
     let body = "";
     sock.setTimeout(12000);
     sock.on("connect", () => sock.write(`${JSON.stringify(payload)}\n`));
     sock.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 65536) {
+      if (Buffer.byteLength(body) > 65536) {
         sock.destroy();
         reject(new Error("message too large"));
       } else if (body.includes("\n")) {
@@ -303,13 +304,13 @@ async function command(name, args = {}, source = "local") {
 }
 async function body(req) {
   let bytes = 0,
-    value = "";
+    chunks = [];
   for await (const chunk of req) {
     bytes += chunk.length;
     if (bytes > 8192) throw new Error("request too large");
-    value += chunk;
+    chunks.push(chunk);
   }
-  return JSON.parse(value || "{}");
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 const browserCommands = new Set([
   "totem.avatar.set_state",
@@ -456,11 +457,12 @@ try {
 }
 let commandQueue = Promise.resolve();
 const bridge = net.createServer((sock) => {
+  sock.setEncoding("utf8");
   let data = "";
   sock.setTimeout(5000, () => sock.destroy());
   sock.on("data", (chunk) => {
     data += chunk;
-    if (data.length > 8192) {
+    if (Buffer.byteLength(data) > 8192) {
       sock.destroy();
       return;
     }
@@ -491,6 +493,7 @@ await unlink(eventSocketPath).catch((e) => {
   if (e.code !== "ENOENT") throw e;
 });
 const eventBridge = net.createServer((sock) => {
+  sock.setEncoding("utf8");
   let input = "";
   sock.setTimeout(5000, () => sock.destroy());
   sock.on("data", (chunk) => {

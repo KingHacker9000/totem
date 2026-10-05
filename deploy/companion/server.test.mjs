@@ -227,6 +227,58 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
         sock.on("error", reject);
       });
     }
+    async function fragmented(socketName, payload) {
+      const encoded = Buffer.from(`${JSON.stringify(payload)}\n`);
+      const split = encoded.indexOf(Buffer.from("💗")) + 1;
+      assert.ok(split > 0);
+      return new Promise((resolve, reject) => {
+        const sock = net.createConnection(join(root, socketName));
+        sock.setEncoding("utf8");
+        sock.setTimeout(5000, () =>
+          sock.destroy(new Error("fragment timeout")),
+        );
+        sock.on("connect", () => {
+          sock.write(encoded.subarray(0, split));
+          setTimeout(() => sock.write(encoded.subarray(split)), 50);
+        });
+        let response = "";
+        sock.on("data", (chunk) => (response += chunk));
+        sock.on("end", () => {
+          try {
+            resolve(JSON.parse(response));
+          } catch (error) {
+            reject(error);
+          }
+        });
+        sock.on("error", reject);
+      });
+    }
+    for (const socketName of ["commands.sock", "events.sock"]) {
+      const title = "💗 東京 café";
+      const payload =
+        socketName === "commands.sock"
+          ? { command: "totem.notify", args: { title, severity: "urgent" } }
+          : {
+              source: "jobs",
+              type: "job.failed",
+              title,
+              severity: "urgent",
+              dedupeKey: "unicode-fragment",
+            };
+      const result = await fragmented(socketName, payload);
+      assert.equal(result.ok, true);
+      const snapshot = await request(`${base}/state`, {
+        headers: headers(),
+      }).then((r) => r.json());
+      assert.equal(
+        snapshot.events.find((event) => event.id === result.id).title,
+        title,
+      );
+      assert.equal(
+        (await command("totem.dismiss", { id: result.id })).ok,
+        true,
+      );
+    }
     let imported;
     for (let i = 0; i < 100; i++) {
       const snapshot = await request(`${base}/state`, {

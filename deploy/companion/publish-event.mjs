@@ -3,17 +3,18 @@ import net from "node:net";
 // Reads one normalized event from stdin. Never runs a producer-supplied command.
 try {
   let bytes = 0,
-    input = "";
+    chunks = [];
   for await (const chunk of process.stdin) {
     bytes += chunk.length;
     if (bytes > 8192) throw new Error("event too large");
-    input += chunk;
+    chunks.push(chunk);
   }
-  const event = JSON.parse(input);
+  const event = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   const socket = net.createConnection(
     process.env.TOTEM_COMPANION_EVENT_SOCKET ||
       "/run/totem-companion/events.sock",
   );
+  socket.setEncoding("utf8");
   const result = await new Promise((resolve, reject) => {
     let response = "";
     socket.setTimeout(10000, () =>
@@ -22,7 +23,7 @@ try {
     socket.on("connect", () => socket.write(`${JSON.stringify(event)}\n`));
     socket.on("data", (chunk) => {
       response += chunk;
-      if (response.length > 8192)
+      if (Buffer.byteLength(response) > 8192)
         socket.destroy(new Error("invalid event acknowledgement"));
     });
     socket.on("error", reject);
