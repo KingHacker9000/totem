@@ -151,8 +151,9 @@ export class Companion {
         }
         break;
       case "totem.notify":
-      case "totem.show_card":
         return this.event(args, source);
+      case "totem.show_card":
+        return this.event(args, source, true);
       case "totem.dismiss": {
         checkObject(args, ["id"]);
         const id = text(args.id, 100);
@@ -190,7 +191,7 @@ export class Companion {
       s.reaction = { name: "curious", at: now, id: randomUUID() };
     return { ok: true };
   }
-  event(args, source) {
+  event(args, source, requested = false) {
     checkObject(args, [
       "source",
       "type",
@@ -234,6 +235,7 @@ export class Companion {
       id: randomUUID(),
       source: origin,
       origin: source,
+      requested,
       type,
       severity,
       title,
@@ -263,16 +265,18 @@ export class Companion {
       s.transientUntil = 0;
     }
     if (s.focus && now >= s.focus.until) {
+      const finished = s.focus;
       s.focus = null;
       s.avatar.activity = "idle";
       s.reaction = { name: "celebrate", at: now, id: randomUUID() };
       this.event(
         {
           source: "timer",
-          title: "Time for a break",
+          title:
+            finished.kind === "break" ? "Ready to focus" : "Time for a break",
           detail: "Your timer is complete.",
           severity: "attention",
-          dedupeKey: `timer-${now}`,
+          dedupeKey: `timer-${finished.until}-${finished.kind}`,
           ttlSeconds: 60,
         },
         "timer",
@@ -303,7 +307,9 @@ export class Companion {
       new Date(this.clock()).getHours() >= 22;
     const visible = events.filter(
       (e) =>
-        rank[e.severity] >= 2 || (!s.focus && !quiet && e.severity !== "info"),
+        e.requested ||
+        rank[e.severity] >= 2 ||
+        (!s.focus && !quiet && e.severity !== "info"),
     );
     return {
       avatar: s.avatar,

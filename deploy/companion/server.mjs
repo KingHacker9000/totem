@@ -19,6 +19,7 @@ import {
   normalizeAttention,
   sourceReference,
 } from "./attention.mjs";
+import { briefingDetail, maybeBriefing } from "./briefing.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
 const run = promisify(execFile);
@@ -190,20 +191,15 @@ async function command(name, args = {}, source = "local") {
   }
   if (name === "totem.next" || name === "totem.briefing") {
     checkObject(args, []);
-    const widgets = navigation.widgets || [];
-    const next =
-      widgets.find(
-        (w) =>
-          w.id === "academic:due-this-week" && w.primary && w.primary !== "0",
-      ) || widgets.find((w) => w.id === "calendar:next-event");
     const result = companion.command(
       "totem.show_card",
       {
         source: "briefing",
         title: name === "totem.next" ? "What’s next" : "Your day",
-        detail: next
-          ? `${next.primary || ""} · ${next.secondary || next.title}`
-          : "No upcoming commitments reported.",
+        detail: briefingDetail(navigation, {
+          next: name === "totem.next",
+          timezone: process.env.TZ,
+        }),
         severity: "attention",
         proactive: false,
       },
@@ -211,7 +207,7 @@ async function command(name, args = {}, source = "local") {
     );
     await persist();
     broadcast();
-    return result;
+    return { ...result, presentation };
   }
   if (name === "totem.set_brightness") {
     checkObject(args, ["percent"]);
@@ -610,6 +606,12 @@ async function monitor() {
         }
       }
     }
+    maybeBriefing(
+      companion,
+      navigation,
+      process.env.TOTEM_COMPANION_BRIEFING_AT,
+      process.env.TZ,
+    );
     // Auto-recover only a stale kiosk after a grace period, at most twice/hour.
     if (
       process.env.TOTEM_COMPANION_AUTO_RECOVER === "1" &&

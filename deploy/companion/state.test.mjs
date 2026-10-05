@@ -159,3 +159,32 @@ test("proactive delivery chooses critical events before ordinary queued events",
   );
   assert.equal(c.nextDelivery().id, critical.id);
 });
+
+test("requested context is available during focus and quiet hours without proactive echo", () => {
+  const c = new Companion(undefined, () => new Date(2026, 0, 1, 23).getTime());
+  c.command("totem.focus", { minutes: 25 });
+  c.command("totem.notify", { title: "Ordinary" }, "muse");
+  assert.equal(c.snapshot().card, null);
+  const card = c.command(
+    "totem.show_card",
+    { title: "Requested next action" },
+    "muse",
+  );
+  assert.equal(c.snapshot().card.id, card.id);
+  assert.equal(c.state.outbox.length, 0);
+});
+test("break completion has the correct prompt and a stable completion key", () => {
+  const { c, advance } = make();
+  c.command("totem.focus", { minutes: 1, kind: "break" });
+  const until = c.state.focus.until;
+  advance(61000);
+  c.tick();
+  const notice = c.state.events.find((e) => e.source === "timer");
+  assert.equal(notice.title, "Ready to focus");
+  assert.equal(notice.dedupeKey, `timer-${until}-break`);
+  const restored = new Companion(JSON.parse(JSON.stringify(c.state)), c.clock);
+  assert.equal(
+    restored.state.events.filter((e) => e.source === "timer").length,
+    1,
+  );
+});

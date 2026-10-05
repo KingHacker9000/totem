@@ -12,7 +12,7 @@ import { initial } from "./state.mjs";
 test("isolated sidecar recovers corrupt state and denies web/remote authority", {
   skip: process.platform !== "linux",
   timeout: 15000,
-}, async () => {
+}, async (t) => {
   const root = await mkdtemp(join(tmpdir(), "totem-companion-"));
   const reservation = net.createServer();
   reservation.listen(0, "127.0.0.1");
@@ -27,6 +27,19 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify({
+          widgets: [
+            {
+              id: "academic:due-this-week",
+              health: "ok",
+              updatedAt: new Date().toISOString(),
+              primary: "4",
+              data: {
+                nextCourse: "Course",
+                nextName: "Nearest assignment",
+                nextDueAt: new Date(Date.now() + 3600000).toISOString(),
+              },
+            },
+          ],
           attention: {
             records: acknowledged
               ? []
@@ -80,6 +93,9 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       stdio: "ignore",
     },
   );
+  t.signal.addEventListener("abort", () => child.kill("SIGKILL"), {
+    once: true,
+  });
   try {
     let state, token;
     function headers() {
@@ -153,6 +169,9 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
     async function command(name, args = {}) {
       return new Promise((resolve, reject) => {
         const sock = net.createConnection(join(root, "commands.sock"));
+        sock.setTimeout(3000, () =>
+          sock.destroy(new Error(`command timeout: ${name}`)),
+        );
         sock.on("connect", () =>
           sock.write(`${JSON.stringify({ command: name, args })}\n`),
         );
@@ -212,12 +231,20 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       /physical confirmation/,
     );
     assert.equal((await command("totem.focus", { minutes: 1 })).ok, true);
+    const next = await command("totem.next");
+    assert.equal(next.ok, true);
+    const requested = (
+      await fetch(`${base}/state`, { headers: headers() }).then((r) => r.json())
+    ).events.find((e) => e.id === next.id);
+    assert.equal(requested.requested, true);
+    assert.match(requested.detail, /Nearest assignment/);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = once(child, "exit");
       child.kill("SIGTERM");
       await exited;
     }
+    desk.closeAllConnections();
     await new Promise((resolve) => desk.close(resolve));
     await rm(root, { recursive: true, force: true });
   }

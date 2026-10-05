@@ -55,7 +55,10 @@ The event and outbox queues cap at 128. Messages expire after 24 hours, retry wi
 bounded backoff and use stable source sessions; global limit six/hour and two/hour
 per source. Quiet hours are 22:00–07:00 in the configured service timezone; urgent
 and critical messages bypass quiet hours but not rate limits. Focus suppresses
-ordinary display cards. Remote notifications never echo back to Muse.
+ordinary display cards. Explicitly requested context (`show_card`, `next`,
+`briefing`) remains available during focus and quiet hours. Remote notifications
+never echo back to Muse. Focus and break completion use distinct prompts and a
+stable timer deadline key to avoid duplicate completion on restart.
 
 The monitor reads existing navigation/widgets/attention on 4174 and core `/health`
 on 3000. Existing calendar, academic, GitHub and SwingLab adapters continue running.
@@ -72,8 +75,17 @@ The display reports its supported presentation capabilities (`reaction`, `alerts
 through rendered-frame heartbeats. Stored avatar state is not proof that mood,
 look direction, sunglasses or other new visual features are presented. Those
 features and their controls await Claude Design; backend command responses expose
-presentation support. Automatic briefing scheduling and printing/local-job
-adapters are also not complete.
+presentation support. Printing/local-job adapters are also not complete.
+
+Next-action and day briefings use real academic deadline and calendar start
+metadata, sorted by timestamp, rather than widget summary counts. Connector data
+older than two hours or reporting unhealthy status is labelled unavailable.
+The sample Pi unit schedules one local day briefing at 09:00 America/New_York
+(`TOTEM_COMPANION_BRIEFING_AT=HH:MM`; empty disables). It may catch up within 90
+minutes, deferring while in focus/quiet hours or when both connectors are
+unavailable. The per-day marker persists with the event, so service restarts do
+not repeat it. Daily briefings expire after 60 seconds and do not proactively
+message Muse. Explicit Muse requests are separate from the automatic schedule.
 
 ## Install on the inspected Pi
 

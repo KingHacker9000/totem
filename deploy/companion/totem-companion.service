@@ -10,6 +10,7 @@ Group=totem-companion
 Environment=TOTEM_COMPANION_STATE=/srv/pi-hdd/totem-companion-state
 EnvironmentFile=-/etc/totem-companion.env
 Environment=TZ=America/New_York
+Environment=TOTEM_COMPANION_BRIEFING_AT=09:00
 Environment=TOTEM_COMPANION_DISPLAY_USER=ashish
 RuntimeDirectory=totem-companion
 RuntimeDirectoryMode=0750
