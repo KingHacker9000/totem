@@ -116,8 +116,17 @@ JSON
 The client reads one event from stdin, prints its acknowledgement and exits
 nonzero on denial/unavailability. It never executes producer content. Printing
 and webhook producers can use the same contract; no printer or external HTTP
-webhook transport is assumed installed. Native systemd-job hooks and actual
-printer transport integration remain separate acceptance work.
+webhook transport is assumed installed. Actual printer and HTTP webhook transport
+integration remain separate acceptance work.
+
+The monitor reads selected oneshot jobs through `systemctl show` only; it does
+not start or modify them. `TOTEM_COMPANION_JOB_UNITS` permits up to eight explicit
+service names. This Pi watches `academic-ops-sync.service` and
+`swinglab-cycle.service`. Persisted per-boot completion cursors avoid replaying
+old successful runs or duplicating runs after companion restart. Already failed
+jobs are reported once. Failure/recovery uses the shared alert/outbox policy;
+routine success is info-only and does not send proactive messages. Running jobs
+are not mistaken for completed jobs.
 
 ## Install on the inspected Pi
 

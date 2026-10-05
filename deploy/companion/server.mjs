@@ -21,6 +21,7 @@ import {
 } from "./attention.mjs";
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
 import { publishEvent } from "./event-ingress.mjs";
+import { jobUnits, observeJobs } from "./jobs.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
 const run = promisify(execFile);
@@ -29,6 +30,10 @@ const bootstrapPath =
   process.env.TOTEM_COMPANION_VIEW_BOOTSTRAP ||
   "/run/totem-companion/display-config.js";
 const displayUser = process.env.TOTEM_COMPANION_DISPLAY_USER;
+const watchedJobs = jobUnits(process.env.TOTEM_COMPANION_JOB_UNITS);
+const bootId = (
+  await readFile("/proc/sys/kernel/random/boot_id", "utf8")
+).trim();
 const eventUser = process.env.TOTEM_COMPANION_EVENT_USER;
 const eventSocketPath =
   process.env.TOTEM_COMPANION_EVENT_SOCKET ||
@@ -654,6 +659,33 @@ async function monitor() {
         }
       }
     }
+    const jobReports = await Promise.all(
+      watchedJobs.map(async (unit) => {
+        try {
+          const { stdout } = await run(
+            "/usr/bin/systemctl",
+            [
+              "show",
+              unit,
+              "--property=Id,Type,LoadState,ActiveState,Result,ExecMainStatus,ExecMainStartTimestampMonotonic,ExecMainExitTimestampMonotonic",
+            ],
+            { timeout: 2500 },
+          );
+          return Object.fromEntries(
+            stdout
+              .trim()
+              .split("\n")
+              .map((line) => {
+                const separator = line.indexOf("=");
+                return [line.slice(0, separator), line.slice(separator + 1)];
+              }),
+          );
+        } catch {
+          return {};
+        }
+      }),
+    );
+    observeJobs(companion, jobReports, bootId);
     maybeBriefing(
       companion,
       navigation,
