@@ -73,19 +73,30 @@ stable timer deadline key to avoid duplicate completion on restart.
 The monitor reads existing navigation/widgets/attention on 4174 and core `/health`
 on 3000. Existing calendar, academic, GitHub and SwingLab adapters continue running.
 Attention records are normalized for the outbox without changing their producers.
-The original private-theme screen subscribes to state through a data-only bridge.
-Incoming companion alerts reuse its existing alert interface; reactions reuse its
-existing heart pulse. The original idle markup, artwork and inline styles are
-preserved. Adapter-origin alerts remain rendered by their original connector;
-remote acknowledgement first deletes the source alert, retaining it on failure.
+The original private-theme screen subscribes through an authenticated data-only
+bridge. Its companion presentation comes from the user-supplied Claude Design
+export. The existing heart, clock, inline styles and navigation remain the
+baseline. On Home, normalized alerts use that presentation's plate; away from
+Home, critical alerts and approval requests use the existing global alert system.
+Adapter acknowledgement first deletes the source alert, retaining it on failure.
 Source resolution cancels pending companion messages. Local copies of the same
 font families/weights remove external font requests from cold startup.
 
-The display reports its supported presentation capabilities (`reaction`, `alerts`)
-through rendered-frame heartbeats. Stored avatar state is not proof that mood,
-look direction, sunglasses or other new visual features are presented. Those
-features and their controls await Claude Design; backend command responses expose
-presentation support. Printing/local-job adapters are also not complete.
+Rendered-frame heartbeats report the actual Home iframe's progress and capabilities
+(reactions, alerts, mood, activity, gaze, energy, sunglasses, focus, approvals and
+touch). Missing iframe initialization cannot hide global critical alerts. These
+capabilities describe the renderer, not acceptance of phone pairing or physical
+finger interaction. Core recovery approval stays disabled pending those checks.
+
+The display stores bounded pending acknowledgements, snoozes and timer intent in
+localStorage. Install its Chromium profile on the HDD if this queue must survive
+kiosk restart. `totem.focus.sync` is an internal authenticated browser command;
+it is denied on the shared Muse socket and omitted from the SDK registry. Timer
+intent has a timestamp and stable identity; older offline changes cannot overwrite
+a newer remote start. Pause/resume/add-five/end persist, and an offline pause
+cancels an obsolete inferred completion. Completion identity prevents duplicate
+local/backend cards. `totem.snooze` delays an ordinary reminder and cancels its
+pending proactive delivery; it cannot conceal a critical problem.
 
 Next-action and day briefings use real academic deadline and calendar start
 metadata, sorted by timestamp, rather than widget summary counts. Connector data

@@ -193,6 +193,8 @@ async function restart(unit) {
   );
 }
 async function command(name, args = {}, source = "local") {
+  if (name === "totem.focus.sync" && source !== "touch")
+    throw new Error("local timer synchronization only");
   if (name === "totem.health") {
     checkObject(args, []);
     return {
@@ -318,7 +320,9 @@ const browserCommands = new Set([
   "totem.avatar.react",
   "totem.avatar.look_at",
   "totem.dismiss",
+  "totem.snooze",
   "totem.focus",
+  "totem.focus.sync",
   "totem.next",
   "totem.briefing",
   "totem.approve",

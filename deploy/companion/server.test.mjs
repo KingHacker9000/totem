@@ -328,7 +328,22 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       (await command("totem.approve", { id: "fake", approve: true })).error,
       /physical confirmation/,
     );
+    assert.match(
+      (await command("totem.focus.sync", { timer: null, at: Date.now() }))
+        .error,
+      /local timer synchronization/,
+    );
     assert.equal((await command("totem.focus", { minutes: 1 })).ok, true);
+    const synced = await request(`${base}/command`, {
+      method: "POST",
+      headers: { ...headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command: "totem.focus.sync",
+        args: { timer: null, at: Date.now() },
+      }),
+    });
+    assert.equal(synced.status, 200);
+    assert.equal((await synced.json()).ok, true);
     const publisher = spawn(
       process.execPath,
       [new URL("./publish-event.mjs", import.meta.url).pathname],

@@ -102,6 +102,13 @@ export class Companion {
     this.clock = clock;
     this.state = saved || initial();
     if (this.state.version !== 1) throw new Error("unsupported state version");
+    if (this.state.focus && !this.state.focus.id) {
+      this.state.focus.id = String(this.state.focus.until);
+      this.state.focus.duration = Math.max(1, this.state.focus.until - clock());
+      this.state.focus.remaining = this.state.focus.duration;
+      this.state.focus.paused = false;
+      this.state.focus.label = "";
+    }
     this.state.alertSourceOrder ??= [];
     if (
       !Array.isArray(this.state.alertSourceOrder) ||
@@ -222,16 +229,114 @@ export class Companion {
         s.audit.push({ action: "acknowledge", id, source, at: now });
         break;
       }
+      case "totem.snooze": {
+        checkObject(args, ["id", "minutes"]);
+        const id = text(args.id, 100),
+          minutes = number(args.minutes, 1, 60);
+        const event = s.events.find((item) => item.id === id);
+        if (!event) throw new Error("unknown event");
+        if (event.severity === "critical")
+          throw new Error("cannot snooze critical alert");
+        event.snoozedUntil = now + minutes * 60000;
+        if (event.expiresAt)
+          event.expiresAt =
+            event.snoozedUntil + Math.max(3000, event.expiresAt - now);
+        s.outbox = s.outbox.filter((item) => item.id !== id);
+        s.audit.push({ action: "snooze", id, source, at: now });
+        break;
+      }
       case "totem.focus": {
-        checkObject(args, ["minutes", "kind"]);
+        checkObject(args, ["minutes", "kind", "label"]);
         const minutes = number(args.minutes, 0, 180);
         if (args.kind !== undefined && !["focus", "break"].includes(args.kind))
           throw new Error("invalid kind");
+        const label =
+          args.label === undefined || args.label === ""
+            ? ""
+            : text(args.label, 120);
         s.focus = minutes
-          ? { until: now + minutes * 60000, kind: args.kind || "focus" }
+          ? {
+              id: randomUUID(),
+              until: now + minutes * 60000,
+              duration: minutes * 60000,
+              remaining: minutes * 60000,
+              paused: false,
+              label,
+              kind: args.kind || "focus",
+            }
           : null;
+        s.focusChangedAt = now;
         s.avatar.activity = minutes ? "focus" : "idle";
         s.transientUntil = 0;
+        break;
+      }
+      case "totem.focus.sync": {
+        checkObject(args, ["timer", "at", "completed", "id"]);
+        const at = number(args.at, now - 86400000, now + 1000);
+        if (args.completed !== undefined && typeof args.completed !== "boolean")
+          throw new Error("invalid completion");
+        if (args.id !== undefined) text(args.id, 100);
+        let timer = null;
+        if (args.timer !== null) {
+          const value = args.timer;
+          checkObject(value, [
+            "id",
+            "kind",
+            "label",
+            "duration",
+            "endsAt",
+            "remaining",
+            "paused",
+          ]);
+          const id = text(value.id, 100),
+            label =
+              value.label === undefined || value.label === ""
+                ? ""
+                : text(value.label, 120);
+          if (
+            !["focus", "break"].includes(value.kind) ||
+            typeof value.paused !== "boolean"
+          )
+            throw new Error("invalid timer");
+          const duration = number(value.duration, 1, 10800000);
+          const remaining = number(value.remaining, 0, duration);
+          const until = number(value.endsAt, now - 86400000, now + 10800000);
+          timer = {
+            id,
+            label,
+            kind: value.kind,
+            duration,
+            remaining,
+            paused: value.paused,
+            until,
+          };
+        }
+        if (at < (s.focusChangedAt || 0)) return { ok: true, ignored: true };
+        if (
+          args.completed &&
+          s.focus?.id === args.id &&
+          !s.focus.paused &&
+          now >= s.focus.until
+        ) {
+          this.tick();
+          return { ok: true };
+        }
+        // An offline pause/end before completion supersedes that inferred finish.
+        // Automatic completion does not outrank a later explicit user intent.
+        if (!args.completed && (timer?.paused || !timer || timer.until > now)) {
+          const timerId = timer?.id || args.id;
+          const cancelled = s.events.filter(
+            (event) => event.source === "timer" && event.timerId === timerId,
+          );
+          const ids = new Set(cancelled.map((event) => event.id));
+          s.events = s.events.filter((event) => !ids.has(event.id));
+          s.outbox = s.outbox.filter((event) => !ids.has(event.id));
+        }
+        s.focus = timer;
+        s.focusChangedAt = at;
+        s.avatar.activity = timer ? "focus" : "idle";
+        s.transientUntil = 0;
+        this.tick();
         break;
       }
       default:
@@ -332,12 +437,12 @@ export class Companion {
       s.avatar.activity = "idle";
       s.transientUntil = 0;
     }
-    if (s.focus && now >= s.focus.until) {
+    if (s.focus && !s.focus.paused && now >= s.focus.until) {
       const finished = s.focus;
       s.focus = null;
       s.avatar.activity = "idle";
       s.reaction = { name: "celebrate", at: now, id: randomUUID() };
-      this.event(
+      const completed = this.event(
         {
           source: "timer",
           title:
@@ -349,6 +454,8 @@ export class Companion {
         },
         "timer",
       );
+      const notice = s.events.find((event) => event.id === completed.id);
+      if (notice) notice.timerId = finished.id || String(finished.until);
     }
     for (const e of s.events)
       if (e.expiresAt && e.expiresAt <= now)
@@ -381,9 +488,10 @@ export class Companion {
       new Date(this.clock()).getHours() >= 22;
     const visible = events.filter(
       (e) =>
-        e.requested ||
-        rank[e.severity] >= 2 ||
-        (!s.focus && !quiet && e.severity !== "info"),
+        (!e.snoozedUntil || e.snoozedUntil <= this.clock()) &&
+        (e.requested ||
+          rank[e.severity] >= 2 ||
+          (!s.focus && !quiet && e.severity !== "info")),
     );
     return {
       avatar: s.avatar,

@@ -311,3 +311,145 @@ test("equal-priority alerts rotate sources after acknowledgement and survive rel
   );
   assert.equal(restored.snapshot().card.id, critical.id);
 });
+
+test("local timer synchronization preserves pause, resume and offline deadlines across restart", () => {
+  const { c, advance } = make();
+  c.command("totem.focus", { minutes: 1 });
+  const timer = c.state.focus;
+  advance(10000);
+  const sync = (patch, at = c.clock()) =>
+    c.command(
+      "totem.focus.sync",
+      {
+        at,
+        timer: {
+          id: timer.id,
+          kind: "focus",
+          label: "Local focus",
+          duration: 60000,
+          endsAt: timer.until,
+          remaining: 50000,
+          paused: true,
+          ...patch,
+        },
+      },
+      "touch",
+    );
+  sync({});
+  advance(70000);
+  c.tick();
+  assert.equal(c.state.focus.paused, true);
+  assert.equal(c.state.events.filter((e) => e.source === "timer").length, 0);
+  const restored = new Companion(JSON.parse(JSON.stringify(c.state)), c.clock);
+  assert.equal(restored.state.focus.remaining, 50000);
+  const resumed = {
+    id: timer.id,
+    kind: "focus",
+    label: "Local focus",
+    duration: 60000,
+    endsAt: c.clock() + 50000,
+    remaining: 50000,
+    paused: false,
+  };
+  restored.command(
+    "totem.focus.sync",
+    { at: c.clock(), timer: resumed },
+    "touch",
+  );
+  advance(51000);
+  restored.tick();
+  restored.tick();
+  assert.equal(restored.state.focus, null);
+  assert.equal(
+    restored.state.events.filter((e) => e.source === "timer").length,
+    1,
+  );
+  assert.equal(
+    restored.state.events.find((e) => e.source === "timer").timerId,
+    timer.id,
+  );
+});
+
+test("old offline timer intent cannot overwrite a newer remote start and invalid sync is atomic", () => {
+  const { c, advance } = make();
+  const old = c.clock();
+  advance(5000);
+  c.command("totem.focus", { minutes: 25 });
+  assert.equal(
+    c.command("totem.focus.sync", { at: old, timer: null }, "touch").ignored,
+    true,
+  );
+  assert.ok(c.state.focus);
+  const before = JSON.stringify(c.state.focus);
+  assert.throws(() =>
+    c.command(
+      "totem.focus.sync",
+      {
+        at: c.clock(),
+        timer: {
+          id: "x",
+          kind: "focus",
+          label: "",
+          duration: 10800001,
+          endsAt: c.clock() + 1000,
+          remaining: 1000,
+          paused: false,
+        },
+      },
+      "touch",
+    ),
+  );
+  assert.equal(JSON.stringify(c.state.focus), before);
+});
+
+test("snoozing delays a reminder, cancels pending delivery and cannot hide a critical problem", () => {
+  const { c, advance } = make();
+  const event = c.command("totem.notify", {
+    title: "Reminder",
+    severity: "urgent",
+    ttlSeconds: 30,
+  });
+  c.command("totem.snooze", { id: event.id, minutes: 15 });
+  assert.equal(c.snapshot().card, null);
+  assert.equal(c.state.outbox.length, 0);
+  advance(900001);
+  assert.equal(c.snapshot().card.id, event.id);
+  const critical = c.command("totem.notify", {
+    title: "Critical",
+    severity: "critical",
+  });
+  assert.throws(() =>
+    c.command("totem.snooze", { id: critical.id, minutes: 15 }),
+  );
+  assert.equal(c.snapshot().card.id, critical.id);
+});
+
+test("an offline pause before an inferred completion restores the paused timer and cancels its obsolete notice", () => {
+  const { c, advance } = make();
+  c.command("totem.focus", { minutes: 1 });
+  const t = c.state.focus;
+  advance(10000);
+  const at = c.clock();
+  advance(60000);
+  c.tick();
+  assert.equal(c.state.events.filter((e) => e.source === "timer").length, 1);
+  c.command(
+    "totem.focus.sync",
+    {
+      at,
+      timer: {
+        id: t.id,
+        kind: "focus",
+        label: "",
+        duration: 60000,
+        endsAt: c.clock() + 50000,
+        remaining: 50000,
+        paused: true,
+      },
+    },
+    "touch",
+  );
+  assert.equal(c.state.focus.paused, true);
+  assert.equal(c.state.events.filter((e) => e.source === "timer").length, 0);
+  assert.equal(c.state.outbox.filter((e) => e.source === "timer").length, 0);
+});
