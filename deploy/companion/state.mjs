@@ -217,7 +217,13 @@ export class Companion {
         checkObject(args, ["id"]);
         const id = text(args.id, 100);
         const event = s.events.find((e) => e.id === id);
-        if (!event) throw new Error("unknown event");
+        if (!event) {
+          if (s.history.some((item) => item.id === id)) {
+            s.outbox = s.outbox.filter((item) => item.id !== id);
+            return { ok: true, alreadyCleared: true };
+          }
+          throw new Error("unknown event");
+        }
         s.alertSourceOrder = [
           ...s.alertSourceOrder.filter((item) => item !== event.source),
           event.source,

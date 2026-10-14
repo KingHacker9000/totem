@@ -493,3 +493,21 @@ test("remote timer controls preserve paused time and reject oversized or stale c
   c.command("totem.focus.control", { action: "end" }, "muse");
   assert.equal(c.snapshot().focus, null);
 });
+
+test("late remote acknowledgement succeeds for a known cleared alert but rejects unknown IDs", () => {
+  const c = new Companion();
+  const event = c.command(
+    "totem.notify",
+    { title: "Done", severity: "urgent" },
+    "muse",
+  );
+  c.command("totem.dismiss", { id: event.id }, "touch");
+  assert.deepEqual(c.command("totem.dismiss", { id: event.id }, "muse"), {
+    ok: true,
+    alreadyCleared: true,
+  });
+  assert.throws(
+    () => c.command("totem.dismiss", { id: "never-seen" }, "muse"),
+    /unknown event/,
+  );
+});
