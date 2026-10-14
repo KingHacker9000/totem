@@ -27,9 +27,19 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify({
+          catalog: [
+            {
+              id: "academic",
+              implemented: true,
+              enabled: true,
+              health: "ok",
+              app: true,
+            },
+          ],
           widgets: [
             {
               id: "academic:due-this-week",
+              connectorId: "academic",
               health: "ok",
               updatedAt: new Date().toISOString(),
               primary: "4",
@@ -55,6 +65,9 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
           },
         }),
       );
+    } else if (req.url === "/desk/spotify/snapshot") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ available: false }));
     } else if (
       req.method === "DELETE" &&
       req.url === "/desk/attention/academic/assignment%3A42"
@@ -227,6 +240,29 @@ test("isolated sidecar recovers corrupt state and denies web/remote authority", 
         sock.on("error", reject);
       });
     }
+    const readContext = await command("totem.context");
+    assert.equal(readContext.ok, true);
+    assert.equal(
+      readContext.context.widgets[0].data.nextName,
+      "Nearest assignment",
+    );
+    assert.equal(
+      (await command("totem.display.open", { target: "academic" })).ok,
+      true,
+    );
+    assert.equal(
+      (await command("totem.display.open", { target: "https://example.com" }))
+        .ok,
+      false,
+    );
+    assert.equal(
+      (await command("totem.music", { action: "status" })).playback.available,
+      false,
+    );
+    assert.equal(
+      (await command("totem.music", { action: "arbitrary" })).ok,
+      false,
+    );
     async function fragmented(socketName, payload) {
       const encoded = Buffer.from(`${JSON.stringify(payload)}\n`);
       const split = encoded.indexOf(Buffer.from("💗")) + 1;

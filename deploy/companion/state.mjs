@@ -275,6 +275,48 @@ export class Companion {
         s.transientUntil = 0;
         break;
       }
+      case "totem.focus.control": {
+        checkObject(args, ["action", "minutes"]);
+        if (!["pause", "resume", "extend", "end"].includes(args.action))
+          throw new Error("invalid timer action");
+        if (args.action !== "extend" && args.minutes !== undefined)
+          throw new Error("minutes only allowed for extend");
+        const extra =
+          args.action === "extend" ? number(args.minutes, 1, 60) * 60000 : 0;
+        this.tick();
+        const focus = s.focus;
+        if (!focus && args.action !== "end") throw new Error("no active timer");
+        let timer = null;
+        if (focus && args.action !== "end") {
+          let remaining = focus.paused
+            ? focus.remaining
+            : Math.max(0, focus.until - now);
+          let duration = focus.duration;
+          let paused = focus.paused;
+          if (args.action === "pause") paused = true;
+          if (args.action === "resume") paused = false;
+          if (extra) {
+            remaining += extra;
+            duration += extra;
+            number(duration, 1, 10800000);
+          }
+          timer = {
+            id: focus.id,
+            kind: focus.kind,
+            label: focus.label,
+            duration,
+            remaining,
+            paused,
+            endsAt: now + remaining,
+          };
+        }
+        this.command(
+          "totem.focus.sync",
+          { timer, at: now, ...(focus ? { id: focus.id } : {}) },
+          "local",
+        );
+        break;
+      }
       case "totem.focus.sync": {
         checkObject(args, ["timer", "at", "completed", "id"]);
         const at = number(args.at, now - 86400000, now + 1000);

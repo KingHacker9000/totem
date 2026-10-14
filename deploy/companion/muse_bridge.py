@@ -21,23 +21,27 @@ def spec(description, required=None, optional=None):
     return {"description": description, "required": fields(required), "optional": fields(optional), "timeout_ms": 15000}
 
 COMMANDS = {
+    "totem.context": spec("Read Totem avatar, timer, alerts, approvals, current display and enabled connector/widget summaries (academic deadlines, GitHub, weather, calendar and SwingLab). Call this before answering questions about Totem data or choosing an app/widget ID. Connector errors are reported honestly; do not invent missing data."),
+    "totem.display.open": spec("Open an existing Totem screen. Use home, launcher, or an enabled app/widget ID from totem.context. Returns accepted request; read context health.presentation to verify rendering.", {"target": ("string", "home, launcher, or enabled app/widget ID")}),
+    "totem.music": spec("Use the existing Spotify connection. Only when requested by the user; never infer permission to change playback.", {"action": ("string", "status, play, pause, next, previous")}),
+    "totem.focus.control": spec("Control the existing Totem timer without replacing it. Pause/resume retains its ID and remaining time.", {"action": ("string", "pause, resume, extend, end")}, {"minutes": ("number", "For extend only: 1 to 60 minutes, total duration at most 180 minutes")}),
     "totem.set_brightness": spec("Set touchscreen backlight brightness.", {"percent": ("integer", "1 to 100")}),
     "totem.health": spec("Read Pi/Totem health and Muse connectivity."),
     "totem.avatar.set_state": spec("Change the physical companion. Put sunglasses on with accessory=sunglasses. No audio hardware.", optional={
         "mood": ("string", "neutral, pleased, smug, confused, concerned, excited, annoyed, alarmed"),
         "activity": ("string", "idle, attentive, thinking, working, sleeping, celebrating, focus"),
-        "energy": ("number", "0 to 1"), "accessory": ("string", "none, sunglasses")}),
+        "energy": ("number", "0 to 1"), "accessory": ("string", "none, sunglasses, laptop, clock")}),
     "totem.avatar.react": spec("Make a physical reaction. Use reaction=sleep when asked to put the screen to sleep; this invokes Totem’s existing screen sleep action. Use reaction=wake to wake it.", {"reaction": ("string", "boop, blink, sleep, wake, success, error, curious, celebrate, sunglasses_tilt")}),
     "totem.avatar.look_at": spec("Look toward a normalized screen position.", {"x": ("number", "-1 to 1"), "y": ("number", "-1 to 1")}),
     "totem.notify": spec("Show a temporary notice; critical alerts persist until acknowledged.", {"title": ("string", "Up to 90 characters")}, {"detail": ("string", "Up to 300 characters"), "severity": ("string", "info, attention, urgent, critical"), "dedupeKey": ("string", "Stable event key"), "ttlSeconds": ("number", "3 to 86400")}),
     "totem.show_card": spec("Show a compact context card around the character.", {"title": ("string", "Up to 90 characters")}, {"detail": ("string", "Up to 300 characters"), "ttlSeconds": ("number", "3 to 86400")}),
     "totem.dismiss": spec("Acknowledge a physical notice by its ID.", {"id": ("string", "Alert ID from health/display event")}),
     "totem.snooze": spec("Delay a non-critical local notice without acknowledging its source.", {"id": ("string", "Alert ID"), "minutes": ("number", "1 to 60")}),
-    "totem.focus": spec("Start focus/break timer, or minutes=0 to end it.", {"minutes": ("number", "0 to 180")}, {"kind": ("string", "focus or break")}),
+    "totem.focus": spec("Start focus/break timer, or minutes=0 to end it.", {"minutes": ("number", "0 to 180")}, {"kind": ("string", "focus or break"), "label": ("string", "Optional timer label, up to 120 characters")}),
     "totem.next": spec("Show the next assignment or calendar item using existing local connectors."),
     "totem.briefing": spec("Show a concise day briefing."),
     "totem.restart_display": spec("Restart only the Totem Chromium kiosk; no general service access."),
-    "totem.restart_core": spec("Request Totem core restart; requires physical confirmation and is unavailable until local approval UI is enabled."),
+    "totem.restart_core": spec("Request Totem core restart only when the user asks. Requires approval on the physical Totem screen; remote commands cannot self-approve."),
 
 }
 
@@ -51,6 +55,7 @@ class RestrictedExecutor:
             return {"ok": False, "error": "unsupported command"}
         if not isinstance(params, dict):
             return {"ok": False, "error": "expected object"}
+        logging.info("Totem command: %s", command)
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
                 client.settimeout(14)

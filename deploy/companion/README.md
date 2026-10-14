@@ -62,7 +62,7 @@ or acknowledged dedupe keys are remembered for 24 hours (bounded to 512). Each s
 Health alerts identify separate fault episodes: repeated checks share one key, but recovery followed by recurrence creates a new key even within the previous acknowledgement window. Recovery does not silently clear an unacknowledged critical alert.
 Equal-priority display alerts rotate among sources after acknowledgement; severity always takes precedence. The source turn history survives companion restart.
 The event and outbox queues cap at 128. Higher-priority arrivals can replace lower-priority queued records; critical records are retained. Replaced visible records enter dedupe history and their pending messages are cancelled. Successful in-flight sends still count against delivery limits when their alert was acknowledged or replaced before the send completed. Messages expire after 24 hours, retry with
-bounded backoff and use stable source sessions; global limit six/hour and two/hour
+bounded backoff and use the paired main Muse chat; global limit six/hour and two/hour
 per source. Quiet hours are 22:00–07:00 in the configured service timezone; urgent
 and critical messages bypass quiet hours but not rate limits. Focus suppresses
 ordinary display cards. Explicitly requested context (`show_card`, `next`,
@@ -218,3 +218,44 @@ The original kiosk and core are unchanged. Disable/stop only `musegadget` and
 uninstalling. Retain state and pairing until explicitly asked to remove them.
 There is no core release migration. Core rollback still uses its existing release
 symlink. Preserve the original theme checkout for Claude Design implementation.
+
+## Integrated Muse setup
+
+The companion module and Muse transport attach to the existing `totem.service`
+lifecycle through `systemd/` drop-ins: starting Totem starts both internal modules;
+stopping/restarting Totem coordinates them. A transport failure still cannot
+restart or block the core. The existing cube/admin remain the only user interfaces.
+The admin System panel reports Muse connectivity and the current Totem screen.
+
+`totem.context` reads the shared avatar/timer/alerts and the existing connector
+catalog and widget summaries. It excludes credentials and chart history and bounds
+alerts to 32 and approvals to 16. Connector health and timestamps accompany the
+values; calendar reauthorization and uninstalled integrations remain explicit.
+`totem.display.open` accepts only Home, launcher, or an enabled app/widget ID;
+requests expire after 15 seconds and the existing navigator opens the target.
+The return value confirms acceptance, not rendering: query health.presentation
+for the screen subsequently reported by the renderer.
+`totem.focus.control` pauses/resumes/extends/ends the existing timer, preserving
+its ID and offline timestamp conflict protection. `totem.music` routes status,
+play/pause/next/previous to the existing Spotify connection. Accessories expose
+all currently supported overlays: none, sunglasses, laptop and clock.
+
+Install the three drop-ins under `/etc/systemd/system/`, set
+`TOTEM_COMPANION_APPROVALS=1` in the companion environment when the original
+renderer is integrated, reload systemd and restart only companion, Muse, admin
+and kiosk. No core release replacement, data migration or re-pairing is required.
+Core restart creates a 60-second single-use request; only the authenticated local
+display may approve/cancel it. Muse has no self-approval, shell or file commands.
+
+The internal module continues to own its existing durable companion state at
+`/srv/pi-hdd/totem-companion-state`, with no duplicate store or second dashboard.
+A future in-process core integration must import that state through `Companion`
+without resetting IDs, timers, incident keys, approvals or outbox accounting;
+back up both flushed state files, change ownership only during a stopped module,
+and retain the old module/state for rollback. That future core release migration
+is separate from completing access on the deployed cube.
+
+Proactive delivery uses the paired main Muse chat without an invented session ID.
+The Muse API rejected locally named side chats with HTTP 400. Diagnostics expose
+HTTP status and error code through context health.museDelivery, without response
+bodies or credentials. Delivery limits and acknowledgement IDs remain unchanged.

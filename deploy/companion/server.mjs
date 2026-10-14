@@ -20,9 +20,15 @@ import {
   sourceReference,
 } from "./attention.mjs";
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
+import { context, displayTarget } from "./context.mjs";
 import { publishEvent } from "./event-ingress.mjs";
 import { observeHealthEvents } from "./health-events.mjs";
 import { jobUnits, observeJobs } from "./jobs.mjs";
+import {
+  deliveryMessage,
+  deliveryStatus,
+  reconnectOutbox,
+} from "./muse-delivery.mjs";
 import { displayRecoveryDecision, recordDisplayRecovery } from "./recovery.mjs";
 import { Companion, checkObject, number, text } from "./state.mjs";
 
@@ -56,6 +62,9 @@ const museSocket =
   process.env.MUSEGADGET_SOCKET || "/run/musegadget/musegadget.sock";
 const deskBase = process.env.TOTEM_DESK_BASE || "http://127.0.0.1:4174";
 let companion;
+let displayRequest = null;
+let museDelivery = null;
+let wasMuseConnected = false;
 let stateRecovered = false;
 try {
   const saved = JSON.parse(await readFile(`${stateDir}/state.json`, "utf8"));
@@ -117,7 +126,11 @@ function persist() {
   return persistence;
 }
 function snapshot() {
-  return { ...companion.snapshot(), health };
+  return {
+    ...companion.snapshot(),
+    health: { ...health, museDelivery },
+    displayRequest,
+  };
 }
 function broadcast() {
   const event = `data: ${JSON.stringify(snapshot())}\n\n`;
@@ -195,6 +208,34 @@ async function restart(unit) {
 async function command(name, args = {}, source = "local") {
   if (name === "totem.focus.sync" && source !== "touch")
     throw new Error("local timer synchronization only");
+  if (name === "totem.context") {
+    checkObject(args, []);
+    const nav = await endpoint(`${deskBase}/desk/navigation`);
+    if (!nav) throw new Error("Totem connectors unavailable; try totem.health");
+    return { ok: true, context: context(nav, snapshot()) };
+  }
+  if (name === "totem.display.open") {
+    const nav = await endpoint(`${deskBase}/desk/navigation`);
+    if (!nav) throw new Error("Totem connectors unavailable");
+    const target = displayTarget(args, nav);
+    displayRequest = { id: randomUUID(), target, at: Date.now() };
+    broadcast();
+    return { ok: true, requestId: displayRequest.id, target, accepted: true };
+  }
+  if (name === "totem.music") {
+    checkObject(args, ["action"]);
+    if (!["status", "play", "pause", "next", "previous"].includes(args.action))
+      throw new Error("invalid music action");
+    const route = args.action === "status" ? "snapshot" : args.action;
+    const response = await fetch(`${deskBase}/desk/spotify/${route}`, {
+      method: args.action === "status" ? "GET" : "POST",
+      signal: AbortSignal.timeout(10000),
+    });
+    const value = await response.json();
+    if (!response.ok)
+      throw new Error("Spotify action unavailable; check connector status");
+    return { ok: true, playback: value };
+  }
   if (name === "totem.health") {
     checkObject(args, []);
     return {
@@ -202,6 +243,8 @@ async function command(name, args = {}, source = "local") {
       health,
       events: companion.snapshot().events,
       approvals: companion.snapshot().approvals,
+      avatar: companion.snapshot().avatar,
+      focus: companion.snapshot().focus,
     };
   }
   if (name === "totem.next" || name === "totem.briefing") {
@@ -390,7 +433,7 @@ const server = http.createServer(async (req, res) => {
       checkObject(report, ["view", "capabilities", "renderedAt"]);
       if (
         typeof report.view !== "string" ||
-        report.view.length > 40 ||
+        report.view.length > 96 ||
         !Array.isArray(report.capabilities) ||
         report.capabilities.length > 20 ||
         report.capabilities.some((c) => typeof c !== "string" || c.length > 40)
@@ -589,6 +632,12 @@ async function monitor() {
         (Date.now() - lastDisplayBeat) / 1000,
       ),
     };
+    reconnectOutbox(
+      companion.state.outbox,
+      wasMuseConnected,
+      health.muse === "connected",
+    );
+    wasMuseConnected = health.muse === "connected";
     if (
       health.freeDiskBytes < 2 * 1024 ** 3 ||
       health.temperatureC >= 80 ||
@@ -749,13 +798,22 @@ async function monitor() {
     const event = companion.nextDelivery();
     if (event) {
       try {
-        const result = await localMessage({
-          message: `Totem ${event.severity}: ${event.title}. ${event.detail} Alert ID: ${event.id}. Use totem.dismiss to acknowledge.`,
-          session_id: `totem-${event.source.replace(/[^A-Za-z0-9-]/g, "-").slice(0, 50)}`,
-        });
-        if (!result.ok) throw new Error(result.error);
+        const result = await localMessage(deliveryMessage(event));
+        museDelivery = deliveryStatus(result);
+        if (!result.ok)
+          throw new Error(
+            `Muse delivery failed: HTTP ${museDelivery.httpStatus}, ${museDelivery.code || "unavailable"}`,
+          );
         companion.delivered(event.id, event.source);
-      } catch {
+      } catch (error) {
+        if (!museDelivery || museDelivery.status === "accepted")
+          museDelivery = {
+            status: "failed",
+            at: Date.now(),
+            httpStatus: null,
+            code: "transport_unavailable",
+          };
+        console.error("Muse delivery:", error.message);
         event.attempts++;
         event.nextAttempt =
           Date.now() +

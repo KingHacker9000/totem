@@ -463,3 +463,33 @@ test("Muse sleep and wake use the existing reaction channel", () => {
   assert.equal(c.snapshot().reaction.name, "wake");
   assert.equal(c.snapshot().avatar.activity, "idle");
 });
+
+test("remote timer controls preserve paused time and reject oversized or stale changes", () => {
+  let now = 1700000000000;
+  const c = new Companion(undefined, () => now);
+  c.command("totem.focus", { minutes: 25, label: "Existing task" }, "muse");
+  const id = c.snapshot().focus.id;
+  now += 60000;
+  c.command("totem.focus.control", { action: "pause" }, "muse");
+  assert.equal(c.snapshot().focus.remaining, 24 * 60000);
+  now += 300000;
+  c.command("totem.focus.control", { action: "resume" }, "muse");
+  assert.equal(c.snapshot().focus.id, id);
+  assert.equal(c.snapshot().focus.until, now + 24 * 60000);
+  c.command("totem.focus.control", { action: "extend", minutes: 5 }, "muse");
+  assert.equal(c.snapshot().focus.duration, 30 * 60000);
+  const before = JSON.stringify(c.snapshot().focus);
+  assert.throws(() =>
+    c.command(
+      "totem.focus.control",
+      { action: "extend", minutes: 200 },
+      "muse",
+    ),
+  );
+  assert.equal(JSON.stringify(c.snapshot().focus), before);
+  assert.throws(() =>
+    c.command("totem.focus.control", { action: "pause", minutes: 2 }, "muse"),
+  );
+  c.command("totem.focus.control", { action: "end" }, "muse");
+  assert.equal(c.snapshot().focus, null);
+});
