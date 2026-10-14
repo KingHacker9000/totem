@@ -27,6 +27,7 @@ export const ENUMS = {
     "boop",
     "blink",
     "wake",
+    "sleep",
     "success",
     "error",
     "curious",
@@ -199,6 +200,10 @@ export class Companion {
           at: now,
           id: randomUUID(),
         };
+        if (args.reaction === "sleep") {
+          s.avatar.activity = "sleeping";
+          s.transientUntil = 0;
+        }
         if (args.reaction === "wake") {
           s.avatar.activity = "idle";
           s.transientUntil = 0;

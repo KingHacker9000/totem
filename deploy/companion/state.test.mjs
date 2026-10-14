@@ -453,3 +453,13 @@ test("an offline pause before an inferred completion restores the paused timer a
   assert.equal(c.state.events.filter((e) => e.source === "timer").length, 0);
   assert.equal(c.state.outbox.filter((e) => e.source === "timer").length, 0);
 });
+
+test("Muse sleep and wake use the existing reaction channel", () => {
+  const c = new Companion();
+  c.command("totem.avatar.react", { reaction: "sleep" }, "muse");
+  assert.equal(c.snapshot().reaction.name, "sleep");
+  assert.equal(c.snapshot().avatar.activity, "sleeping");
+  c.command("totem.avatar.react", { reaction: "wake" }, "muse");
+  assert.equal(c.snapshot().reaction.name, "wake");
+  assert.equal(c.snapshot().avatar.activity, "idle");
+});

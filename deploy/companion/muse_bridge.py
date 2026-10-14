@@ -21,14 +21,13 @@ def spec(description, required=None, optional=None):
     return {"description": description, "required": fields(required), "optional": fields(optional), "timeout_ms": 15000}
 
 COMMANDS = {
-    "totem.display.set_sleep": spec("Turn the physical screen off when the user asks to sleep the screen (sleep=true); restore it with sleep=false. Avatar sleeping alone does not turn off the screen.", {"sleep": ("boolean", "true to turn off the backlight, false to wake it")}),
     "totem.set_brightness": spec("Set touchscreen backlight brightness.", {"percent": ("integer", "1 to 100")}),
     "totem.health": spec("Read Pi/Totem health and Muse connectivity."),
     "totem.avatar.set_state": spec("Change the physical companion. Put sunglasses on with accessory=sunglasses. No audio hardware.", optional={
         "mood": ("string", "neutral, pleased, smug, confused, concerned, excited, annoyed, alarmed"),
         "activity": ("string", "idle, attentive, thinking, working, sleeping, celebrating, focus"),
         "energy": ("number", "0 to 1"), "accessory": ("string", "none, sunglasses")}),
-    "totem.avatar.react": spec("Make a temporary physical reaction.", {"reaction": ("string", "boop, blink, wake, success, error, curious, celebrate, sunglasses_tilt")}),
+    "totem.avatar.react": spec("Make a physical reaction. Use reaction=sleep when asked to put the screen to sleep; this invokes Totem’s existing screen sleep action. Use reaction=wake to wake it.", {"reaction": ("string", "boop, blink, sleep, wake, success, error, curious, celebrate, sunglasses_tilt")}),
     "totem.avatar.look_at": spec("Look toward a normalized screen position.", {"x": ("number", "-1 to 1"), "y": ("number", "-1 to 1")}),
     "totem.notify": spec("Show a temporary notice; critical alerts persist until acknowledged.", {"title": ("string", "Up to 90 characters")}, {"detail": ("string", "Up to 300 characters"), "severity": ("string", "info, attention, urgent, critical"), "dedupeKey": ("string", "Stable event key"), "ttlSeconds": ("number", "3 to 86400")}),
     "totem.show_card": spec("Show a compact context card around the character.", {"title": ("string", "Up to 90 characters")}, {"detail": ("string", "Up to 300 characters"), "ttlSeconds": ("number", "3 to 86400")}),
