@@ -1,0 +1,26 @@
+[Unit]
+Description=Muse Gadget restricted Totem transport
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=musegadget
+Group=totem-companion
+Environment=MUSEGADGET_STATE_DIR=/var/lib/musegadget
+Environment=MUSEGADGET_SOCKET=/run/musegadget/musegadget.sock
+RuntimeDirectory=musegadget
+RuntimeDirectoryMode=0750
+ExecStart=/bin/sh -c 'while [ ! -x /srv/pi-hdd/totem-companion-work/muse-venv/bin/python ] || [ ! -r /srv/pi-hdd/totem-companion-work/totem/deploy/companion/muse_bridge.py ]; do sleep 2; done; exec /srv/pi-hdd/totem-companion-work/muse-venv/bin/python /srv/pi-hdd/totem-companion-work/totem/deploy/companion/muse_bridge.py'
+TimeoutStartSec=0
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0027
+ReadWritePaths=/var/lib/musegadget /run/musegadget
+
+[Install]
+WantedBy=multi-user.target

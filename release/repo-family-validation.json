@@ -115,7 +115,7 @@
     },
     {
       "repo": "KingHacker9000/totem-registry",
-      "revision": "b5b40ae58705e17212f0dd47827346adaa2c1740",
+      "revision": "b27f1d62e3515b13b95b60ff63bd4098d7a03ffa",
       "kind": "node",
       "runtime": { "node": ">=22.20.0", "package_manager": "npm" },
       "metadata": ["package.json"],
