@@ -218,3 +218,15 @@ The original kiosk and core are unchanged. Disable/stop only `musegadget` and
 uninstalling. Retain state and pairing until explicitly asked to remove them.
 There is no core release migration. Core rollback still uses its existing release
 symlink. Preserve the original theme checkout for Claude Design implementation.
+
+## Physical screen sleep
+
+Muse can call `totem.display.set_sleep` with `{"sleep":true}` to switch off the
+backlight, or `{"sleep":false}` to restore it. This uses fixed helper targets
+`screen:off`/`screen:on`; reinstall the helper and sudoers together before restarting
+the companion and Muse services. Repeated sleep requests preserve the previous
+brightness. A wake reaction or local touch reaction restores the backlight;
+ordinary incoming messages do not cancel requested screen sleep. The avatar's
+`sleeping` activity remains a visual state independent of physical screen power.
+Only the backlight is disabled, so touch, timers, alerts and Muse transport remain
+active. This command does not suspend the Pi.

@@ -21,6 +21,7 @@ def spec(description, required=None, optional=None):
     return {"description": description, "required": fields(required), "optional": fields(optional), "timeout_ms": 15000}
 
 COMMANDS = {
+    "totem.display.set_sleep": spec("Turn the physical screen off when the user asks to sleep the screen (sleep=true); restore it with sleep=false. Avatar sleeping alone does not turn off the screen.", {"sleep": ("boolean", "true to turn off the backlight, false to wake it")}),
     "totem.set_brightness": spec("Set touchscreen backlight brightness.", {"percent": ("integer", "1 to 100")}),
     "totem.health": spec("Read Pi/Totem health and Muse connectivity."),
     "totem.avatar.set_state": spec("Change the physical companion. Put sunglasses on with accessory=sunglasses. No audio hardware.", optional={

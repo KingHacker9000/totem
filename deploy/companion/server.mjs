@@ -20,6 +20,7 @@ import {
   sourceReference,
 } from "./attention.mjs";
 import { briefingDetail, maybeBriefing } from "./briefing.mjs";
+import { setDisplayPower } from "./display-power.mjs";
 import { publishEvent } from "./event-ingress.mjs";
 import { observeHealthEvents } from "./health-events.mjs";
 import { jobUnits, observeJobs } from "./jobs.mjs";
@@ -223,6 +224,28 @@ async function command(name, args = {}, source = "local") {
     await persist();
     broadcast();
     return { ...result, presentation };
+  }
+  if (name === "totem.display.set_sleep") {
+    const result = await setDisplayPower(args, restart);
+    companion.state.audit.push({
+      action: name,
+      source,
+      sleep: result.sleeping,
+      at: Date.now(),
+    });
+    await persist();
+    return result;
+  }
+  if (name === "totem.avatar.react" && args.reaction === "wake") {
+    checkObject(args, ["reaction"]);
+    await restart("screen:on");
+  } else if (source === "touch" && name === "totem.avatar.react") {
+    // A tap still reaches Chromium when only the backlight is off.
+    const brightness = await readFile(
+      "/sys/class/backlight/11-0045/brightness",
+      "utf8",
+    ).catch(() => "1");
+    if (brightness.trim() === "0") await restart("screen:on");
   }
   if (name === "totem.set_brightness") {
     checkObject(args, ["percent"]);
